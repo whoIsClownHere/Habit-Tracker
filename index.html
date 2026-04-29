@@ -797,8 +797,6 @@
           <input id="habitTarget" type="number" min="0" placeholder="Цель в день" />
           <button id="addHabitBtn" class="primary">+ Добавить</button>
         </div>
-
-        <div id="habitsList" class="day-summary-list"></div>
       </section>
       <section class="progress-grid">
         <div class="card period-card">
@@ -991,7 +989,6 @@
     const chartTotalSinceStreak = document.getElementById("chartTotalSinceStreak");
     const chartStreakDays = document.getElementById("chartStreakDays");
     const chartLifetimeTotal = document.getElementById("chartLifetimeTotal");
-    const habitsList = document.getElementById("habitsList");
     const progressHabit = document.getElementById("progressHabit");
     const chart = document.getElementById("progressChart");
     let progressChartInstance = null;
@@ -1160,7 +1157,6 @@
     }
 
     function render() {
-      renderHabitsList();
       renderTodayHeader();
       renderTodayLists();
       renderRewardState();
@@ -1168,73 +1164,6 @@
       renderPeriodProgress();
       renderProgressOptions();
       renderProgress();
-    }
-
-    function renderHabitsList() {
-      habitsList.innerHTML = "";
-      if (data.habits.length === 0) return;
-
-      data.habits.forEach(habit => {
-        const el = document.createElement("div");
-        el.className = "day-summary-item";
-
-        const info = document.createElement("div");
-        info.innerHTML = `
-          <div class="day-summary-name">${escapeHtml(habit.name)}</div>
-          <div class="day-summary-meta">${habit.target || "—"} ${escapeHtml(habit.unit || "")}</div>
-        `;
-
-        const actions = document.createElement("div");
-        actions.style.display = "flex";
-        actions.style.gap = "6px";
-
-        const editBtn = document.createElement("button");
-        editBtn.textContent = "Edit";
-        editBtn.onclick = () => editHabit(habit.id);
-
-        const delBtn = document.createElement("button");
-        delBtn.textContent = "Delete";
-        delBtn.className = "danger";
-        delBtn.onclick = () => deleteHabit(habit.id);
-
-        actions.appendChild(editBtn);
-        actions.appendChild(delBtn);
-
-        el.appendChild(info);
-        el.appendChild(actions);
-        habitsList.appendChild(el);
-      });
-    }
-
-    function editHabit(id) {
-      const habit = data.habits.find(h => h.id === id);
-      if (!habit) return;
-
-      const newName = prompt("Название", habit.name);
-      if (newName === null) return;
-
-      const newUnit = prompt("Единица", habit.unit || "");
-      if (newUnit === null) return;
-
-      const newTarget = prompt("Цель", habit.target || "");
-      if (newTarget === null) return;
-
-      habit.name = newName.trim() || habit.name;
-      habit.unit = newUnit.trim();
-      habit.target = newTarget === "" ? null : Number(newTarget);
-
-      markDirty();
-      render();
-    }
-
-    function deleteHabit(id) {
-      if (!confirm("Удалить привычку?")) return;
-      data.habits = data.habits.filter(h => h.id !== id);
-      Object.keys(data.records).forEach(dateKey => {
-        delete data.records[dateKey]?.[id];
-      });
-      markDirty();
-      render();
     }
 
     function renderTodayHeader() {
