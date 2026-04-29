@@ -239,7 +239,7 @@
 
     .week-grid {
       display: grid;
-      grid-template-columns: 1.4fr 0.8fr 96px;
+      grid-template-columns: 280px repeat(7, 1fr) 96px;
       gap: 0;
       align-items: stretch;
       border-top: 1px solid var(--line);
@@ -340,10 +340,10 @@
     }
 
     .check {
-      width: 42px;
-      height: 42px;
+      width: 32px;
+      height: 32px;
       border-radius: 50%;
-      border: 2px solid var(--line);
+      border: 1px solid var(--muted);
       display: grid;
       place-items: center;
       cursor: pointer;
@@ -352,15 +352,12 @@
       font-weight: 700;
       font-size: 18px;
       transition: 0.12s ease;
-      box-shadow: 0 3px 0 color-mix(in srgb, var(--line), transparent 15%);
     }
 
     .check.done {
       border-color: var(--success);
       background: var(--success);
       color: var(--bg);
-      transform: translateY(2px);
-      box-shadow: 0 1px 0 color-mix(in srgb, var(--success), #000 35%);
     }
 
     .value-input {
@@ -458,7 +455,7 @@
     @media (max-width: 1100px) {
       .week-grid {
         overflow-x: auto;
-        grid-template-columns: 240px 110px 90px;
+        grid-template-columns: 240px repeat(7, 110px) 90px;
       }
       .habit-form { grid-template-columns: 1fr; }
     }
@@ -480,7 +477,7 @@
           <div class="logo">✓</div>
           <h1>Habit Tracker</h1>
         </div>
-        <div class="subtitle">Отмечай привычки только на сегодня, копи стрик и смотри недельный/месячный прогресс.</div>
+        <div class="subtitle">Отмечай привычки внутри недели: галочка + численное значение.</div>
         <div class="status">
           <span id="statusDot" class="status-dot"></span>
           <span id="statusText">Не выполнен вход</span>
@@ -498,7 +495,7 @@
 
     <section class="week-panel">
       <div class="week-nav">
-        <button id="prevWeek" title="Предыдущая неделя">←</button>
+        <button id="prevWeek">←</button>
         <div>
           <div class="week-title" id="weekTitle">Неделя</div>
           <div class="week-range" id="weekRange"></div>
@@ -529,12 +526,12 @@
             <div class="stat-label">Выполнений за неделю</div>
           </div>
           <div class="stat">
-            <div class="stat-value" id="statMonthDone">0</div>
-            <div class="stat-label">Выполнений за 30 дней</div>
-          </div>
-          <div class="stat">
             <div class="stat-value" id="statBestStreak">0</div>
             <div class="stat-label">Лучший текущий стрик</div>
+          </div>
+          <div class="stat">
+            <div class="stat-value" id="statTodayDone">0</div>
+            <div class="stat-label">Выполнено сегодня</div>
           </div>
         </div>
       </section>
@@ -766,16 +763,15 @@
         ? `${start.toLocaleString("ru-RU", { month: "long" })} ${start.getFullYear()}`
         : `${start.toLocaleString("ru-RU", { month: "short" })} — ${end.toLocaleString("ru-RU", { month: "short" })} ${end.getFullYear()}`;
 
-      weekRange.textContent = `Редактирование: только сегодня (${formatFullDate(new Date())}) · Неделя: ${formatFullDate(start)} — ${formatFullDate(end)}`;
+      weekRange.textContent = `${formatFullDate(start)} — ${formatFullDate(end)}`;
     }
 
     function renderGrid() {
       trackerGrid.innerHTML = "";
-      const today = new Date();
-      const todayKey = toDateInputValue(today);
+      const days = getCurrentWeekDays();
 
       trackerGrid.appendChild(makeHead("Привычка"));
-      trackerGrid.appendChild(makeDayHead(today));
+      days.forEach(day => trackerGrid.appendChild(makeDayHead(day)));
       trackerGrid.appendChild(makeHead("Стрик"));
 
       if (!currentUser) {
@@ -787,22 +783,23 @@
         return;
       }
 
-      const activeHabits = data.habits.filter(habit => !data.records[todayKey]?.[habit.id]?.done);
-
-      if (activeHabits.length === 0) {
+      if (data.habits.length === 0) {
         const empty = document.createElement("div");
         empty.className = "empty";
         empty.style.gridColumn = "1 / -1";
-        empty.textContent = data.habits.length === 0
-          ? "Пока нет привычек. Добавь первую сверху."
-          : "На сегодня всё выполнено 🔥 Отличная серия!";
+        empty.textContent = "Пока нет привычек. Добавь первую сверху.";
         trackerGrid.appendChild(empty);
         return;
       }
 
-      activeHabits.forEach(habit => {
+      data.habits.forEach(habit => {
         trackerGrid.appendChild(makeHabitInfo(habit));
-        trackerGrid.appendChild(makeHabitCell(habit, todayKey));
+
+        days.forEach(day => {
+          const dateKey = toDateInputValue(day);
+          trackerGrid.appendChild(makeHabitCell(habit, dateKey));
+        });
+
         trackerGrid.appendChild(makeStreakCell(habit.id));
       });
     }
@@ -904,10 +901,10 @@
 
     function renderStats() {
       const days = getCurrentWeekDays().map(toDateInputValue);
-      const monthDays = lastNDays(30);
+      const today = toDateInputValue(new Date());
 
       let weekDone = 0;
-      let monthDone = 0;
+      let todayDone = 0;
       let bestStreak = 0;
 
       data.habits.forEach(habit => {
@@ -915,17 +912,14 @@
           if (data.records[dateKey]?.[habit.id]?.done) weekDone += 1;
         });
 
-        monthDays.forEach(dateKey => {
-          if (data.records[dateKey]?.[habit.id]?.done) monthDone += 1;
-        });
-
+        if (data.records[today]?.[habit.id]?.done) todayDone += 1;
         bestStreak = Math.max(bestStreak, calculateStreak(habit.id));
       });
 
       document.getElementById("statHabits").textContent = data.habits.length;
       document.getElementById("statWeekDone").textContent = weekDone;
-      document.getElementById("statMonthDone").textContent = monthDone;
       document.getElementById("statBestStreak").textContent = bestStreak;
+      document.getElementById("statTodayDone").textContent = todayDone;
     }
 
     function renderProgressOptions() {
