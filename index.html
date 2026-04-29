@@ -593,9 +593,35 @@
 
     .period-card h2 {
       font-size: 30px;
+      margin-bottom: 4px;
+    }
+
+    .period-head {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      gap: 12px;
       padding-bottom: 14px;
       border-bottom: 1px solid var(--line);
       margin-bottom: 14px;
+    }
+
+    .period-subtitle {
+      color: var(--muted);
+      font-size: 13px;
+      margin-top: 4px;
+    }
+
+    .period-nav {
+      display: flex;
+      gap: 6px;
+      align-items: center;
+      flex-shrink: 0;
+    }
+
+    .period-nav button {
+      padding: 7px 10px;
+      font-size: 13px;
     }
 
     .period-stats {
@@ -774,7 +800,17 @@
       </section>
       <section class="progress-grid">
         <div class="card period-card">
-          <h2>Неделя</h2>
+          <div class="period-head">
+            <div>
+              <h2>Неделя</h2>
+              <div class="period-subtitle" id="weekCalendarTitle"></div>
+            </div>
+            <div class="period-nav">
+              <button id="prevWeekCalendar">←</button>
+              <button id="thisWeekCalendar">This week</button>
+              <button id="nextWeekCalendar">→</button>
+            </div>
+          </div>
           <div class="period-stats">
             <div class="period-stat">
               <div class="period-value" id="weekCompleted">0</div>
@@ -793,7 +829,17 @@
         </div>
 
         <div class="card period-card">
-          <h2>Месяц</h2>
+          <div class="period-head">
+            <div>
+              <h2>Месяц</h2>
+              <div class="period-subtitle" id="monthCalendarTitle"></div>
+            </div>
+            <div class="period-nav">
+              <button id="prevMonthCalendar">←</button>
+              <button id="thisMonthCalendar">This month</button>
+              <button id="nextMonthCalendar">→</button>
+            </div>
+          </div>
           <div class="period-stats">
             <div class="period-stat">
               <div class="period-value" id="monthCompleted">0</div>
@@ -910,6 +956,8 @@
     let saveTimer = null;
     let selectedDate = toDateInputValue(new Date());
     let reviewDate = toDateInputValue(new Date());
+    let visibleWeekStart = getWeekStart(new Date());
+    let visibleMonthDate = new Date();
 
     let data = {
       habits: [],
@@ -956,6 +1004,22 @@
     document.getElementById("downloadBtn").addEventListener("click", downloadBackup);
     document.getElementById("addHabitBtn").addEventListener("click", addHabit);
     document.getElementById("todayBtn").addEventListener("click", goToToday);
+    document.getElementById("prevWeekCalendar").addEventListener("click", () => changeVisibleWeek(-1));
+    document.getElementById("nextWeekCalendar").addEventListener("click", () => changeVisibleWeek(1));
+    document.getElementById("thisWeekCalendar").addEventListener("click", () => {
+      visibleWeekStart = getWeekStart(new Date());
+      reviewDate = toDateInputValue(new Date());
+      renderDayReview();
+      renderPeriodProgress();
+    });
+    document.getElementById("prevMonthCalendar").addEventListener("click", () => changeVisibleMonth(-1));
+    document.getElementById("nextMonthCalendar").addEventListener("click", () => changeVisibleMonth(1));
+    document.getElementById("thisMonthCalendar").addEventListener("click", () => {
+      visibleMonthDate = new Date();
+      reviewDate = toDateInputValue(new Date());
+      renderDayReview();
+      renderPeriodProgress();
+    });
     progressHabit.addEventListener("change", renderProgress);
     reviewDateInput.value = reviewDate;
     reviewDateInput.addEventListener("change", (event) => {
@@ -1224,6 +1288,11 @@
 
       daySummaryList.innerHTML = "";
 
+      if (isFuture) {
+        daySummaryList.innerHTML = `<div class="empty">Будущий день не оценивается как выполненный/невыполненный. Ниже показан только прогноз.</div>`;
+        return;
+      }
+
       if (!currentUser) {
         daySummaryList.innerHTML = `<div class="empty">Войди через Google, чтобы смотреть дневную историю.</div>`;
         return;
@@ -1333,8 +1402,15 @@
     }
 
     function renderPeriodProgress() {
-      renderPeriod("week", getWeekDays(new Date()), "weekCompleted", "weekRate", "weekPerfect", "weekMiniDays");
-      renderPeriod("month", getMonthDays(new Date()), "monthCompleted", "monthRate", "monthPerfect", "monthMiniDays");
+      const weekDays = getWeekDaysFromStart(visibleWeekStart);
+      const monthDays = getMonthDays(visibleMonthDate);
+      document.getElementById("weekCalendarTitle").textContent = `${formatFullDate(weekDays[0])} — ${formatFullDate(weekDays[6])}`;
+      document.getElementById("monthCalendarTitle").textContent = visibleMonthDate.toLocaleDateString("ru-RU", {
+        month: "long",
+        year: "numeric"
+      });
+      renderPeriod("week", weekDays, "weekCompleted", "weekRate", "weekPerfect", "weekMiniDays");
+      renderPeriod("month", monthDays, "monthCompleted", "monthRate", "monthPerfect", "monthMiniDays");
     }
 
     function renderPeriod(periodName, days, completedId, rateId, perfectId, miniId) {
@@ -1776,7 +1852,11 @@
     }
 
     function getWeekDays(date) {
-      const start = getWeekStart(date);
+      return getWeekDaysFromStart(getWeekStart(date));
+    }
+
+    function getWeekDaysFromStart(startDate) {
+      const start = new Date(startDate);
       const days = [];
       for (let i = 0; i < 7; i++) {
         const d = new Date(start);
@@ -1809,7 +1889,20 @@
 
     function goToToday() {
       selectedDate = toDateInputValue(new Date());
+      reviewDate = selectedDate;
+      visibleWeekStart = getWeekStart(new Date());
+      visibleMonthDate = new Date();
       render();
+    }
+
+    function changeVisibleWeek(delta) {
+      visibleWeekStart.setDate(visibleWeekStart.getDate() + delta * 7);
+      renderPeriodProgress();
+    }
+
+    function changeVisibleMonth(delta) {
+      visibleMonthDate = new Date(visibleMonthDate.getFullYear(), visibleMonthDate.getMonth() + delta, 1);
+      renderPeriodProgress();
     }
 
     function lastNDays(n) {
