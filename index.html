@@ -428,6 +428,57 @@
       max-width: 320px;
     }
 
+    .future-projection-box {
+      border: 1px solid var(--line);
+      background: var(--card-2);
+      padding: 14px;
+      margin-bottom: 14px;
+      display: none;
+    }
+
+    .future-projection-title {
+      font-family: Georgia, "Times New Roman", serif;
+      font-size: 24px;
+      letter-spacing: -0.04em;
+      margin-bottom: 6px;
+    }
+
+    .future-projection-text {
+      color: var(--muted);
+      font-size: 13px;
+      line-height: 1.45;
+    }
+
+    .chart-metrics {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 0;
+      border-top: 1px solid var(--line);
+      border-left: 1px solid var(--line);
+      margin-bottom: 16px;
+    }
+
+    .chart-metric {
+      border-right: 1px solid var(--line);
+      border-bottom: 1px solid var(--line);
+      padding: 14px;
+      background: var(--card);
+    }
+
+    .chart-metric-value {
+      font-family: Georgia, "Times New Roman", serif;
+      font-size: 34px;
+      letter-spacing: -0.045em;
+    }
+
+    .chart-metric-label {
+      color: var(--muted);
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      margin-top: 4px;
+    }
+
     .day-summary-item {
       display: grid;
       grid-template-columns: 1fr auto;
@@ -721,6 +772,11 @@
               </div>
               <div class="review-streak-text" id="reviewStreakText">Серия на выбранную дату.</div>
             </div>
+            <div class="future-projection-box" id="futureProjectionBox">
+              <div class="section-kicker">Future projection</div>
+              <div class="future-projection-title" id="futureProjectionTitle">Прогноз</div>
+              <div class="future-projection-text" id="futureProjectionText"></div>
+            </div>
             <div id="daySummaryList" class="day-summary-list"></div>
           </div>
         </div>
@@ -730,6 +786,20 @@
         <div class="chart-top">
           <h2 style="margin:0;">Прогресс</h2>
           <select id="progressHabit"></select>
+        </div>
+        <div class="chart-metrics">
+          <div class="chart-metric">
+            <div class="chart-metric-value" id="chartTotalSinceStreak">0</div>
+            <div class="chart-metric-label">total since streak</div>
+          </div>
+          <div class="chart-metric">
+            <div class="chart-metric-value" id="chartStreakDays">0</div>
+            <div class="chart-metric-label">streak days</div>
+          </div>
+          <div class="chart-metric">
+            <div class="chart-metric-value" id="chartLifetimeTotal">0</div>
+            <div class="chart-metric-label">all-time total</div>
+          </div>
         </div>
         <div class="chart-canvas-wrap">
           <canvas id="progressChart"></canvas>
@@ -797,6 +867,12 @@
     const daySummaryList = document.getElementById("daySummaryList");
     const reviewStreak = document.getElementById("reviewStreak");
     const reviewStreakText = document.getElementById("reviewStreakText");
+    const futureProjectionBox = document.getElementById("futureProjectionBox");
+    const futureProjectionTitle = document.getElementById("futureProjectionTitle");
+    const futureProjectionText = document.getElementById("futureProjectionText");
+    const chartTotalSinceStreak = document.getElementById("chartTotalSinceStreak");
+    const chartStreakDays = document.getElementById("chartStreakDays");
+    const chartLifetimeTotal = document.getElementById("chartLifetimeTotal");
     const progressHabit = document.getElementById("progressHabit");
     const chart = document.getElementById("progressChart");
     let progressChartInstance = null;
@@ -1067,6 +1143,8 @@
         ? "Текущая серия, если сегодняшний день уже закрыт полностью."
         : `Серия, которая была накоплена к концу этого дня.`;
 
+      renderFutureProjection(reviewDate);
+
       daySummaryList.innerHTML = "";
 
       if (!currentUser) {
@@ -1110,6 +1188,31 @@
       summary.className = "empty";
       summary.textContent = `Итого: ${completedCount}/${data.habits.length} привычек закрыто.`;
       daySummaryList.prepend(summary);
+    }
+
+    function renderFutureProjection(dateKey) {
+      const todayKey = toDateInputValue(new Date());
+      const selectedDateObj = parseDateKey(dateKey);
+      const todayObj = parseDateKey(todayKey);
+      const daysAhead = Math.ceil((selectedDateObj - todayObj) / 86400000);
+
+      if (daysAhead <= 0 || data.habits.length === 0) {
+        futureProjectionBox.style.display = "none";
+        return;
+      }
+
+      futureProjectionBox.style.display = "block";
+      futureProjectionTitle.textContent = `Через ${daysAhead} дн.`;
+
+      const projections = data.habits.map(habit => {
+        const currentTotal = calculateTotalUntilDate(habit.id, todayKey);
+        const target = Number(habit.target || 0);
+        const projectedTotal = currentTotal + target * daysAhead;
+        const unit = habit.unit ? ` ${habit.unit}` : "";
+        return `${habit.name}: ${projectedTotal}${unit}`;
+      });
+
+      futureProjectionText.textContent = `Если каждый день выполнять дневную цель до выбранной даты, total будет: ${projections.join(" · ")}`;
     }
 
     function renderRewardState() {
@@ -1197,7 +1300,14 @@
       const habitId = progressHabit.value || data.habits[0]?.id;
       const habit = data.habits.find(h => h.id === habitId);
       clearChart();
-      if (!habit) return;
+      if (!habit) {
+        chartTotalSinceStreak.textContent = "0";
+        chartStreakDays.textContent = "0";
+        chartLifetimeTotal.textContent = "0";
+        return;
+      }
+
+      renderChartMetrics(habit);
 
       const allDates = Object.keys(data.records)
         .filter(dateKey => data.records[dateKey]?.[habit.id])
@@ -1227,6 +1337,19 @@
       });
 
       drawChart(chartData, habit);
+    }
+
+    function renderChartMetrics(habit) {
+      const todayKey = toDateInputValue(new Date());
+      const streakStart = getHabitStreakStartDate(habit.id, todayKey);
+      const totalSinceStreak = streakStart ? calculateTotalBetweenDates(habit.id, streakStart, todayKey) : 0;
+      const streakDays = calculateStreak(habit.id);
+      const lifetimeTotal = calculateLifetimeTotal(habit.id);
+      const unit = habit.unit ? ` ${habit.unit}` : "";
+
+      chartTotalSinceStreak.textContent = `${totalSinceStreak}${unit}`;
+      chartStreakDays.textContent = streakDays;
+      chartLifetimeTotal.textContent = `${lifetimeTotal}${unit}`;
     }
 
     function drawChart(chartData, habit) {
@@ -1462,6 +1585,55 @@
       }
 
       return streak;
+    }
+
+    function getHabitStreakStartDate(habitId, endDateKey) {
+      const cursor = parseDateKey(endDateKey);
+      let start = null;
+
+      for (let i = 0; i < 3650; i++) {
+        const key = toDateInputValue(cursor);
+        const rec = data.records[key]?.[habitId];
+        if (rec?.done) {
+          start = key;
+          cursor.setDate(cursor.getDate() - 1);
+        } else {
+          break;
+        }
+      }
+
+      return start;
+    }
+
+    function calculateTotalUntilDate(habitId, endDateKey) {
+      let total = 0;
+      Object.keys(data.records).forEach(dateKey => {
+        if (dateKey <= endDateKey) {
+          const rec = data.records[dateKey]?.[habitId];
+          if (rec?.done) total += Number(rec.value || 0);
+        }
+      });
+      return total;
+    }
+
+    function calculateTotalBetweenDates(habitId, startDateKey, endDateKey) {
+      let total = 0;
+      Object.keys(data.records).forEach(dateKey => {
+        if (dateKey >= startDateKey && dateKey <= endDateKey) {
+          const rec = data.records[dateKey]?.[habitId];
+          if (rec?.done) total += Number(rec.value || 0);
+        }
+      });
+      return total;
+    }
+
+    function calculateLifetimeTotal(habitId) {
+      let total = 0;
+      Object.keys(data.records).forEach(dateKey => {
+        const rec = data.records[dateKey]?.[habitId];
+        if (rec?.done) total += Number(rec.value || 0);
+      });
+      return total;
     }
 
     function calculateGlobalStreak() {
