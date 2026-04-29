@@ -399,6 +399,33 @@
       display: flex;
       flex-direction: column;
       gap: 8px;
+      margin-top: 14px;
+    }
+
+    .review-streak-box {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 18px;
+      border: 1px solid var(--line);
+      background: var(--warning-soft);
+      padding: 14px;
+      margin-bottom: 14px;
+    }
+
+    .review-streak-number {
+      font-family: Georgia, "Times New Roman", serif;
+      font-size: 46px;
+      line-height: 1;
+      letter-spacing: -0.06em;
+      color: var(--warning);
+    }
+
+    .review-streak-text {
+      color: var(--muted);
+      font-size: 13px;
+      line-height: 1.4;
+      max-width: 320px;
     }
 
     .day-summary-item {
@@ -499,6 +526,13 @@
       color: var(--muted);
       font-size: 12px;
       background: var(--card);
+      cursor: pointer;
+      transition: 0.12s ease;
+    }
+
+    .mini-day:hover {
+      border-color: var(--text);
+      color: var(--text);
     }
 
     .mini-day.done {
@@ -511,6 +545,12 @@
     .mini-day.today {
       outline: 2px solid var(--text);
       outline-offset: -2px;
+    }
+
+    .mini-day.selected {
+      background: var(--text);
+      color: var(--bg);
+      border-color: var(--text);
     }
 
     .chart-top {
@@ -606,25 +646,6 @@
       <section class="card">
         <div class="section-top">
           <div>
-            <div class="section-kicker">Day review</div>
-            <h2>Дневной обзор</h2>
-          </div>
-        </div>
-
-        <div class="day-review-grid">
-          <div class="day-picker-panel">
-            <div class="day-review-title" id="reviewDayTitle">Сегодня</div>
-            <div class="day-review-subtitle">Выбери любой день, чтобы посмотреть, что было сделано. Прошлые дни здесь только читаются, без редактирования.</div>
-            <input type="date" id="reviewDateInput" />
-            <span class="readonly-label">read only</span>
-          </div>
-          <div id="daySummaryList" class="day-summary-list"></div>
-        </div>
-      </section>
-
-      <section class="card">
-        <div class="section-top">
-          <div>
             <div class="section-kicker">Manage habits</div>
             <h2>Привычки</h2>
           </div>
@@ -674,6 +695,34 @@
             </div>
           </div>
           <div class="mini-days" id="monthMiniDays"></div>
+        </div>
+      </section>
+
+      <section class="card">
+        <div class="section-top">
+          <div>
+            <div class="section-kicker">Day review</div>
+            <h2>Дневной обзор</h2>
+          </div>
+        </div>
+
+        <div class="day-review-grid">
+          <div class="day-picker-panel">
+            <div class="day-review-title" id="reviewDayTitle">Сегодня</div>
+            <div class="day-review-subtitle">Нажми на день в недельном или месячном календаре, чтобы посмотреть историю. Прошлые дни здесь только читаются.</div>
+            <input type="date" id="reviewDateInput" />
+            <span class="readonly-label">read only</span>
+          </div>
+          <div>
+            <div class="review-streak-box">
+              <div>
+                <div class="section-kicker">Streak that day</div>
+                <div class="review-streak-number" id="reviewStreak">0</div>
+              </div>
+              <div class="review-streak-text" id="reviewStreakText">Серия на выбранную дату.</div>
+            </div>
+            <div id="daySummaryList" class="day-summary-list"></div>
+          </div>
         </div>
       </section>
 
@@ -746,6 +795,8 @@
     const reviewDateInput = document.getElementById("reviewDateInput");
     const reviewDayTitle = document.getElementById("reviewDayTitle");
     const daySummaryList = document.getElementById("daySummaryList");
+    const reviewStreak = document.getElementById("reviewStreak");
+    const reviewStreakText = document.getElementById("reviewStreakText");
     const progressHabit = document.getElementById("progressHabit");
     const chart = document.getElementById("progressChart");
     let progressChartInstance = null;
@@ -1004,9 +1055,17 @@
       reviewDateInput.value = reviewDate;
       const date = parseDateKey(reviewDate);
       const todayKey = toDateInputValue(new Date());
-      reviewDayTitle.textContent = reviewDate === todayKey
+      const isToday = reviewDate === todayKey;
+      const streakOnDate = calculateGlobalStreakAtDate(reviewDate);
+
+      reviewDayTitle.textContent = isToday
         ? "Сегодня"
         : date.toLocaleDateString("ru-RU", { day: "numeric", month: "long", weekday: "long" });
+
+      reviewStreak.textContent = streakOnDate;
+      reviewStreakText.textContent = isToday
+        ? "Текущая серия, если сегодняшний день уже закрыт полностью."
+        : `Серия, которая была накоплена к концу этого дня.`;
 
       daySummaryList.innerHTML = "";
 
@@ -1108,8 +1167,14 @@
         el.className = "mini-day";
         if (totalHabits > 0 && dayDone === totalHabits) el.classList.add("done");
         if (dateKey === todayKey) el.classList.add("today");
+        if (dateKey === reviewDate) el.classList.add("selected");
         el.textContent = day.getDate();
         el.title = `${dayDone}/${totalHabits}`;
+        el.onclick = () => {
+          reviewDate = dateKey;
+          renderDayReview();
+          renderPeriodProgress();
+        };
         mini.appendChild(el);
       });
     }
@@ -1400,8 +1465,12 @@
     }
 
     function calculateGlobalStreak() {
+      return calculateGlobalStreakAtDate(toDateInputValue(new Date()));
+    }
+
+    function calculateGlobalStreakAtDate(dateKey) {
       let streak = 0;
-      const cursor = new Date();
+      const cursor = parseDateKey(dateKey);
 
       if (data.habits.length === 0) return 0;
 
