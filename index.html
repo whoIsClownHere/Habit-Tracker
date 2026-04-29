@@ -369,6 +369,80 @@
       margin-bottom: 0;
     }
 
+    .day-review-grid {
+      display: grid;
+      grid-template-columns: 240px 1fr;
+      gap: 18px;
+      align-items: start;
+    }
+
+    .day-picker-panel {
+      border-right: 1px solid var(--line);
+      padding-right: 18px;
+    }
+
+    .day-review-title {
+      font-family: Georgia, "Times New Roman", serif;
+      font-size: 30px;
+      letter-spacing: -0.04em;
+      margin-bottom: 8px;
+    }
+
+    .day-review-subtitle {
+      color: var(--muted);
+      font-size: 13px;
+      line-height: 1.45;
+      margin-bottom: 14px;
+    }
+
+    .day-summary-list {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .day-summary-item {
+      display: grid;
+      grid-template-columns: 1fr auto;
+      gap: 12px;
+      align-items: center;
+      border: 1px solid var(--line);
+      padding: 12px;
+      background: var(--card);
+    }
+
+    .day-summary-item.done {
+      background: var(--success-soft);
+      border-color: color-mix(in srgb, var(--success), transparent 55%);
+    }
+
+    .day-summary-name {
+      font-family: Georgia, "Times New Roman", serif;
+      font-size: 20px;
+      letter-spacing: -0.035em;
+    }
+
+    .day-summary-meta {
+      color: var(--muted);
+      font-size: 13px;
+      margin-top: 3px;
+    }
+
+    .day-summary-value {
+      font-size: 18px;
+      font-weight: 700;
+      white-space: nowrap;
+    }
+
+    .readonly-label {
+      display: inline-block;
+      margin-top: 10px;
+      color: var(--muted);
+      font-size: 12px;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+    }
+
     .progress-grid {
       display: grid;
       grid-template-columns: 1fr 1fr;
@@ -462,7 +536,8 @@
     }
 
     @media (max-width: 960px) {
-      .hero-grid, .progress-grid { grid-template-columns: 1fr; }
+      .hero-grid, .progress-grid, .day-review-grid { grid-template-columns: 1fr; }
+      .day-picker-panel { border-right: 0; border-bottom: 1px solid var(--line); padding-right: 0; padding-bottom: 18px; }
       .habit-form { grid-template-columns: 1fr; }
       .quest-item { grid-template-columns: 42px 1fr; }
       .quest-value { grid-column: 1 / -1; }
@@ -525,6 +600,25 @@
           <div class="streak-label-big">дней подряд</div>
           <div class="daily-ring"><div class="daily-ring-fill" id="dailyRingFill"></div></div>
           <div class="streak-warning" id="streakMessage">Выполни все привычки сегодня, чтобы сохранить серию.</div>
+        </div>
+      </section>
+
+      <section class="card">
+        <div class="section-top">
+          <div>
+            <div class="section-kicker">Day review</div>
+            <h2>Дневной обзор</h2>
+          </div>
+        </div>
+
+        <div class="day-review-grid">
+          <div class="day-picker-panel">
+            <div class="day-review-title" id="reviewDayTitle">Сегодня</div>
+            <div class="day-review-subtitle">Выбери любой день, чтобы посмотреть, что было сделано. Прошлые дни здесь только читаются, без редактирования.</div>
+            <input type="date" id="reviewDateInput" />
+            <span class="readonly-label">read only</span>
+          </div>
+          <div id="daySummaryList" class="day-summary-list"></div>
         </div>
       </section>
 
@@ -632,6 +726,7 @@
     let isDirty = false;
     let saveTimer = null;
     let selectedDate = toDateInputValue(new Date());
+    let reviewDate = toDateInputValue(new Date());
 
     let data = {
       habits: [],
@@ -648,6 +743,9 @@
     const heroStreak = document.getElementById("heroStreak");
     const dailyRingFill = document.getElementById("dailyRingFill");
     const streakMessage = document.getElementById("streakMessage");
+    const reviewDateInput = document.getElementById("reviewDateInput");
+    const reviewDayTitle = document.getElementById("reviewDayTitle");
+    const daySummaryList = document.getElementById("daySummaryList");
     const progressHabit = document.getElementById("progressHabit");
     const chart = document.getElementById("progressChart");
     let progressChartInstance = null;
@@ -664,6 +762,11 @@
     document.getElementById("addHabitBtn").addEventListener("click", addHabit);
     document.getElementById("todayBtn").addEventListener("click", goToToday);
     progressHabit.addEventListener("change", renderProgress);
+    reviewDateInput.value = reviewDate;
+    reviewDateInput.addEventListener("change", (event) => {
+      reviewDate = event.target.value;
+      renderDayReview();
+    });
     themeToggle.addEventListener("click", toggleTheme);
     initTheme();
 
@@ -798,6 +901,7 @@
       renderTodayHeader();
       renderTodayLists();
       renderRewardState();
+      renderDayReview();
       renderPeriodProgress();
       renderProgressOptions();
       renderProgress();
@@ -894,6 +998,59 @@
       el.appendChild(info);
       el.appendChild(value);
       return el;
+    }
+
+    function renderDayReview() {
+      reviewDateInput.value = reviewDate;
+      const date = parseDateKey(reviewDate);
+      const todayKey = toDateInputValue(new Date());
+      reviewDayTitle.textContent = reviewDate === todayKey
+        ? "Сегодня"
+        : date.toLocaleDateString("ru-RU", { day: "numeric", month: "long", weekday: "long" });
+
+      daySummaryList.innerHTML = "";
+
+      if (!currentUser) {
+        daySummaryList.innerHTML = `<div class="empty">Войди через Google, чтобы смотреть дневную историю.</div>`;
+        return;
+      }
+
+      if (data.habits.length === 0) {
+        daySummaryList.innerHTML = `<div class="empty">Пока нет привычек для отображения.</div>`;
+        return;
+      }
+
+      let completedCount = 0;
+
+      data.habits.forEach(habit => {
+        const record = getRecord(reviewDate, habit.id, false);
+        const done = Boolean(record?.done);
+        if (done) completedCount += 1;
+
+        const item = document.createElement("div");
+        item.className = "day-summary-item" + (done ? " done" : "");
+
+        const valueText = record?.value
+          ? `${record.value}${habit.unit ? " " + habit.unit : ""}`
+          : done
+            ? "✓"
+            : "—";
+
+        item.innerHTML = `
+          <div>
+            <div class="day-summary-name">${escapeHtml(habit.name)}</div>
+            <div class="day-summary-meta">${done ? "Выполнено" : "Не выполнено"}${habit.target ? ` · цель ${habit.target} ${escapeHtml(habit.unit || "")}` : ""}</div>
+          </div>
+          <div class="day-summary-value">${escapeHtml(valueText)}</div>
+        `;
+
+        daySummaryList.appendChild(item);
+      });
+
+      const summary = document.createElement("div");
+      summary.className = "empty";
+      summary.textContent = `Итого: ${completedCount}/${data.habits.length} привычек закрыто.`;
+      daySummaryList.prepend(summary);
     }
 
     function renderRewardState() {
@@ -1321,6 +1478,11 @@
       a.download = "habit-tracker-backup.json";
       a.click();
       URL.revokeObjectURL(url);
+    }
+
+    function parseDateKey(dateKey) {
+      const [year, month, day] = dateKey.split("-").map(Number);
+      return new Date(year, month - 1, day);
     }
 
     function toDateInputValue(date) {
