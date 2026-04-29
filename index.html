@@ -1,0 +1,1295 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Habit Tracker Firebase</title>
+  <style>
+    :root {
+      --bg: #fbfaf7;
+      --card: #ffffff;
+      --card-2: #f4f1eb;
+      --text: #111111;
+      --muted: #666666;
+      --line: #d8d2c8;
+      --accent: #111111;
+      --accent-soft: #eee9df;
+      --success: #2f6f3e;
+      --success-soft: #e8f2eb;
+      --danger: #9f2a2a;
+      --radius: 2px;
+      --shadow: none;
+    }
+
+    body.dark {
+      --bg: #111111;
+      --card: #171717;
+      --card-2: #202020;
+      --text: #f5f1e8;
+      --muted: #aaa39a;
+      --line: #383838;
+      --accent: #f5f1e8;
+      --accent-soft: #252525;
+      --success: #7ccf8a;
+      --success-soft: rgba(124, 207, 138, 0.12);
+      --danger: #ff8a8a;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      background: var(--bg);
+      color: var(--text);
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      transition: background 0.2s ease, color 0.2s ease;
+    }
+
+    .app {
+      max-width: 1240px;
+      margin: 0 auto;
+      padding: 38px 34px;
+    }
+
+    header {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      gap: 28px;
+      padding-bottom: 24px;
+      border-bottom: 1px solid var(--line);
+      margin-bottom: 34px;
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+    }
+
+    .logo {
+      width: 42px;
+      height: 42px;
+      border: 1px solid var(--text);
+      display: grid;
+      place-items: center;
+      color: var(--text);
+      font-size: 24px;
+      font-weight: 400;
+      font-family: Georgia, "Times New Roman", serif;
+      background: transparent;
+    }
+
+    h1 {
+      margin: 0;
+      font-family: Georgia, "Times New Roman", serif;
+      font-size: 50px;
+      line-height: 0.95;
+      font-weight: 400;
+      letter-spacing: -0.055em;
+    }
+
+    h2 {
+      font-family: Georgia, "Times New Roman", serif;
+      font-weight: 400;
+      letter-spacing: -0.03em;
+    }
+
+    .subtitle {
+      margin-top: 14px;
+      color: var(--muted);
+      font-size: 15px;
+      letter-spacing: -0.01em;
+    }
+
+    button, input, select { font: inherit; }
+
+    button {
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      padding: 10px 14px;
+      cursor: pointer;
+      background: transparent;
+      color: var(--text);
+      font-weight: 500;
+      transition: 0.15s ease;
+    }
+
+    button:hover {
+      background: var(--accent-soft);
+    }
+
+    button.primary {
+      background: var(--text);
+      border-color: var(--text);
+      color: var(--bg);
+    }
+
+    button.success {
+      border-color: var(--success);
+      color: var(--success);
+      background: transparent;
+    }
+
+    button.danger {
+      color: var(--danger);
+      border-color: color-mix(in srgb, var(--danger), transparent 55%);
+      background: transparent;
+    }
+
+    .top-actions {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex-wrap: wrap;
+      justify-content: flex-end;
+    }
+
+    .google-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
+      font-size: 14px;
+    }
+
+    .status {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      color: var(--muted);
+      font-size: 13px;
+      margin-top: 12px;
+    }
+
+    .status-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: var(--muted);
+    }
+
+    .status-dot.ready { background: var(--success); }
+    .status-dot.dirty { background: #b88722; }
+
+    .week-panel {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-end;
+      gap: 20px;
+      margin-bottom: 28px;
+    }
+
+    .week-nav {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+    }
+
+    .week-title {
+      font-family: Georgia, "Times New Roman", serif;
+      font-size: 34px;
+      font-weight: 400;
+      letter-spacing: -0.045em;
+      min-width: 300px;
+      text-transform: capitalize;
+    }
+
+    .week-range {
+      color: var(--muted);
+      font-size: 14px;
+      margin-top: 4px;
+    }
+
+    .layout {
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 24px;
+    }
+
+    .card {
+      background: var(--card);
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      padding: 20px;
+      box-shadow: var(--shadow);
+    }
+
+    .habit-form {
+      display: grid;
+      grid-template-columns: 1.4fr 0.7fr 0.7fr auto;
+      gap: 10px;
+      margin-bottom: 22px;
+      padding-bottom: 20px;
+      border-bottom: 1px solid var(--line);
+    }
+
+    input, select {
+      width: 100%;
+      border: 1px solid var(--line);
+      background: var(--card);
+      border-radius: var(--radius);
+      padding: 10px 11px;
+      color: var(--text);
+      outline: none;
+    }
+
+    input:focus, select:focus {
+      border-color: var(--text);
+    }
+
+    .week-grid {
+      display: grid;
+      grid-template-columns: 280px repeat(7, 1fr) 96px;
+      gap: 0;
+      align-items: stretch;
+      border-top: 1px solid var(--line);
+      border-left: 1px solid var(--line);
+    }
+
+    .grid-head {
+      color: var(--muted);
+      font-size: 11px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      padding: 12px 10px;
+      border-right: 1px solid var(--line);
+      border-bottom: 1px solid var(--line);
+      background: var(--card-2);
+    }
+
+    .day-head {
+      text-align: center;
+      border-right: 1px solid var(--line);
+      border-bottom: 1px solid var(--line);
+      padding: 12px 8px;
+      background: var(--card-2);
+    }
+
+    .day-head.today {
+      background: var(--success-soft);
+      color: var(--success);
+    }
+
+    .day-num {
+      font-family: Georgia, "Times New Roman", serif;
+      font-size: 24px;
+      font-weight: 400;
+      color: var(--text);
+    }
+
+    .day-name {
+      color: var(--muted);
+      font-size: 11px;
+      margin-top: 2px;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+    }
+
+    .habit-row { display: contents; }
+
+    .habit-info, .habit-cell, .streak-cell {
+      border-right: 1px solid var(--line);
+      border-bottom: 1px solid var(--line);
+      background: var(--card);
+      min-height: 96px;
+    }
+
+    .habit-info {
+      padding: 16px;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      gap: 6px;
+    }
+
+    .habit-name {
+      font-family: Georgia, "Times New Roman", serif;
+      font-size: 22px;
+      font-weight: 400;
+      letter-spacing: -0.035em;
+    }
+
+    .habit-meta {
+      color: var(--muted);
+      font-size: 13px;
+    }
+
+    .habit-actions {
+      display: flex;
+      gap: 8px;
+      margin-top: 8px;
+    }
+
+    .habit-actions button {
+      padding: 5px 8px;
+      font-size: 12px;
+    }
+
+    .habit-cell {
+      padding: 10px;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .habit-cell.done {
+      background: var(--success-soft);
+    }
+
+    .check {
+      width: 32px;
+      height: 32px;
+      border-radius: 50%;
+      border: 1px solid var(--muted);
+      display: grid;
+      place-items: center;
+      cursor: pointer;
+      user-select: none;
+      color: transparent;
+      font-weight: 700;
+      font-size: 18px;
+      transition: 0.12s ease;
+    }
+
+    .check.done {
+      border-color: var(--success);
+      background: var(--success);
+      color: var(--bg);
+    }
+
+    .value-input {
+      width: 68px;
+      text-align: center;
+      padding: 6px;
+      font-size: 13px;
+    }
+
+    .streak-cell {
+      padding: 12px;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      gap: 3px;
+      background: var(--card-2);
+    }
+
+    .streak-number {
+      font-family: Georgia, "Times New Roman", serif;
+      font-size: 28px;
+      font-weight: 400;
+    }
+
+    .streak-label {
+      color: var(--muted);
+      font-size: 12px;
+    }
+
+    .empty {
+      color: var(--muted);
+      padding: 28px;
+      border-right: 1px solid var(--line);
+      border-bottom: 1px solid var(--line);
+      text-align: center;
+      line-height: 1.5;
+    }
+
+    .stats {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 0;
+      margin-top: 22px;
+      border-top: 1px solid var(--line);
+      border-left: 1px solid var(--line);
+    }
+
+    .stat {
+      border-right: 1px solid var(--line);
+      border-bottom: 1px solid var(--line);
+      background: var(--card);
+      padding: 16px;
+    }
+
+    .stat-value {
+      font-family: Georgia, "Times New Roman", serif;
+      font-size: 34px;
+      font-weight: 400;
+      letter-spacing: -0.04em;
+    }
+
+    .stat-label {
+      color: var(--muted);
+      font-size: 12px;
+      margin-top: 4px;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+    }
+
+    .chart-wrap { margin-top: 0; }
+
+    .chart-top {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 12px;
+      padding-bottom: 14px;
+      border-bottom: 1px solid var(--line);
+    }
+
+    .chart-canvas-wrap {
+      position: relative;
+      width: 100%;
+      height: 320px;
+    }
+
+    canvas {
+      width: 100% !important;
+      height: 100% !important;
+      display: block;
+    }
+
+    @media (max-width: 1100px) {
+      .week-grid {
+        overflow-x: auto;
+        grid-template-columns: 240px repeat(7, 110px) 90px;
+      }
+      .habit-form { grid-template-columns: 1fr; }
+    }
+
+    @media (max-width: 760px) {
+      .app { padding: 22px 16px; }
+      header, .week-panel { flex-direction: column; align-items: flex-start; }
+      .top-actions { justify-content: flex-start; }
+      h1 { font-size: 42px; }
+      .stats { grid-template-columns: 1fr 1fr; }
+    }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <header>
+      <div>
+        <div class="brand">
+          <div class="logo">✓</div>
+          <h1>Habit Tracker</h1>
+        </div>
+        <div class="subtitle">Отмечай привычки внутри недели: галочка + численное значение.</div>
+        <div class="status">
+          <span id="statusDot" class="status-dot"></span>
+          <span id="statusText">Не выполнен вход</span>
+        </div>
+      </div>
+
+      <div class="top-actions">
+        <button id="signInBtn" class="google-btn"><span>G</span> Войти через Google</button>
+        <button id="signOutBtn" class="secondary">Выйти</button>
+        <button id="saveBtn" class="secondary">Сохранить</button>
+        <button id="downloadBtn" class="secondary">Скачать JSON</button>
+        <button id="themeToggle" class="secondary">Dark mode</button>
+      </div>
+    </header>
+
+    <section class="week-panel">
+      <div class="week-nav">
+        <button id="prevWeek">←</button>
+        <div>
+          <div class="week-title" id="weekTitle">Неделя</div>
+          <div class="week-range" id="weekRange"></div>
+        </div>
+        <button id="nextWeek">→</button>
+      </div>
+      <button id="todayBtn" class="success">Сегодня</button>
+    </section>
+
+    <main class="layout">
+      <section class="card">
+        <div class="habit-form">
+          <input id="habitName" placeholder="Привычка: Отжимания" />
+          <input id="habitUnit" placeholder="Единица: reps, min, pages" />
+          <input id="habitTarget" type="number" min="0" placeholder="Цель в день" />
+          <button id="addHabitBtn" class="primary">+ Добавить</button>
+        </div>
+
+        <div id="trackerGrid" class="week-grid"></div>
+
+        <div class="stats">
+          <div class="stat">
+            <div class="stat-value" id="statHabits">0</div>
+            <div class="stat-label">Всего привычек</div>
+          </div>
+          <div class="stat">
+            <div class="stat-value" id="statWeekDone">0</div>
+            <div class="stat-label">Выполнений за неделю</div>
+          </div>
+          <div class="stat">
+            <div class="stat-value" id="statBestStreak">0</div>
+            <div class="stat-label">Лучший текущий стрик</div>
+          </div>
+          <div class="stat">
+            <div class="stat-value" id="statTodayDone">0</div>
+            <div class="stat-label">Выполнено сегодня</div>
+          </div>
+        </div>
+      </section>
+
+      <section class="card chart-wrap">
+        <div class="chart-top">
+          <h2 style="margin:0;">Прогресс</h2>
+          <select id="progressHabit"></select>
+        </div>
+        <div class="chart-canvas-wrap">
+          <canvas id="progressChart"></canvas>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.5.0/dist/chart.umd.min.js"></script>
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/12.12.1/firebase-app.js";
+    import {
+      getAuth,
+      GoogleAuthProvider,
+      signInWithPopup,
+      signOut,
+      onAuthStateChanged
+    } from "https://www.gstatic.com/firebasejs/12.12.1/firebase-auth.js";
+    import {
+      getFirestore,
+      doc,
+      getDoc,
+      setDoc,
+      serverTimestamp
+    } from "https://www.gstatic.com/firebasejs/12.12.1/firebase-firestore.js";
+
+    const firebaseConfig = {
+      apiKey: "AIzaSyDePMT6RKXEHE0yRv4d7yCP0OZVrr3qG74",
+      authDomain: "habits-1111.firebaseapp.com",
+      projectId: "habits-1111",
+      storageBucket: "habits-1111.firebasestorage.app",
+      messagingSenderId: "303122471649",
+      appId: "1:303122471649:web:be1e609b25df27447a35a0",
+      measurementId: "G-RRF9PPL1GX"
+    };
+
+    const app = initializeApp(firebaseConfig);
+    const auth = getAuth(app);
+    const provider = new GoogleAuthProvider();
+    const db = getFirestore(app);
+
+    let currentUser = null;
+    let isDirty = false;
+    let saveTimer = null;
+    let currentWeekStart = getWeekStart(new Date());
+
+    let data = {
+      habits: [],
+      records: {}
+    };
+
+    const signInBtn = document.getElementById("signInBtn");
+    const signOutBtn = document.getElementById("signOutBtn");
+    const saveBtn = document.getElementById("saveBtn");
+    const themeToggle = document.getElementById("themeToggle");
+    const trackerGrid = document.getElementById("trackerGrid");
+    const weekTitle = document.getElementById("weekTitle");
+    const weekRange = document.getElementById("weekRange");
+    const progressHabit = document.getElementById("progressHabit");
+    const chart = document.getElementById("progressChart");
+    let progressChartInstance = null;
+    const statusDot = document.getElementById("statusDot");
+    const statusText = document.getElementById("statusText");
+
+    signOutBtn.style.display = "none";
+    saveBtn.style.display = "none";
+
+    signInBtn.addEventListener("click", signIn);
+    signOutBtn.addEventListener("click", () => signOut(auth));
+    saveBtn.addEventListener("click", () => saveToFirebase(true));
+    document.getElementById("downloadBtn").addEventListener("click", downloadBackup);
+    document.getElementById("addHabitBtn").addEventListener("click", addHabit);
+    document.getElementById("prevWeek").addEventListener("click", () => changeWeek(-1));
+    document.getElementById("nextWeek").addEventListener("click", () => changeWeek(1));
+    document.getElementById("todayBtn").addEventListener("click", goToToday);
+    progressHabit.addEventListener("change", renderProgress);
+    themeToggle.addEventListener("click", toggleTheme);
+    initTheme();
+
+    onAuthStateChanged(auth, async (user) => {
+      currentUser = user;
+
+      if (!user) {
+        signInBtn.style.display = "inline-flex";
+        signOutBtn.style.display = "none";
+        saveBtn.style.display = "none";
+        data = { habits: [], records: {} };
+        isDirty = false;
+        updateStatus("Не выполнен вход", "off");
+        render();
+        return;
+      }
+
+      signInBtn.style.display = "none";
+      signOutBtn.style.display = "inline-block";
+      saveBtn.style.display = "inline-block";
+      updateStatus(`Вход: ${user.email || user.displayName}`, "ready");
+      await loadFromFirebase();
+      render();
+    });
+
+    render();
+
+    function initTheme() {
+      const savedTheme = localStorage.getItem("habitTheme") || "light";
+      document.body.classList.toggle("dark", savedTheme === "dark");
+      themeToggle.textContent = savedTheme === "dark" ? "Light mode" : "Dark mode";
+    }
+
+    function toggleTheme() {
+      const isDark = document.body.classList.toggle("dark");
+      localStorage.setItem("habitTheme", isDark ? "dark" : "light");
+      themeToggle.textContent = isDark ? "Light mode" : "Dark mode";
+    }
+
+    async function signIn() {
+      try {
+        await signInWithPopup(auth, provider);
+      } catch (error) {
+        alert("Не удалось войти: " + error.message);
+      }
+    }
+
+    function getUserDocRef() {
+      if (!currentUser) return null;
+      return doc(db, "users", currentUser.uid, "habitData", "main");
+    }
+
+    async function loadFromFirebase() {
+      const ref = getUserDocRef();
+      if (!ref) return;
+
+      try {
+        const snap = await getDoc(ref);
+
+        if (!snap.exists()) {
+          data = {
+            habits: [
+              { id: crypto.randomUUID(), name: "Отжимания 🏃", unit: "раз", target: 15, createdAt: toDateInputValue(new Date()) },
+              { id: crypto.randomUUID(), name: "Чтение 📖", unit: "страниц", target: 20, createdAt: toDateInputValue(new Date()) }
+            ],
+            records: {}
+          };
+          await saveToFirebase(false);
+          return;
+        }
+
+        const saved = snap.data();
+        data = normalizeData(saved.data || saved);
+        isDirty = false;
+        updateStatus("Данные загружены", "ready");
+      } catch (error) {
+        alert("Не удалось загрузить данные из Firebase: " + error.message);
+      }
+    }
+
+    async function saveToFirebase(showAlert = false) {
+      const ref = getUserDocRef();
+      if (!currentUser || !ref) {
+        alert("Сначала войди через Google.");
+        return;
+      }
+
+      try {
+        await setDoc(ref, {
+          data,
+          updatedAt: serverTimestamp(),
+          ownerUid: currentUser.uid,
+          ownerEmail: currentUser.email || null
+        });
+
+        isDirty = false;
+        updateStatus("Сохранено", "ready");
+        if (showAlert) alert("Сохранено в Firebase");
+      } catch (error) {
+        alert("Не удалось сохранить в Firebase: " + error.message);
+      }
+    }
+
+    function scheduleAutoSave() {
+      if (!currentUser) return;
+      clearTimeout(saveTimer);
+      saveTimer = setTimeout(() => saveToFirebase(false), 700);
+    }
+
+    function markDirty() {
+      isDirty = true;
+      updateStatus("Сохраняю изменения...", "dirty");
+      scheduleAutoSave();
+    }
+
+    function updateStatus(text, mode) {
+      statusText.textContent = text;
+      statusDot.className = "status-dot";
+      if (mode === "ready") statusDot.classList.add("ready");
+      if (mode === "dirty") statusDot.classList.add("dirty");
+    }
+
+    function normalizeData(input) {
+      return {
+        habits: Array.isArray(input.habits) ? input.habits : [],
+        records: input.records && typeof input.records === "object" ? input.records : {}
+      };
+    }
+
+    function render() {
+      renderWeekHeader();
+      renderGrid();
+      renderStats();
+      renderProgressOptions();
+      renderProgress();
+    }
+
+    function renderWeekHeader() {
+      const days = getCurrentWeekDays();
+      const start = days[0];
+      const end = days[6];
+      const sameMonth = start.getMonth() === end.getMonth();
+
+      weekTitle.textContent = sameMonth
+        ? `${start.toLocaleString("ru-RU", { month: "long" })} ${start.getFullYear()}`
+        : `${start.toLocaleString("ru-RU", { month: "short" })} — ${end.toLocaleString("ru-RU", { month: "short" })} ${end.getFullYear()}`;
+
+      weekRange.textContent = `${formatFullDate(start)} — ${formatFullDate(end)}`;
+    }
+
+    function renderGrid() {
+      trackerGrid.innerHTML = "";
+      const days = getCurrentWeekDays();
+
+      trackerGrid.appendChild(makeHead("Привычка"));
+      days.forEach(day => trackerGrid.appendChild(makeDayHead(day)));
+      trackerGrid.appendChild(makeHead("Стрик"));
+
+      if (!currentUser) {
+        const empty = document.createElement("div");
+        empty.className = "empty";
+        empty.style.gridColumn = "1 / -1";
+        empty.textContent = "Войди через Google, чтобы загрузить свои привычки.";
+        trackerGrid.appendChild(empty);
+        return;
+      }
+
+      if (data.habits.length === 0) {
+        const empty = document.createElement("div");
+        empty.className = "empty";
+        empty.style.gridColumn = "1 / -1";
+        empty.textContent = "Пока нет привычек. Добавь первую сверху.";
+        trackerGrid.appendChild(empty);
+        return;
+      }
+
+      data.habits.forEach(habit => {
+        trackerGrid.appendChild(makeHabitInfo(habit));
+
+        days.forEach(day => {
+          const dateKey = toDateInputValue(day);
+          trackerGrid.appendChild(makeHabitCell(habit, dateKey));
+        });
+
+        trackerGrid.appendChild(makeStreakCell(habit.id));
+      });
+    }
+
+    function makeHead(text) {
+      const el = document.createElement("div");
+      el.className = "grid-head";
+      el.textContent = text;
+      return el;
+    }
+
+    function makeDayHead(day) {
+      const todayKey = toDateInputValue(new Date());
+      const dateKey = toDateInputValue(day);
+      const el = document.createElement("div");
+      el.className = "day-head" + (dateKey === todayKey ? " today" : "");
+      el.innerHTML = `
+        <div class="day-num">${day.getDate()}</div>
+        <div class="day-name">${day.toLocaleDateString("ru-RU", { weekday: "short" })}</div>
+      `;
+      return el;
+    }
+
+    function makeHabitInfo(habit) {
+      const el = document.createElement("div");
+      el.className = "habit-info";
+      el.innerHTML = `
+        <div class="habit-name">${escapeHtml(habit.name)}</div>
+        <div class="habit-meta">Цель: ${habit.target || "без цели"} ${escapeHtml(habit.unit || "")}</div>
+      `;
+
+      const actions = document.createElement("div");
+      actions.className = "habit-actions";
+
+      const renameBtn = document.createElement("button");
+      renameBtn.className = "secondary";
+      renameBtn.textContent = "Изм.";
+      renameBtn.onclick = () => renameHabit(habit);
+
+      const deleteBtn = document.createElement("button");
+      deleteBtn.className = "danger";
+      deleteBtn.textContent = "Удалить";
+      deleteBtn.onclick = () => deleteHabit(habit);
+
+      actions.appendChild(renameBtn);
+      actions.appendChild(deleteBtn);
+      el.appendChild(actions);
+      return el;
+    }
+
+    function makeHabitCell(habit, dateKey) {
+      const record = getRecord(dateKey, habit.id);
+      const el = document.createElement("div");
+      el.className = "habit-cell" + (record.done ? " done" : "");
+
+      const check = document.createElement("div");
+      check.className = "check" + (record.done ? " done" : "");
+      check.textContent = "✓";
+      check.onclick = () => {
+        record.done = !record.done;
+        if (record.done && !record.value && habit.target) record.value = Number(habit.target);
+        saveRecord(dateKey, habit.id, record);
+        markDirty();
+        render();
+      };
+
+      const value = document.createElement("input");
+      value.className = "value-input";
+      value.type = "number";
+      value.min = "0";
+      value.placeholder = habit.unit || "value";
+      value.value = record.value ?? "";
+      value.oninput = () => {
+        record.value = value.value === "" ? "" : Number(value.value);
+        record.done = Number(record.value) > 0 || record.done;
+        saveRecord(dateKey, habit.id, record);
+        markDirty();
+        renderStats();
+        renderProgress();
+        el.className = "habit-cell" + (record.done ? " done" : "");
+        check.className = "check" + (record.done ? " done" : "");
+      };
+
+      el.appendChild(check);
+      el.appendChild(value);
+      return el;
+    }
+
+    function makeStreakCell(habitId) {
+      const streak = calculateStreak(habitId);
+      const el = document.createElement("div");
+      el.className = "streak-cell";
+      el.innerHTML = `
+        <div class="streak-number">${streak}</div>
+        <div class="streak-label">дней</div>
+      `;
+      return el;
+    }
+
+    function renderStats() {
+      const days = getCurrentWeekDays().map(toDateInputValue);
+      const today = toDateInputValue(new Date());
+
+      let weekDone = 0;
+      let todayDone = 0;
+      let bestStreak = 0;
+
+      data.habits.forEach(habit => {
+        days.forEach(dateKey => {
+          if (data.records[dateKey]?.[habit.id]?.done) weekDone += 1;
+        });
+
+        if (data.records[today]?.[habit.id]?.done) todayDone += 1;
+        bestStreak = Math.max(bestStreak, calculateStreak(habit.id));
+      });
+
+      document.getElementById("statHabits").textContent = data.habits.length;
+      document.getElementById("statWeekDone").textContent = weekDone;
+      document.getElementById("statBestStreak").textContent = bestStreak;
+      document.getElementById("statTodayDone").textContent = todayDone;
+    }
+
+    function renderProgressOptions() {
+      const current = progressHabit.value;
+      progressHabit.innerHTML = "";
+
+      data.habits.forEach(habit => {
+        const option = document.createElement("option");
+        option.value = habit.id;
+        option.textContent = habit.name;
+        progressHabit.appendChild(option);
+      });
+
+      if (data.habits.some(h => h.id === current)) progressHabit.value = current;
+    }
+
+    function renderProgress() {
+      const habitId = progressHabit.value || data.habits[0]?.id;
+      const habit = data.habits.find(h => h.id === habitId);
+      clearChart();
+      if (!habit) return;
+
+      const allDates = Object.keys(data.records)
+        .filter(dateKey => data.records[dateKey]?.[habit.id])
+        .sort();
+
+      const datesWithValues = allDates.filter(dateKey => {
+        const rec = data.records[dateKey]?.[habit.id];
+        return rec && (rec.done || Number(rec.value) > 0);
+      });
+
+      let chartDates;
+
+      if (datesWithValues.length === 0) {
+        chartDates = lastNDays(7);
+      } else {
+        const first = parseDate(datesWithValues[0]);
+        const last = parseDate(datesWithValues[datesWithValues.length - 1]);
+        first.setDate(first.getDate() - 2);
+        last.setDate(last.getDate() + 2);
+        chartDates = dateRange(first, last).slice(-45);
+      }
+
+      const chartData = chartDates.map(dateKey => {
+        const rec = getRecord(dateKey, habit.id, false);
+        const value = rec ? Number(rec.value || (rec.done ? 1 : 0)) : null;
+        return { dateKey, value, done: Boolean(rec?.done) };
+      });
+
+      drawChart(chartData, habit);
+    }
+
+    function drawChart(chartData, habit) {
+      const labels = chartData.map(d => formatShortDate(d.dateKey));
+      const values = chartData.map(d => d.value);
+      const target = habit.target ? Number(habit.target) : null;
+      const visibleValues = values.filter(v => v !== null && !Number.isNaN(v));
+      const maxValue = Math.max(1, ...visibleValues, target || 0);
+      const suggestedMax = Math.ceil(maxValue * 1.2);
+
+      const textColor = getCssColor("--text");
+      const mutedColor = getCssColor("--muted");
+      const lineColor = getCssColor("--line");
+      const successColor = getCssColor("--success");
+      const cardColor = getCssColor("--card");
+
+      const datasets = [
+        {
+          label: habit.name,
+          data: values,
+          borderColor: successColor,
+          backgroundColor: createChartGradient(successColor),
+          pointBackgroundColor: cardColor,
+          pointBorderColor: successColor,
+          pointRadius: 4,
+          pointHoverRadius: 6,
+          pointBorderWidth: 2,
+          borderWidth: 2,
+          tension: 0.28,
+          fill: true,
+          spanGaps: true
+        }
+      ];
+
+      if (target) {
+        datasets.push({
+          label: `Цель: ${target}`,
+          data: values.map(() => target),
+          borderColor: "rgba(184, 135, 34, 0.7)",
+          borderDash: [7, 7],
+          pointRadius: 0,
+          borderWidth: 1.5,
+          fill: false
+        });
+      }
+
+      if (progressChartInstance) {
+        progressChartInstance.destroy();
+      }
+
+      progressChartInstance = new window.Chart(chart, {
+        type: "line",
+        data: { labels, datasets },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          animation: false,
+          interaction: {
+            mode: "index",
+            intersect: false
+          },
+          plugins: {
+            legend: {
+              display: false
+            },
+            tooltip: {
+              backgroundColor: cardColor,
+              titleColor: textColor,
+              bodyColor: textColor,
+              borderColor: lineColor,
+              borderWidth: 1,
+              padding: 10,
+              displayColors: false,
+              callbacks: {
+                label: (context) => {
+                  if (context.datasetIndex === 1) return `Цель: ${target}`;
+                  const unit = habit.unit ? ` ${habit.unit}` : "";
+                  return `${habit.name}: ${context.parsed.y}${unit}`;
+                }
+              }
+            }
+          },
+          scales: {
+            x: {
+              grid: { display: false },
+              border: { color: lineColor },
+              ticks: {
+                color: mutedColor,
+                maxTicksLimit: 7,
+                font: { size: 12 }
+              }
+            },
+            y: {
+              beginAtZero: true,
+              suggestedMax,
+              border: { color: lineColor },
+              grid: { color: lineColor },
+              ticks: {
+                color: mutedColor,
+                precision: 0,
+                font: { size: 12 }
+              }
+            }
+          }
+        }
+      });
+    }
+
+    function createChartGradient(successColor) {
+      const ctx = chart.getContext("2d");
+      const gradient = ctx.createLinearGradient(0, 0, 0, 320);
+      gradient.addColorStop(0, "rgba(47, 111, 62, 0.16)");
+      gradient.addColorStop(1, "rgba(47, 111, 62, 0.00)");
+      return gradient;
+    }
+
+    function clearChart() {
+      if (progressChartInstance) {
+        progressChartInstance.destroy();
+        progressChartInstance = null;
+      }
+    }
+
+    function getCssColor(variableName) {
+      return getComputedStyle(document.body).getPropertyValue(variableName).trim();
+    }
+
+    function parseDate(dateKey) {
+      const [year, month, day] = dateKey.split("-").map(Number);
+      return new Date(year, month - 1, day);
+    }
+
+    function dateRange(startDate, endDate) {
+      const dates = [];
+      const cursor = new Date(startDate);
+      cursor.setHours(0, 0, 0, 0);
+      const end = new Date(endDate);
+      end.setHours(0, 0, 0, 0);
+
+      while (cursor <= end) {
+        dates.push(toDateInputValue(cursor));
+        cursor.setDate(cursor.getDate() + 1);
+      }
+
+      return dates;
+    }
+
+    function addHabit() {
+      if (!currentUser) {
+        alert("Сначала войди через Google.");
+        return;
+      }
+
+      const name = document.getElementById("habitName").value.trim();
+      const unit = document.getElementById("habitUnit").value.trim();
+      const targetRaw = document.getElementById("habitTarget").value;
+
+      if (!name) {
+        alert("Введите название привычки");
+        return;
+      }
+
+      data.habits.push({
+        id: crypto.randomUUID(),
+        name,
+        unit,
+        target: targetRaw === "" ? "" : Number(targetRaw),
+        createdAt: toDateInputValue(new Date())
+      });
+
+      document.getElementById("habitName").value = "";
+      document.getElementById("habitUnit").value = "";
+      document.getElementById("habitTarget").value = "";
+
+      markDirty();
+      render();
+    }
+
+    function renameHabit(habit) {
+      const newName = prompt("Название привычки", habit.name);
+      if (!newName || !newName.trim()) return;
+
+      const newTarget = prompt("Цель в день", habit.target || "");
+      const newUnit = prompt("Единица", habit.unit || "");
+
+      habit.name = newName.trim();
+      habit.target = newTarget === "" ? "" : Number(newTarget);
+      habit.unit = newUnit || "";
+      markDirty();
+      render();
+    }
+
+    function deleteHabit(habit) {
+      if (!confirm(`Удалить привычку «${habit.name}»?`)) return;
+      data.habits = data.habits.filter(h => h.id !== habit.id);
+      Object.values(data.records).forEach(day => delete day[habit.id]);
+      markDirty();
+      render();
+    }
+
+    function getRecord(dateKey, habitId, create = true) {
+      if (!data.records[dateKey]) {
+        if (!create) return null;
+        data.records[dateKey] = {};
+      }
+
+      if (!data.records[dateKey][habitId]) {
+        if (!create) return null;
+        data.records[dateKey][habitId] = { done: false, value: "" };
+      }
+
+      return data.records[dateKey][habitId];
+    }
+
+    function saveRecord(dateKey, habitId, record) {
+      if (!data.records[dateKey]) data.records[dateKey] = {};
+      data.records[dateKey][habitId] = record;
+    }
+
+    function calculateStreak(habitId) {
+      let streak = 0;
+      const cursor = new Date();
+
+      for (let i = 0; i < 3650; i++) {
+        const key = toDateInputValue(cursor);
+        const rec = data.records[key]?.[habitId];
+        if (rec?.done) {
+          streak += 1;
+          cursor.setDate(cursor.getDate() - 1);
+        } else {
+          break;
+        }
+      }
+
+      return streak;
+    }
+
+    function getCurrentWeekDays() {
+      const days = [];
+      for (let i = 0; i < 7; i++) {
+        const d = new Date(currentWeekStart);
+        d.setDate(currentWeekStart.getDate() + i);
+        days.push(d);
+      }
+      return days;
+    }
+
+    function getWeekStart(date) {
+      const d = new Date(date);
+      d.setHours(0, 0, 0, 0);
+      const day = d.getDay();
+      const diff = day === 0 ? -6 : 1 - day;
+      d.setDate(d.getDate() + diff);
+      return d;
+    }
+
+    function changeWeek(delta) {
+      currentWeekStart.setDate(currentWeekStart.getDate() + delta * 7);
+      render();
+    }
+
+    function goToToday() {
+      currentWeekStart = getWeekStart(new Date());
+      render();
+    }
+
+    function lastNDays(n) {
+      const days = [];
+      const start = new Date();
+      start.setDate(start.getDate() - n + 1);
+
+      for (let i = 0; i < n; i++) {
+        const day = new Date(start);
+        day.setDate(start.getDate() + i);
+        days.push(toDateInputValue(day));
+      }
+
+      return days;
+    }
+
+    function downloadBackup() {
+      const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = "habit-tracker-backup.json";
+      a.click();
+      URL.revokeObjectURL(url);
+    }
+
+    function toDateInputValue(date) {
+      const local = new Date(date.getTime() - date.getTimezoneOffset() * 60000);
+      return local.toISOString().slice(0, 10);
+    }
+
+    function formatShortDate(dateKey) {
+      const [year, month, day] = dateKey.split("-").map(Number);
+      const date = new Date(year, month - 1, day);
+      return date.toLocaleDateString("ru-RU", { day: "2-digit", month: "2-digit" });
+    }
+
+    function formatFullDate(date) {
+      return date.toLocaleDateString("ru-RU", { day: "numeric", month: "long" });
+    }
+
+    function escapeHtml(value) {
+      return String(value).replace(/[&<>'"]/g, char => ({
+        "&": "&amp;",
+        "<": "&lt;",
+        ">": "&gt;",
+        "'": "&#039;",
+        '"': "&quot;"
+      }[char]));
+    }
+
+    window.addEventListener("beforeunload", (event) => {
+      if (!isDirty) return;
+      event.preventDefault();
+      event.returnValue = "";
+    });
+  </script>
+</body>
+</html>
