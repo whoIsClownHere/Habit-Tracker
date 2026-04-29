@@ -436,6 +436,69 @@
       display: none;
     }
 
+    .review-streak-box.danger {
+      background: color-mix(in srgb, var(--danger), transparent 88%);
+      border-color: color-mix(in srgb, var(--danger), transparent 50%);
+    }
+
+    .review-streak-box.danger .review-streak-number {
+      color: var(--danger);
+    }
+
+    .review-streak-box.future {
+      background: color-mix(in srgb, #2563eb, transparent 88%);
+      border-color: color-mix(in srgb, #2563eb, transparent 50%);
+    }
+
+    .review-streak-box.future .review-streak-number {
+      color: #2563eb;
+    }
+
+    .projection-table {
+      display: flex;
+      flex-direction: column;
+      gap: 0;
+      border-top: 1px solid var(--line);
+      border-left: 1px solid var(--line);
+      margin-top: 12px;
+    }
+
+    .projection-row {
+      display: grid;
+      grid-template-columns: 1fr 90px 90px 110px;
+      border-bottom: 1px solid var(--line);
+    }
+
+    .projection-cell {
+      border-right: 1px solid var(--line);
+      padding: 10px;
+      font-size: 13px;
+    }
+
+    .projection-head {
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      font-size: 11px;
+      background: var(--card);
+    }
+
+    .projection-total {
+      font-weight: 700;
+    }
+
+    .chart-metric.hidden {
+      display: none;
+    }
+
+    .chart-metrics.two-cols {
+      grid-template-columns: repeat(2, 1fr);
+    }
+
+    .chart-metrics.three-cols {
+      grid-template-columns: repeat(3, 1fr);
+    }
+
     .future-projection-title {
       font-family: Georgia, "Times New Roman", serif;
       font-size: 24px;
@@ -765,7 +828,7 @@
             <span class="readonly-label">read only</span>
           </div>
           <div>
-            <div class="review-streak-box">
+            <div class="review-streak-box" id="reviewStreakBox">
               <div>
                 <div class="section-kicker">Streak that day</div>
                 <div class="review-streak-number" id="reviewStreak">0</div>
@@ -776,6 +839,7 @@
               <div class="section-kicker">Future projection</div>
               <div class="future-projection-title" id="futureProjectionTitle">Прогноз</div>
               <div class="future-projection-text" id="futureProjectionText"></div>
+              <div class="projection-table" id="futureProjectionTable"></div>
             </div>
             <div id="daySummaryList" class="day-summary-list"></div>
           </div>
@@ -787,8 +851,8 @@
           <h2 style="margin:0;">Прогресс</h2>
           <select id="progressHabit"></select>
         </div>
-        <div class="chart-metrics">
-          <div class="chart-metric">
+        <div class="chart-metrics three-cols" id="chartMetrics">
+          <div class="chart-metric" id="totalSinceStreakMetric">
             <div class="chart-metric-value" id="chartTotalSinceStreak">0</div>
             <div class="chart-metric-label">total since streak</div>
           </div>
@@ -865,11 +929,15 @@
     const reviewDateInput = document.getElementById("reviewDateInput");
     const reviewDayTitle = document.getElementById("reviewDayTitle");
     const daySummaryList = document.getElementById("daySummaryList");
+    const reviewStreakBox = document.getElementById("reviewStreakBox");
     const reviewStreak = document.getElementById("reviewStreak");
     const reviewStreakText = document.getElementById("reviewStreakText");
     const futureProjectionBox = document.getElementById("futureProjectionBox");
     const futureProjectionTitle = document.getElementById("futureProjectionTitle");
     const futureProjectionText = document.getElementById("futureProjectionText");
+    const futureProjectionTable = document.getElementById("futureProjectionTable");
+    const chartMetrics = document.getElementById("chartMetrics");
+    const totalSinceStreakMetric = document.getElementById("totalSinceStreakMetric");
     const chartTotalSinceStreak = document.getElementById("chartTotalSinceStreak");
     const chartStreakDays = document.getElementById("chartStreakDays");
     const chartLifetimeTotal = document.getElementById("chartLifetimeTotal");
@@ -1132,16 +1200,25 @@
       const date = parseDateKey(reviewDate);
       const todayKey = toDateInputValue(new Date());
       const isToday = reviewDate === todayKey;
-      const streakOnDate = calculateGlobalStreakAtDate(reviewDate);
+      const isFuture = reviewDate > todayKey;
+      const streakOnDate = isFuture ? calculateProjectedGlobalStreakAtDate(reviewDate) : calculateGlobalStreakAtDate(reviewDate);
 
       reviewDayTitle.textContent = isToday
         ? "Сегодня"
         : date.toLocaleDateString("ru-RU", { day: "numeric", month: "long", weekday: "long" });
 
       reviewStreak.textContent = streakOnDate;
-      reviewStreakText.textContent = isToday
-        ? "Текущая серия, если сегодняшний день уже закрыт полностью."
-        : `Серия, которая была накоплена к концу этого дня.`;
+      reviewStreakBox.classList.remove("danger", "future");
+      if (isFuture) reviewStreakBox.classList.add("future");
+      else if (streakOnDate === 0) reviewStreakBox.classList.add("danger");
+
+      reviewStreakText.textContent = isFuture
+        ? "Прогноз серии, если каждый день до этой даты будет закрыт полностью."
+        : isToday
+          ? "Текущая серия, если сегодняшний день уже закрыт полностью."
+          : streakOnDate > 0
+            ? "Серия, которая была накоплена к концу этого дня."
+            : "В этот день серия была прервана или ещё не началась.";
 
       renderFutureProjection(reviewDate);
 
@@ -1198,21 +1275,40 @@
 
       if (daysAhead <= 0 || data.habits.length === 0) {
         futureProjectionBox.style.display = "none";
+        futureProjectionTable.innerHTML = "";
         return;
       }
 
       futureProjectionBox.style.display = "block";
-      futureProjectionTitle.textContent = `Через ${daysAhead} дн.`;
+      futureProjectionTitle.textContent = `Прогноз на ${daysAhead} дн.`;
+      futureProjectionText.textContent = "Расчёт показывает total к выбранной дате, если каждый день выполнять дневную цель.";
 
-      const projections = data.habits.map(habit => {
+      futureProjectionTable.innerHTML = `
+        <div class="projection-row projection-head">
+          <div class="projection-cell">Привычка</div>
+          <div class="projection-cell">Сейчас</div>
+          <div class="projection-cell">+ цель</div>
+          <div class="projection-cell">Итого</div>
+        </div>
+      `;
+
+      data.habits.forEach(habit => {
         const currentTotal = calculateTotalUntilDate(habit.id, todayKey);
         const target = Number(habit.target || 0);
-        const projectedTotal = currentTotal + target * daysAhead;
+        const projectedAdd = target * daysAhead;
+        const projectedTotal = currentTotal + projectedAdd;
         const unit = habit.unit ? ` ${habit.unit}` : "";
-        return `${habit.name}: ${projectedTotal}${unit}`;
-      });
 
-      futureProjectionText.textContent = `Если каждый день выполнять дневную цель до выбранной даты, total будет: ${projections.join(" · ")}`;
+        const row = document.createElement("div");
+        row.className = "projection-row";
+        row.innerHTML = `
+          <div class="projection-cell">${escapeHtml(habit.name)}</div>
+          <div class="projection-cell">${currentTotal}${escapeHtml(unit)}</div>
+          <div class="projection-cell">${projectedAdd}${escapeHtml(unit)}</div>
+          <div class="projection-cell projection-total">${projectedTotal}${escapeHtml(unit)}</div>
+        `;
+        futureProjectionTable.appendChild(row);
+      });
     }
 
     function renderRewardState() {
@@ -1346,6 +1442,16 @@
       const streakDays = calculateStreak(habit.id);
       const lifetimeTotal = calculateLifetimeTotal(habit.id);
       const unit = habit.unit ? ` ${habit.unit}` : "";
+
+      if (totalSinceStreak === lifetimeTotal) {
+        totalSinceStreakMetric.classList.add("hidden");
+        chartMetrics.classList.remove("three-cols");
+        chartMetrics.classList.add("two-cols");
+      } else {
+        totalSinceStreakMetric.classList.remove("hidden");
+        chartMetrics.classList.remove("two-cols");
+        chartMetrics.classList.add("three-cols");
+      }
 
       chartTotalSinceStreak.textContent = `${totalSinceStreak}${unit}`;
       chartStreakDays.textContent = streakDays;
@@ -1658,6 +1764,15 @@
       }
 
       return streak;
+    }
+
+    function calculateProjectedGlobalStreakAtDate(futureDateKey) {
+      const todayKey = toDateInputValue(new Date());
+      const todayStreak = calculateGlobalStreakAtDate(todayKey);
+      const futureDate = parseDateKey(futureDateKey);
+      const todayDate = parseDateKey(todayKey);
+      const daysAhead = Math.ceil((futureDate - todayDate) / 86400000);
+      return todayStreak + Math.max(0, daysAhead);
     }
 
     function getWeekDays(date) {
