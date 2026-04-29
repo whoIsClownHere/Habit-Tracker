@@ -17,6 +17,8 @@
       --success: #2f6f3e;
       --success-soft: #e8f2eb;
       --danger: #9f2a2a;
+      --warning: #c97918;
+      --warning-soft: #fff4df;
       --radius: 2px;
       --shadow: none;
     }
@@ -33,6 +35,8 @@
       --success: #7ccf8a;
       --success-soft: rgba(124, 207, 138, 0.12);
       --danger: #ff8a8a;
+      --warning: #ffc46b;
+      --warning-soft: rgba(255, 196, 107, 0.11);
     }
 
     * { box-sizing: border-box; }
@@ -46,7 +50,7 @@
     }
 
     .app {
-      max-width: 1240px;
+      max-width: 1120px;
       margin: 0 auto;
       padding: 38px 34px;
     }
@@ -58,7 +62,7 @@
       gap: 28px;
       padding-bottom: 24px;
       border-bottom: 1px solid var(--line);
-      margin-bottom: 34px;
+      margin-bottom: 30px;
     }
 
     .brand {
@@ -89,10 +93,11 @@
       letter-spacing: -0.055em;
     }
 
-    h2 {
+    h2, h3 {
       font-family: Georgia, "Times New Roman", serif;
       font-weight: 400;
-      letter-spacing: -0.03em;
+      letter-spacing: -0.035em;
+      margin: 0;
     }
 
     .subtitle {
@@ -115,9 +120,7 @@
       transition: 0.15s ease;
     }
 
-    button:hover {
-      background: var(--accent-soft);
-    }
+    button:hover { background: var(--accent-soft); }
 
     button.primary {
       background: var(--text);
@@ -169,41 +172,13 @@
     }
 
     .status-dot.ready { background: var(--success); }
-    .status-dot.dirty { background: #b88722; }
+    .status-dot.dirty { background: var(--warning); }
 
-    .week-panel {
-      display: flex;
-      justify-content: space-between;
-      align-items: flex-end;
-      gap: 20px;
-      margin-bottom: 28px;
-    }
-
-    .week-nav {
-      display: flex;
-      align-items: center;
-      gap: 14px;
-    }
-
-    .week-title {
-      font-family: Georgia, "Times New Roman", serif;
-      font-size: 34px;
-      font-weight: 400;
-      letter-spacing: -0.045em;
-      min-width: 300px;
-      text-transform: capitalize;
-    }
-
-    .week-range {
-      color: var(--muted);
-      font-size: 14px;
-      margin-top: 4px;
-    }
-
-    .layout {
+    .hero-grid {
       display: grid;
-      grid-template-columns: 1fr;
-      gap: 24px;
+      grid-template-columns: 1.2fr 0.8fr;
+      gap: 22px;
+      margin-bottom: 24px;
     }
 
     .card {
@@ -214,13 +189,82 @@
       box-shadow: var(--shadow);
     }
 
-    .habit-form {
-      display: grid;
-      grid-template-columns: 1.4fr 0.7fr 0.7fr auto;
-      gap: 10px;
-      margin-bottom: 22px;
-      padding-bottom: 20px;
+    .today-card {
+      min-height: 290px;
+    }
+
+    .section-top {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      gap: 16px;
+      padding-bottom: 16px;
       border-bottom: 1px solid var(--line);
+      margin-bottom: 16px;
+    }
+
+    .section-kicker {
+      color: var(--muted);
+      font-size: 12px;
+      text-transform: uppercase;
+      letter-spacing: 0.09em;
+      margin-bottom: 6px;
+    }
+
+    .today-title {
+      font-size: 38px;
+    }
+
+    .today-date {
+      color: var(--muted);
+      font-size: 14px;
+      margin-top: 6px;
+    }
+
+    .active-list {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    .quest-item {
+      display: grid;
+      grid-template-columns: 42px 1fr 120px;
+      gap: 12px;
+      align-items: center;
+      border: 1px solid var(--line);
+      background: var(--card);
+      padding: 12px;
+    }
+
+    .quest-check {
+      width: 34px;
+      height: 34px;
+      border-radius: 50%;
+      border: 1px solid var(--muted);
+      display: grid;
+      place-items: center;
+      cursor: pointer;
+      color: transparent;
+      transition: 0.12s ease;
+    }
+
+    .quest-check:hover {
+      border-color: var(--success);
+      background: var(--success-soft);
+      color: var(--success);
+    }
+
+    .quest-name {
+      font-family: Georgia, "Times New Roman", serif;
+      font-size: 22px;
+      letter-spacing: -0.035em;
+    }
+
+    .quest-meta {
+      color: var(--muted);
+      font-size: 13px;
+      margin-top: 3px;
     }
 
     input, select {
@@ -233,202 +277,167 @@
       outline: none;
     }
 
-    input:focus, select:focus {
-      border-color: var(--text);
+    input:focus, select:focus { border-color: var(--text); }
+
+    .quest-value {
+      text-align: center;
     }
 
-    .week-grid {
-      display: grid;
-      grid-template-columns: 280px repeat(7, 1fr) 96px;
-      gap: 0;
-      align-items: stretch;
+    .done-list {
+      margin-top: 18px;
+      padding-top: 14px;
       border-top: 1px solid var(--line);
-      border-left: 1px solid var(--line);
     }
 
-    .grid-head {
+    .done-title {
       color: var(--muted);
-      font-size: 11px;
-      font-weight: 700;
+      font-size: 12px;
       text-transform: uppercase;
-      letter-spacing: 0.08em;
-      padding: 12px 10px;
-      border-right: 1px solid var(--line);
-      border-bottom: 1px solid var(--line);
-      background: var(--card-2);
+      letter-spacing: 0.09em;
+      margin-bottom: 10px;
     }
 
-    .day-head {
-      text-align: center;
-      border-right: 1px solid var(--line);
-      border-bottom: 1px solid var(--line);
-      padding: 12px 8px;
-      background: var(--card-2);
+    .done-pills {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
     }
 
-    .day-head.today {
-      background: var(--success-soft);
+    .done-pill {
+      border: 1px solid var(--success);
       color: var(--success);
-    }
-
-    .day-num {
-      font-family: Georgia, "Times New Roman", serif;
-      font-size: 24px;
-      font-weight: 400;
-      color: var(--text);
-    }
-
-    .day-name {
-      color: var(--muted);
-      font-size: 11px;
-      margin-top: 2px;
-      text-transform: uppercase;
-      letter-spacing: 0.08em;
-    }
-
-    .habit-row { display: contents; }
-
-    .habit-info, .habit-cell, .streak-cell {
-      border-right: 1px solid var(--line);
-      border-bottom: 1px solid var(--line);
-      background: var(--card);
-      min-height: 96px;
-    }
-
-    .habit-info {
-      padding: 16px;
-      display: flex;
-      flex-direction: column;
-      justify-content: center;
-      gap: 6px;
-    }
-
-    .habit-name {
-      font-family: Georgia, "Times New Roman", serif;
-      font-size: 22px;
-      font-weight: 400;
-      letter-spacing: -0.035em;
-    }
-
-    .habit-meta {
-      color: var(--muted);
-      font-size: 13px;
-    }
-
-    .habit-actions {
-      display: flex;
-      gap: 8px;
-      margin-top: 8px;
-    }
-
-    .habit-actions button {
-      padding: 5px 8px;
-      font-size: 12px;
-    }
-
-    .habit-cell {
-      padding: 10px;
-      display: flex;
-      flex-direction: column;
-      justify-content: center;
-      align-items: center;
-      gap: 8px;
-    }
-
-    .habit-cell.done {
       background: var(--success-soft);
-    }
-
-    .check {
-      width: 32px;
-      height: 32px;
-      border-radius: 50%;
-      border: 1px solid var(--muted);
-      display: grid;
-      place-items: center;
-      cursor: pointer;
-      user-select: none;
-      color: transparent;
-      font-weight: 700;
-      font-size: 18px;
-      transition: 0.12s ease;
-    }
-
-    .check.done {
-      border-color: var(--success);
-      background: var(--success);
-      color: var(--bg);
-    }
-
-    .value-input {
-      width: 68px;
-      text-align: center;
-      padding: 6px;
+      padding: 7px 9px;
       font-size: 13px;
-    }
-
-    .streak-cell {
-      padding: 12px;
-      display: flex;
-      flex-direction: column;
-      justify-content: center;
-      align-items: center;
-      gap: 3px;
-      background: var(--card-2);
-    }
-
-    .streak-number {
-      font-family: Georgia, "Times New Roman", serif;
-      font-size: 28px;
-      font-weight: 400;
-    }
-
-    .streak-label {
-      color: var(--muted);
-      font-size: 12px;
     }
 
     .empty {
       color: var(--muted);
       padding: 28px;
-      border-right: 1px solid var(--line);
-      border-bottom: 1px solid var(--line);
+      border: 1px dashed var(--line);
       text-align: center;
       line-height: 1.5;
     }
 
-    .stats {
+    .streak-card {
+      background: linear-gradient(180deg, var(--warning-soft), var(--card));
+    }
+
+    .streak-number-big {
+      font-family: Georgia, "Times New Roman", serif;
+      font-size: 86px;
+      line-height: 0.95;
+      letter-spacing: -0.07em;
+      margin-top: 10px;
+    }
+
+    .streak-label-big {
+      color: var(--muted);
+      font-size: 15px;
+      margin-top: 8px;
+    }
+
+    .streak-warning {
+      margin-top: 18px;
+      padding: 12px;
+      border: 1px solid var(--line);
+      color: var(--muted);
+      font-size: 14px;
+      line-height: 1.45;
+      background: var(--card);
+    }
+
+    .daily-ring {
+      margin-top: 20px;
+      height: 10px;
+      border: 1px solid var(--line);
+      background: var(--card);
+      position: relative;
+    }
+
+    .daily-ring-fill {
+      height: 100%;
+      width: 0%;
+      background: var(--success);
+      transition: width 0.2s ease;
+    }
+
+    .habit-form {
       display: grid;
-      grid-template-columns: repeat(4, 1fr);
-      gap: 0;
-      margin-top: 22px;
+      grid-template-columns: 1.4fr 0.7fr 0.7fr auto;
+      gap: 10px;
+      margin-bottom: 0;
+    }
+
+    .progress-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 22px;
+      margin-bottom: 24px;
+    }
+
+    .period-card h2 {
+      font-size: 30px;
+      padding-bottom: 14px;
+      border-bottom: 1px solid var(--line);
+      margin-bottom: 14px;
+    }
+
+    .period-stats {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
       border-top: 1px solid var(--line);
       border-left: 1px solid var(--line);
+      margin-bottom: 18px;
     }
 
-    .stat {
+    .period-stat {
       border-right: 1px solid var(--line);
       border-bottom: 1px solid var(--line);
-      background: var(--card);
-      padding: 16px;
+      padding: 14px;
     }
 
-    .stat-value {
+    .period-value {
       font-family: Georgia, "Times New Roman", serif;
       font-size: 34px;
-      font-weight: 400;
       letter-spacing: -0.04em;
     }
 
-    .stat-label {
+    .period-label {
       color: var(--muted);
-      font-size: 12px;
-      margin-top: 4px;
+      font-size: 11px;
       text-transform: uppercase;
       letter-spacing: 0.08em;
+      margin-top: 4px;
     }
 
-    .chart-wrap { margin-top: 0; }
+    .mini-days {
+      display: grid;
+      grid-template-columns: repeat(7, 1fr);
+      gap: 6px;
+    }
+
+    .mini-day {
+      min-height: 38px;
+      border: 1px solid var(--line);
+      display: grid;
+      place-items: center;
+      color: var(--muted);
+      font-size: 12px;
+      background: var(--card);
+    }
+
+    .mini-day.done {
+      border-color: var(--success);
+      background: var(--success-soft);
+      color: var(--success);
+      font-weight: 700;
+    }
+
+    .mini-day.today {
+      outline: 2px solid var(--text);
+      outline-offset: -2px;
+    }
 
     .chart-top {
       display: flex;
@@ -452,20 +461,20 @@
       display: block;
     }
 
-    @media (max-width: 1100px) {
-      .week-grid {
-        overflow-x: auto;
-        grid-template-columns: 240px repeat(7, 110px) 90px;
-      }
+    @media (max-width: 960px) {
+      .hero-grid, .progress-grid { grid-template-columns: 1fr; }
       .habit-form { grid-template-columns: 1fr; }
+      .quest-item { grid-template-columns: 42px 1fr; }
+      .quest-value { grid-column: 1 / -1; }
     }
 
     @media (max-width: 760px) {
       .app { padding: 22px 16px; }
-      header, .week-panel { flex-direction: column; align-items: flex-start; }
+      header { flex-direction: column; align-items: flex-start; }
       .top-actions { justify-content: flex-start; }
       h1 { font-size: 42px; }
-      .stats { grid-template-columns: 1fr 1fr; }
+      .today-title { font-size: 32px; }
+      .period-stats { grid-template-columns: 1fr; }
     }
   </style>
 </head>
@@ -493,46 +502,84 @@
       </div>
     </header>
 
-    <section class="week-panel">
-      <div class="week-nav">
-        <button id="prevWeek">←</button>
-        <div>
-          <div class="week-title" id="weekTitle">Неделя</div>
-          <div class="week-range" id="weekRange"></div>
-        </div>
-        <button id="nextWeek">→</button>
-      </div>
-      <button id="todayBtn" class="success">Сегодня</button>
-    </section>
-
     <main class="layout">
+      <section class="hero-grid">
+        <div class="card today-card">
+          <div class="section-top">
+            <div>
+              <div class="section-kicker">Today’s quests</div>
+              <h2 class="today-title">Сегодня</h2>
+              <div class="today-date" id="todayDateLabel"></div>
+            </div>
+            <button id="todayBtn" class="success">Сегодня</button>
+          </div>
+
+          <div id="activeList" class="active-list"></div>
+          <div id="doneList" class="done-list"></div>
+        </div>
+
+        <div class="card streak-card">
+          <div class="section-kicker">Current streak</div>
+          <h2>Серия</h2>
+          <div class="streak-number-big" id="heroStreak">0</div>
+          <div class="streak-label-big">дней подряд</div>
+          <div class="daily-ring"><div class="daily-ring-fill" id="dailyRingFill"></div></div>
+          <div class="streak-warning" id="streakMessage">Выполни все привычки сегодня, чтобы сохранить серию.</div>
+        </div>
+      </section>
+
       <section class="card">
+        <div class="section-top">
+          <div>
+            <div class="section-kicker">Manage habits</div>
+            <h2>Привычки</h2>
+          </div>
+        </div>
+
         <div class="habit-form">
           <input id="habitName" placeholder="Привычка: Отжимания" />
           <input id="habitUnit" placeholder="Единица: reps, min, pages" />
           <input id="habitTarget" type="number" min="0" placeholder="Цель в день" />
           <button id="addHabitBtn" class="primary">+ Добавить</button>
         </div>
+      </section>
+      <section class="progress-grid">
+        <div class="card period-card">
+          <h2>Неделя</h2>
+          <div class="period-stats">
+            <div class="period-stat">
+              <div class="period-value" id="weekCompleted">0</div>
+              <div class="period-label">выполнений</div>
+            </div>
+            <div class="period-stat">
+              <div class="period-value" id="weekRate">0%</div>
+              <div class="period-label">закрыто</div>
+            </div>
+            <div class="period-stat">
+              <div class="period-value" id="weekPerfect">0</div>
+              <div class="period-label">идеальных дней</div>
+            </div>
+          </div>
+          <div class="mini-days" id="weekMiniDays"></div>
+        </div>
 
-        <div id="trackerGrid" class="week-grid"></div>
-
-        <div class="stats">
-          <div class="stat">
-            <div class="stat-value" id="statHabits">0</div>
-            <div class="stat-label">Всего привычек</div>
+        <div class="card period-card">
+          <h2>Месяц</h2>
+          <div class="period-stats">
+            <div class="period-stat">
+              <div class="period-value" id="monthCompleted">0</div>
+              <div class="period-label">выполнений</div>
+            </div>
+            <div class="period-stat">
+              <div class="period-value" id="monthRate">0%</div>
+              <div class="period-label">закрыто</div>
+            </div>
+            <div class="period-stat">
+              <div class="period-value" id="monthPerfect">0</div>
+              <div class="period-label">идеальных дней</div>
+            </div>
           </div>
-          <div class="stat">
-            <div class="stat-value" id="statWeekDone">0</div>
-            <div class="stat-label">Выполнений за неделю</div>
-          </div>
-          <div class="stat">
-            <div class="stat-value" id="statBestStreak">0</div>
-            <div class="stat-label">Лучший текущий стрик</div>
-          </div>
-          <div class="stat">
-            <div class="stat-value" id="statTodayDone">0</div>
-            <div class="stat-label">Выполнено сегодня</div>
-          </div>
+          <div class="mini-days" id="monthMiniDays"></div>
         </div>
       </section>
 
@@ -584,7 +631,7 @@
     let currentUser = null;
     let isDirty = false;
     let saveTimer = null;
-    let currentWeekStart = getWeekStart(new Date());
+    let selectedDate = toDateInputValue(new Date());
 
     let data = {
       habits: [],
@@ -595,9 +642,12 @@
     const signOutBtn = document.getElementById("signOutBtn");
     const saveBtn = document.getElementById("saveBtn");
     const themeToggle = document.getElementById("themeToggle");
-    const trackerGrid = document.getElementById("trackerGrid");
-    const weekTitle = document.getElementById("weekTitle");
-    const weekRange = document.getElementById("weekRange");
+    const activeList = document.getElementById("activeList");
+    const doneList = document.getElementById("doneList");
+    const todayDateLabel = document.getElementById("todayDateLabel");
+    const heroStreak = document.getElementById("heroStreak");
+    const dailyRingFill = document.getElementById("dailyRingFill");
+    const streakMessage = document.getElementById("streakMessage");
     const progressHabit = document.getElementById("progressHabit");
     const chart = document.getElementById("progressChart");
     let progressChartInstance = null;
@@ -612,8 +662,6 @@
     saveBtn.addEventListener("click", () => saveToFirebase(true));
     document.getElementById("downloadBtn").addEventListener("click", downloadBackup);
     document.getElementById("addHabitBtn").addEventListener("click", addHabit);
-    document.getElementById("prevWeek").addEventListener("click", () => changeWeek(-1));
-    document.getElementById("nextWeek").addEventListener("click", () => changeWeek(1));
     document.getElementById("todayBtn").addEventListener("click", goToToday);
     progressHabit.addEventListener("change", renderProgress);
     themeToggle.addEventListener("click", toggleTheme);
@@ -653,6 +701,7 @@
       const isDark = document.body.classList.toggle("dark");
       localStorage.setItem("habitTheme", isDark ? "dark" : "light");
       themeToggle.textContent = isDark ? "Light mode" : "Dark mode";
+      renderProgress();
     }
 
     async function signIn() {
@@ -746,180 +795,166 @@
     }
 
     function render() {
-      renderWeekHeader();
-      renderGrid();
-      renderStats();
+      renderTodayHeader();
+      renderTodayLists();
+      renderRewardState();
+      renderPeriodProgress();
       renderProgressOptions();
       renderProgress();
     }
 
-    function renderWeekHeader() {
-      const days = getCurrentWeekDays();
-      const start = days[0];
-      const end = days[6];
-      const sameMonth = start.getMonth() === end.getMonth();
-
-      weekTitle.textContent = sameMonth
-        ? `${start.toLocaleString("ru-RU", { month: "long" })} ${start.getFullYear()}`
-        : `${start.toLocaleString("ru-RU", { month: "short" })} — ${end.toLocaleString("ru-RU", { month: "short" })} ${end.getFullYear()}`;
-
-      weekRange.textContent = `${formatFullDate(start)} — ${formatFullDate(end)}`;
+    function renderTodayHeader() {
+      const today = new Date();
+      todayDateLabel.textContent = today.toLocaleDateString("ru-RU", {
+        weekday: "long",
+        day: "numeric",
+        month: "long"
+      });
     }
 
-    function renderGrid() {
-      trackerGrid.innerHTML = "";
-      const days = getCurrentWeekDays();
-
-      trackerGrid.appendChild(makeHead("Привычка"));
-      days.forEach(day => trackerGrid.appendChild(makeDayHead(day)));
-      trackerGrid.appendChild(makeHead("Стрик"));
+    function renderTodayLists() {
+      activeList.innerHTML = "";
+      doneList.innerHTML = "";
+      const todayKey = toDateInputValue(new Date());
 
       if (!currentUser) {
-        const empty = document.createElement("div");
-        empty.className = "empty";
-        empty.style.gridColumn = "1 / -1";
-        empty.textContent = "Войди через Google, чтобы загрузить свои привычки.";
-        trackerGrid.appendChild(empty);
+        activeList.innerHTML = `<div class="empty">Войди через Google, чтобы увидеть сегодняшние задачи.</div>`;
         return;
       }
 
       if (data.habits.length === 0) {
-        const empty = document.createElement("div");
-        empty.className = "empty";
-        empty.style.gridColumn = "1 / -1";
-        empty.textContent = "Пока нет привычек. Добавь первую сверху.";
-        trackerGrid.appendChild(empty);
+        activeList.innerHTML = `<div class="empty">Пока нет привычек. Добавь первую ниже.</div>`;
         return;
       }
 
+      const activeHabits = [];
+      const doneHabits = [];
+
       data.habits.forEach(habit => {
-        trackerGrid.appendChild(makeHabitInfo(habit));
-
-        days.forEach(day => {
-          const dateKey = toDateInputValue(day);
-          trackerGrid.appendChild(makeHabitCell(habit, dateKey));
-        });
-
-        trackerGrid.appendChild(makeStreakCell(habit.id));
+        const record = getRecord(todayKey, habit.id);
+        if (record.done) doneHabits.push({ habit, record });
+        else activeHabits.push({ habit, record });
       });
+
+      if (activeHabits.length === 0) {
+        activeList.innerHTML = `<div class="empty">Все привычки на сегодня закрыты. Серия сохранена.</div>`;
+      } else {
+        activeHabits.forEach(({ habit, record }) => activeList.appendChild(makeQuestItem(habit, record, todayKey)));
+      }
+
+      if (doneHabits.length > 0) {
+        doneList.innerHTML = `<div class="done-title">Выполнено сегодня</div><div class="done-pills" id="donePills"></div>`;
+        const donePills = document.getElementById("donePills");
+        doneHabits.forEach(({ habit, record }) => {
+          const pill = document.createElement("div");
+          pill.className = "done-pill";
+          const value = record.value ? ` · ${record.value}${habit.unit ? " " + habit.unit : ""}` : "";
+          pill.textContent = `${habit.name}${value}`;
+          donePills.appendChild(pill);
+        });
+      }
     }
 
-    function makeHead(text) {
+    function makeQuestItem(habit, record, dateKey) {
       const el = document.createElement("div");
-      el.className = "grid-head";
-      el.textContent = text;
-      return el;
-    }
-
-    function makeDayHead(day) {
-      const todayKey = toDateInputValue(new Date());
-      const dateKey = toDateInputValue(day);
-      const el = document.createElement("div");
-      el.className = "day-head" + (dateKey === todayKey ? " today" : "");
-      el.innerHTML = `
-        <div class="day-num">${day.getDate()}</div>
-        <div class="day-name">${day.toLocaleDateString("ru-RU", { weekday: "short" })}</div>
-      `;
-      return el;
-    }
-
-    function makeHabitInfo(habit) {
-      const el = document.createElement("div");
-      el.className = "habit-info";
-      el.innerHTML = `
-        <div class="habit-name">${escapeHtml(habit.name)}</div>
-        <div class="habit-meta">Цель: ${habit.target || "без цели"} ${escapeHtml(habit.unit || "")}</div>
-      `;
-
-      const actions = document.createElement("div");
-      actions.className = "habit-actions";
-
-      const renameBtn = document.createElement("button");
-      renameBtn.className = "secondary";
-      renameBtn.textContent = "Изм.";
-      renameBtn.onclick = () => renameHabit(habit);
-
-      const deleteBtn = document.createElement("button");
-      deleteBtn.className = "danger";
-      deleteBtn.textContent = "Удалить";
-      deleteBtn.onclick = () => deleteHabit(habit);
-
-      actions.appendChild(renameBtn);
-      actions.appendChild(deleteBtn);
-      el.appendChild(actions);
-      return el;
-    }
-
-    function makeHabitCell(habit, dateKey) {
-      const record = getRecord(dateKey, habit.id);
-      const el = document.createElement("div");
-      el.className = "habit-cell" + (record.done ? " done" : "");
+      el.className = "quest-item";
 
       const check = document.createElement("div");
-      check.className = "check" + (record.done ? " done" : "");
+      check.className = "quest-check";
       check.textContent = "✓";
       check.onclick = () => {
-        record.done = !record.done;
-        if (record.done && !record.value && habit.target) record.value = Number(habit.target);
+        record.done = true;
+        if (!record.value && habit.target) record.value = Number(habit.target);
         saveRecord(dateKey, habit.id, record);
         markDirty();
         render();
       };
 
+      const info = document.createElement("div");
+      info.innerHTML = `
+        <div class="quest-name">${escapeHtml(habit.name)}</div>
+        <div class="quest-meta">Цель: ${habit.target || "без цели"} ${escapeHtml(habit.unit || "")}</div>
+      `;
+
       const value = document.createElement("input");
-      value.className = "value-input";
+      value.className = "quest-value";
       value.type = "number";
       value.min = "0";
       value.placeholder = habit.unit || "value";
       value.value = record.value ?? "";
       value.oninput = () => {
         record.value = value.value === "" ? "" : Number(value.value);
-        record.done = Number(record.value) > 0 || record.done;
         saveRecord(dateKey, habit.id, record);
         markDirty();
-        renderStats();
+        renderPeriodProgress();
         renderProgress();
-        el.className = "habit-cell" + (record.done ? " done" : "");
-        check.className = "check" + (record.done ? " done" : "");
       };
 
       el.appendChild(check);
+      el.appendChild(info);
       el.appendChild(value);
       return el;
     }
 
-    function makeStreakCell(habitId) {
-      const streak = calculateStreak(habitId);
-      const el = document.createElement("div");
-      el.className = "streak-cell";
-      el.innerHTML = `
-        <div class="streak-number">${streak}</div>
-        <div class="streak-label">дней</div>
-      `;
-      return el;
+    function renderRewardState() {
+      const todayKey = toDateInputValue(new Date());
+      const total = data.habits.length;
+      const done = data.habits.filter(habit => data.records[todayKey]?.[habit.id]?.done).length;
+      const percent = total === 0 ? 0 : Math.round((done / total) * 100);
+      const streak = calculateGlobalStreak();
+
+      heroStreak.textContent = streak;
+      dailyRingFill.style.width = `${percent}%`;
+
+      if (!currentUser) {
+        streakMessage.textContent = "Войди, чтобы начать серию.";
+      } else if (total === 0) {
+        streakMessage.textContent = "Добавь привычки, чтобы появилась ежедневная серия.";
+      } else if (done === total) {
+        streakMessage.textContent = "День закрыт. Серия сохранена.";
+      } else {
+        streakMessage.textContent = `Осталось ${total - done}. Если день закончится незакрытым, серия прервётся.`;
+      }
     }
 
-    function renderStats() {
-      const days = getCurrentWeekDays().map(toDateInputValue);
-      const today = toDateInputValue(new Date());
+    function renderPeriodProgress() {
+      renderPeriod("week", getWeekDays(new Date()), "weekCompleted", "weekRate", "weekPerfect", "weekMiniDays");
+      renderPeriod("month", getMonthDays(new Date()), "monthCompleted", "monthRate", "monthPerfect", "monthMiniDays");
+    }
 
-      let weekDone = 0;
-      let todayDone = 0;
-      let bestStreak = 0;
+    function renderPeriod(periodName, days, completedId, rateId, perfectId, miniId) {
+      const totalHabits = data.habits.length;
+      const possible = totalHabits * days.length;
+      let completed = 0;
+      let perfectDays = 0;
 
-      data.habits.forEach(habit => {
-        days.forEach(dateKey => {
-          if (data.records[dateKey]?.[habit.id]?.done) weekDone += 1;
-        });
-
-        if (data.records[today]?.[habit.id]?.done) todayDone += 1;
-        bestStreak = Math.max(bestStreak, calculateStreak(habit.id));
+      days.forEach(day => {
+        const dateKey = toDateInputValue(day);
+        const dayDone = data.habits.filter(habit => data.records[dateKey]?.[habit.id]?.done).length;
+        completed += dayDone;
+        if (totalHabits > 0 && dayDone === totalHabits) perfectDays += 1;
       });
 
-      document.getElementById("statHabits").textContent = data.habits.length;
-      document.getElementById("statWeekDone").textContent = weekDone;
-      document.getElementById("statBestStreak").textContent = bestStreak;
-      document.getElementById("statTodayDone").textContent = todayDone;
+      const rate = possible === 0 ? 0 : Math.round((completed / possible) * 100);
+      document.getElementById(completedId).textContent = completed;
+      document.getElementById(rateId).textContent = `${rate}%`;
+      document.getElementById(perfectId).textContent = perfectDays;
+
+      const mini = document.getElementById(miniId);
+      mini.innerHTML = "";
+      const todayKey = toDateInputValue(new Date());
+
+      days.forEach(day => {
+        const dateKey = toDateInputValue(day);
+        const dayDone = data.habits.filter(habit => data.records[dateKey]?.[habit.id]?.done).length;
+        const el = document.createElement("div");
+        el.className = "mini-day";
+        if (totalHabits > 0 && dayDone === totalHabits) el.classList.add("done");
+        if (dateKey === todayKey) el.classList.add("today");
+        el.textContent = day.getDate();
+        el.title = `${dayDone}/${totalHabits}`;
+        mini.appendChild(el);
+      });
     }
 
     function renderProgressOptions() {
@@ -1207,12 +1242,45 @@
       return streak;
     }
 
-    function getCurrentWeekDays() {
+    function calculateGlobalStreak() {
+      let streak = 0;
+      const cursor = new Date();
+
+      if (data.habits.length === 0) return 0;
+
+      for (let i = 0; i < 3650; i++) {
+        const key = toDateInputValue(cursor);
+        const allDone = data.habits.every(habit => data.records[key]?.[habit.id]?.done);
+        if (allDone) {
+          streak += 1;
+          cursor.setDate(cursor.getDate() - 1);
+        } else {
+          break;
+        }
+      }
+
+      return streak;
+    }
+
+    function getWeekDays(date) {
+      const start = getWeekStart(date);
       const days = [];
       for (let i = 0; i < 7; i++) {
-        const d = new Date(currentWeekStart);
-        d.setDate(currentWeekStart.getDate() + i);
+        const d = new Date(start);
+        d.setDate(start.getDate() + i);
         days.push(d);
+      }
+      return days;
+    }
+
+    function getMonthDays(date) {
+      const year = date.getFullYear();
+      const month = date.getMonth();
+      const days = [];
+      const cursor = new Date(year, month, 1);
+      while (cursor.getMonth() === month) {
+        days.push(new Date(cursor));
+        cursor.setDate(cursor.getDate() + 1);
       }
       return days;
     }
@@ -1226,13 +1294,8 @@
       return d;
     }
 
-    function changeWeek(delta) {
-      currentWeekStart.setDate(currentWeekStart.getDate() + delta * 7);
-      render();
-    }
-
     function goToToday() {
-      currentWeekStart = getWeekStart(new Date());
+      selectedDate = toDateInputValue(new Date());
       render();
     }
 
