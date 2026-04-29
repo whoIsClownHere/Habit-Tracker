@@ -369,6 +369,41 @@
       margin-bottom: 0;
     }
 
+    .habit-manager-panel {
+      display: none;
+      margin-top: 16px;
+      padding-top: 16px;
+      border-top: 1px solid var(--line);
+    }
+
+    .habit-manager-panel.open {
+      display: block;
+    }
+
+    .habit-manager-list {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    .habit-manager-item {
+      display: grid;
+      grid-template-columns: 1.3fr 0.7fr 0.6fr auto auto;
+      gap: 10px;
+      align-items: center;
+      border: 1px solid var(--line);
+      background: var(--card);
+      padding: 12px;
+    }
+
+    .habit-manager-item input {
+      min-width: 0;
+    }
+
+    .habit-manager-empty {
+      margin-top: 16px;
+    }
+
     .day-review-grid {
       display: grid;
       grid-template-columns: 240px 1fr;
@@ -719,6 +754,7 @@
       .hero-grid, .progress-grid, .day-review-grid { grid-template-columns: 1fr; }
       .day-picker-panel { border-right: 0; border-bottom: 1px solid var(--line); padding-right: 0; padding-bottom: 18px; }
       .habit-form { grid-template-columns: 1fr; }
+      .habit-manager-item { grid-template-columns: 1fr; }
       .quest-item { grid-template-columns: 42px 1fr; }
       .quest-value { grid-column: 1 / -1; }
     }
@@ -789,6 +825,7 @@
             <div class="section-kicker">Manage habits</div>
             <h2>Привычки</h2>
           </div>
+          <button id="toggleHabitManagerBtn" class="secondary">Изменить привычки</button>
         </div>
 
         <div class="habit-form">
@@ -796,6 +833,10 @@
           <input id="habitUnit" placeholder="Единица: reps, min, pages" />
           <input id="habitTarget" type="number" min="0" placeholder="Цель в день" />
           <button id="addHabitBtn" class="primary">+ Добавить</button>
+        </div>
+
+        <div id="habitManagerPanel" class="habit-manager-panel">
+          <div id="habitManagerList" class="habit-manager-list"></div>
         </div>
       </section>
       <section class="progress-grid">
@@ -990,6 +1031,10 @@
     const chartStreakDays = document.getElementById("chartStreakDays");
     const chartLifetimeTotal = document.getElementById("chartLifetimeTotal");
     const progressHabit = document.getElementById("progressHabit");
+    const habitManagerPanel = document.getElementById("habitManagerPanel");
+    const habitManagerList = document.getElementById("habitManagerList");
+    const toggleHabitManagerBtn = document.getElementById("toggleHabitManagerBtn");
+    let isHabitManagerOpen = false;
     const chart = document.getElementById("progressChart");
     let progressChartInstance = null;
     const statusDot = document.getElementById("statusDot");
@@ -1003,6 +1048,7 @@
     saveBtn.addEventListener("click", () => saveToFirebase(true));
     document.getElementById("downloadBtn").addEventListener("click", downloadBackup);
     document.getElementById("addHabitBtn").addEventListener("click", addHabit);
+    toggleHabitManagerBtn.addEventListener("click", toggleHabitManager);
     document.getElementById("todayBtn").addEventListener("click", goToToday);
     document.getElementById("prevWeekCalendar").addEventListener("click", () => changeVisibleWeek(-1));
     document.getElementById("nextWeekCalendar").addEventListener("click", () => changeVisibleWeek(1));
@@ -1160,6 +1206,7 @@
       renderTodayHeader();
       renderTodayLists();
       renderRewardState();
+      renderHabitManager();
       renderDayReview();
       renderPeriodProgress();
       renderProgressOptions();
@@ -1257,6 +1304,109 @@
       el.appendChild(info);
       el.appendChild(value);
       return el;
+    }
+
+    function toggleHabitManager() {
+      isHabitManagerOpen = !isHabitManagerOpen;
+      habitManagerPanel.classList.toggle("open", isHabitManagerOpen);
+      toggleHabitManagerBtn.textContent = isHabitManagerOpen ? "Скрыть настройки" : "Изменить привычки";
+      if (isHabitManagerOpen) renderHabitManager();
+    }
+
+    function renderHabitManager() {
+      habitManagerPanel.classList.toggle("open", isHabitManagerOpen);
+      toggleHabitManagerBtn.textContent = isHabitManagerOpen ? "Скрыть настройки" : "Изменить привычки";
+      habitManagerList.innerHTML = "";
+
+      if (!isHabitManagerOpen) return;
+
+      if (!currentUser) {
+        habitManagerList.innerHTML = `<div class="empty habit-manager-empty">Войди через Google, чтобы изменять привычки.</div>`;
+        return;
+      }
+
+      if (data.habits.length === 0) {
+        habitManagerList.innerHTML = `<div class="empty habit-manager-empty">Пока нет привычек для редактирования.</div>`;
+        return;
+      }
+
+      data.habits.forEach(habit => {
+        const item = document.createElement("div");
+        item.className = "habit-manager-item";
+
+        const nameInput = document.createElement("input");
+        nameInput.value = habit.name || "";
+        nameInput.placeholder = "Название";
+        nameInput.onchange = () => updateHabitField(habit.id, "name", nameInput.value.trim());
+
+        const unitInput = document.createElement("input");
+        unitInput.value = habit.unit || "";
+        unitInput.placeholder = "Единица";
+        unitInput.onchange = () => updateHabitField(habit.id, "unit", unitInput.value.trim());
+
+        const targetInput = document.createElement("input");
+        targetInput.type = "number";
+        targetInput.min = "0";
+        targetInput.value = habit.target ?? "";
+        targetInput.placeholder = "Цель";
+        targetInput.onchange = () => updateHabitField(habit.id, "target", targetInput.value === "" ? "" : Number(targetInput.value));
+
+        const saveInlineBtn = document.createElement("button");
+        saveInlineBtn.className = "success";
+        saveInlineBtn.textContent = "Сохранить";
+        saveInlineBtn.onclick = () => {
+          updateHabit(habit.id, {
+            name: nameInput.value.trim(),
+            unit: unitInput.value.trim(),
+            target: targetInput.value === "" ? "" : Number(targetInput.value)
+          });
+        };
+
+        const deleteBtn = document.createElement("button");
+        deleteBtn.className = "danger";
+        deleteBtn.textContent = "Удалить";
+        deleteBtn.onclick = () => deleteHabit(habit);
+
+        item.appendChild(nameInput);
+        item.appendChild(unitInput);
+        item.appendChild(targetInput);
+        item.appendChild(saveInlineBtn);
+        item.appendChild(deleteBtn);
+        habitManagerList.appendChild(item);
+      });
+    }
+
+    function updateHabitField(habitId, field, value) {
+      updateHabit(habitId, { [field]: value }, false);
+    }
+
+    function updateHabit(habitId, updates, rerender = true) {
+      const habit = data.habits.find(h => h.id === habitId);
+      if (!habit) return;
+
+      if (Object.prototype.hasOwnProperty.call(updates, "name") && !updates.name) {
+        alert("Название привычки не может быть пустым.");
+        renderHabitManager();
+        return;
+      }
+
+      if (Object.prototype.hasOwnProperty.call(updates, "target") && Number(updates.target) < 0) {
+        alert("Цель не может быть отрицательной.");
+        renderHabitManager();
+        return;
+      }
+
+      Object.assign(habit, updates);
+      markDirty();
+      if (rerender) render();
+      else {
+        renderTodayLists();
+        renderRewardState();
+        renderDayReview();
+        renderPeriodProgress();
+        renderProgressOptions();
+        renderProgress();
+      }
     }
 
     function renderDayReview() {
@@ -1822,16 +1972,32 @@
       return calculateGlobalStreakAtDate(toDateInputValue(new Date()));
     }
 
+    function getOldestHabit() {
+      if (data.habits.length === 0) return null;
+
+      return [...data.habits].sort((a, b) => {
+        const aCreated = a.createdAt || "9999-12-31";
+        const bCreated = b.createdAt || "9999-12-31";
+        if (aCreated !== bCreated) return aCreated.localeCompare(bCreated);
+        return String(a.id).localeCompare(String(b.id));
+      })[0];
+    }
+
     function calculateGlobalStreakAtDate(dateKey) {
+      const oldestHabit = getOldestHabit();
+      if (!oldestHabit) return 0;
+
+      return calculateStreakAtDate(oldestHabit.id, dateKey);
+    }
+
+    function calculateStreakAtDate(habitId, dateKey) {
       let streak = 0;
       const cursor = parseDateKey(dateKey);
 
-      if (data.habits.length === 0) return 0;
-
       for (let i = 0; i < 3650; i++) {
         const key = toDateInputValue(cursor);
-        const allDone = data.habits.every(habit => data.records[key]?.[habit.id]?.done);
-        if (allDone) {
+        const rec = data.records[key]?.[habitId];
+        if (rec?.done) {
           streak += 1;
           cursor.setDate(cursor.getDate() - 1);
         } else {
