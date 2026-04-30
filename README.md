@@ -29,6 +29,31 @@ Track habits on a **weekly grid**, mark completion with checkboxes, and log nume
 
 ---
 
+## Project Structure
+
+```text
+.
+├── index.html
+├── src
+│   ├── app
+│   │   ├── config
+│   │   │   └── firebaseConfig.js
+│   │   ├── utils
+│   │   │   ├── dates.js
+│   │   │   └── html.js
+│   │   └── main.js
+│   └── styles
+│       └── main.css
+├── docs
+│   └── ARCHITECTURE.md
+├── package.json
+└── README.md
+```
+
+See `docs/ARCHITECTURE.md` for the current app layout and next refactor targets.
+
+---
+
 ## Live Demo
 
 https://whoisclownhere.github.io/Habit-Tracker/
