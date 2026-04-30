@@ -1,9 +1,10 @@
 <!DOCTYPE html>
-<html lang="ru">
+<html lang="en">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Habitline</title>
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' fill='%23111111'/%3E%3Cpath d='M16 34l10 10 22-24' fill='none' stroke='%23ffffff' stroke-width='7'/%3E%3C/svg%3E" />
   <link rel="stylesheet" href="./src/styles/main.css" />
 </head>
 <body>
@@ -21,23 +22,33 @@
           </div>
           <h1>Habitline</h1>
         </div>
-        <div class="subtitle">Отмечай привычки на день, фиксируй количество и следи за серией.</div>
+        <div class="subtitle" data-i18n="app.subtitle">Plan today's habits, record quantities, and keep your streak alive.</div>
         <div class="status">
           <span id="statusDot" class="status-dot"></span>
-          <span id="statusText">Вход не выполнен</span>
+          <span id="statusText" data-i18n="status.signedOut">Signed out</span>
         </div>
       </div>
 
       <div class="top-actions">
-        <button id="signInBtn" class="google-btn"><span>G</span> Войти через Google</button>
-        <button id="signOutBtn" class="secondary" hidden>Выйти</button>
-        <button id="themeToggle" class="secondary">Тёмная тема</button>
+        <label class="language-control" for="languageSelect">
+          <span data-i18n="settings.language">Language</span>
+          <select id="languageSelect" data-i18n-aria-label="settings.language" aria-label="Language">
+            <option value="en">English</option>
+            <option value="ru">Русский</option>
+            <option value="de">Deutsch</option>
+            <option value="es">Español</option>
+            <option value="fr">Français</option>
+          </select>
+        </label>
+        <button id="signInBtn" class="primary" data-i18n="auth.signInRegister">Sign in / register</button>
+        <button id="signOutBtn" class="secondary" hidden data-i18n="auth.signOut">Sign out</button>
+        <button id="themeToggle" class="secondary" data-i18n="theme.dark">Dark theme</button>
       </div>
     </header>
 
-    <nav class="app-tabs" aria-label="Разделы приложения">
-      <button id="habitsTabBtn" class="app-tab active" type="button" aria-selected="true">Привычки</button>
-      <button id="goalsTabBtn" class="app-tab" type="button" aria-selected="false">Цели</button>
+    <nav class="app-tabs" data-i18n-aria-label="nav.label" aria-label="App sections">
+      <button id="habitsTabBtn" class="app-tab active" type="button" aria-selected="true" data-i18n="nav.habits">Habits</button>
+      <button id="goalsTabBtn" class="app-tab" type="button" aria-selected="false" data-i18n="nav.goals">Goals</button>
     </nav>
 
     <main>
@@ -46,36 +57,36 @@
         <div class="card today-card">
           <div class="section-top">
             <div>
-              <div class="section-kicker">Задачи на сегодня</div>
-              <h2 class="today-title">Сегодня</h2>
+              <div class="section-kicker" data-i18n="today.kicker">Today's tasks</div>
+              <h2 class="today-title" data-i18n="today.title">Today</h2>
               <div class="today-date" id="todayDateLabel"></div>
             </div>
-            <button id="todayBtn" class="success">Сегодня</button>
+            <button id="todayBtn" class="success" data-i18n="today.goToday">Today</button>
           </div>
 
           <div class="today-tools">
-            <input id="todayHabitSearch" type="search" placeholder="Найти привычку" />
+            <input id="todayHabitSearch" type="search" data-i18n-placeholder="today.searchPlaceholder" placeholder="Find a habit" />
             <div class="list-meta" id="todayListMeta"></div>
           </div>
 
           <div class="today-summary">
             <div class="today-summary-item">
               <span id="todayOpenCount">0</span>
-              <span>осталось</span>
+              <span data-i18n="today.open">left</span>
             </div>
             <div class="today-summary-item">
               <span id="todayDoneCount">0</span>
-              <span>выполнено</span>
+              <span data-i18n="today.done">done</span>
             </div>
             <div class="today-summary-item">
               <span id="todayTotalCount">0</span>
-              <span>всего</span>
+              <span data-i18n="today.total">total</span>
             </div>
           </div>
 
           <div id="activeList" class="active-list"></div>
           <button id="completedTodayBtn" class="completed-today-btn" type="button">
-            <span>Выполнено сегодня</span>
+            <span data-i18n="today.completedToday">Completed today</span>
             <strong id="completedTodayBtnCount">0</strong>
           </button>
           <div class="today-pager" id="todayPager">
@@ -88,40 +99,40 @@
         <div class="card streak-card">
           <div class="section-top streak-section-top">
             <div>
-              <div class="section-kicker">Текущая серия</div>
-              <h2>Серия</h2>
+              <div class="section-kicker" data-i18n="streak.kicker">Current streak</div>
+              <h2 data-i18n="streak.title">Streak</h2>
             </div>
             <div class="streak-compact">
               <span id="heroStreak">0</span>
-              <span>дней</span>
+              <span data-i18n="streak.days">days</span>
             </div>
           </div>
           <div class="streak-main">
-            <div class="streak-main-title">Серия сохраняется, когда день закрыт полностью.</div>
-            <div class="streak-label-big">дней подряд</div>
+            <div class="streak-main-title" data-i18n="streak.cardTitle">The streak stays alive when the whole day is complete.</div>
+            <div class="streak-label-big" data-i18n="streak.daysInRow">days in a row</div>
           </div>
           <div class="streak-progress-block">
-            <div class="streak-progress-label">Сегодня</div>
+            <div class="streak-progress-label" data-i18n="streak.progressToday">Today</div>
             <div class="daily-ring"><div class="daily-ring-fill" id="dailyRingFill"></div></div>
           </div>
-          <div class="streak-warning" id="streakMessage">Выполни все привычки сегодня, чтобы сохранить серию.</div>
+          <div class="streak-warning" id="streakMessage" data-i18n="streak.defaultWarning">Complete all habits today to keep the streak.</div>
         </div>
       </section>
 
       <section class="card">
         <div class="section-top">
           <div>
-            <div class="section-kicker">Управление</div>
-            <h2>Привычки</h2>
+            <div class="section-kicker" data-i18n="manage.kicker">Management</div>
+            <h2 data-i18n="habits.title">Habits</h2>
           </div>
-          <button id="toggleHabitManagerBtn" class="secondary">Изменить привычки</button>
+          <button id="toggleHabitManagerBtn" class="secondary" data-i18n="habits.configure">Configure habits</button>
         </div>
 
         <div class="habit-form">
-          <input id="habitName" placeholder="Привычка: Отжимания" />
-          <input id="habitUnit" placeholder="Единица: раз, мин, страниц" />
-          <input id="habitTarget" type="number" min="0" placeholder="Цель в день" />
-          <button id="addHabitBtn" class="primary">+ Добавить</button>
+          <input id="habitName" data-i18n-placeholder="habits.namePlaceholder" placeholder="Habit: Push-ups" />
+          <input id="habitUnit" data-i18n-placeholder="habits.unitPlaceholder" placeholder="Unit: reps, min, pages" />
+          <input id="habitTarget" type="number" min="0" data-i18n-placeholder="habits.targetPlaceholder" placeholder="Daily target" />
+          <button id="addHabitBtn" class="primary" data-i18n="habits.add">+ Add</button>
         </div>
 
         <div id="habitManagerPanel" class="habit-manager-panel">
@@ -133,27 +144,27 @@
         <div class="card period-card">
           <div class="period-head">
             <div>
-              <h2>Неделя</h2>
+              <h2 data-i18n="period.week">Week</h2>
               <div class="period-subtitle" id="weekCalendarTitle"></div>
             </div>
             <div class="period-nav">
               <button id="prevWeekCalendar">←</button>
-              <button id="thisWeekCalendar">Эта неделя</button>
+              <button id="thisWeekCalendar" data-i18n="period.thisWeek">This week</button>
               <button id="nextWeekCalendar">→</button>
             </div>
           </div>
           <div class="period-stats">
             <div class="period-stat">
               <div class="period-value" id="weekCompleted">0</div>
-              <div class="period-label">выполнений</div>
+              <div class="period-label" data-i18n="period.completions">completions</div>
             </div>
             <div class="period-stat">
               <div class="period-value" id="weekRate">0%</div>
-              <div class="period-label">закрыто</div>
+              <div class="period-label" data-i18n="period.closed">closed</div>
             </div>
             <div class="period-stat">
               <div class="period-value" id="weekPerfect">0</div>
-              <div class="period-label">идеальных дней</div>
+              <div class="period-label" data-i18n="period.perfectDays">perfect days</div>
             </div>
           </div>
           <div class="mini-days" id="weekMiniDays"></div>
@@ -162,27 +173,27 @@
         <div class="card period-card">
           <div class="period-head">
             <div>
-              <h2>Месяц</h2>
+              <h2 data-i18n="period.month">Month</h2>
               <div class="period-subtitle" id="monthCalendarTitle"></div>
             </div>
             <div class="period-nav">
               <button id="prevMonthCalendar">←</button>
-              <button id="thisMonthCalendar">Этот месяц</button>
+              <button id="thisMonthCalendar" data-i18n="period.thisMonth">This month</button>
               <button id="nextMonthCalendar">→</button>
             </div>
           </div>
           <div class="period-stats">
             <div class="period-stat">
               <div class="period-value" id="monthCompleted">0</div>
-              <div class="period-label">выполнений</div>
+              <div class="period-label" data-i18n="period.completions">completions</div>
             </div>
             <div class="period-stat">
               <div class="period-value" id="monthRate">0%</div>
-              <div class="period-label">закрыто</div>
+              <div class="period-label" data-i18n="period.closed">closed</div>
             </div>
             <div class="period-stat">
               <div class="period-value" id="monthPerfect">0</div>
-              <div class="period-label">идеальных дней</div>
+              <div class="period-label" data-i18n="period.perfectDays">perfect days</div>
             </div>
           </div>
           <div class="mini-days" id="monthMiniDays"></div>
@@ -192,29 +203,29 @@
       <section class="card">
         <div class="section-top">
           <div>
-            <div class="section-kicker">Обзор дня</div>
-            <h2>Дневной обзор</h2>
+            <div class="section-kicker" data-i18n="review.kicker">Day review</div>
+            <h2 data-i18n="review.title">Daily review</h2>
           </div>
         </div>
 
         <div class="day-review-grid">
           <div class="day-picker-panel">
-            <div class="day-review-title" id="reviewDayTitle">Сегодня</div>
-            <div class="day-review-subtitle">Нажми на день в недельном или месячном календаре, чтобы посмотреть историю.</div>
+            <div class="day-review-title" id="reviewDayTitle" data-i18n="review.today">Today</div>
+            <div class="day-review-subtitle" data-i18n="review.subtitle">Click a day in the weekly or monthly calendar to inspect history.</div>
             <input type="date" id="reviewDateInput" />
-            <span class="readonly-label">только просмотр</span>
+            <span class="readonly-label" data-i18n="review.readonly">read-only</span>
           </div>
           <div>
             <div class="review-streak-box" id="reviewStreakBox">
               <div>
-                <div class="section-kicker">Серия на дату</div>
+                <div class="section-kicker" data-i18n="review.streakOnDate">Streak on date</div>
                 <div class="review-streak-number" id="reviewStreak">0</div>
               </div>
-              <div class="review-streak-text" id="reviewStreakText">Серия на выбранную дату.</div>
+              <div class="review-streak-text" id="reviewStreakText" data-i18n="review.defaultText">Streak for the selected date.</div>
             </div>
             <div class="future-projection-box" id="futureProjectionBox" hidden>
-              <div class="section-kicker">Прогноз</div>
-              <div class="future-projection-title" id="futureProjectionTitle">Прогноз</div>
+              <div class="section-kicker" data-i18n="projection.kicker">Projection</div>
+              <div class="future-projection-title" id="futureProjectionTitle" data-i18n="projection.title">Projection</div>
               <div class="future-projection-text" id="futureProjectionText"></div>
               <div class="projection-table" id="futureProjectionTable"></div>
             </div>
@@ -225,21 +236,21 @@
 
       <section class="card">
         <div class="chart-top">
-          <h2>Прогресс</h2>
+          <h2 data-i18n="progress.title">Progress</h2>
           <select id="progressHabit"></select>
         </div>
         <div class="chart-metrics three-cols" id="chartMetrics">
           <div class="chart-metric" id="totalSinceStreakMetric">
             <div class="chart-metric-value" id="chartTotalSinceStreak">0</div>
-            <div class="chart-metric-label">с начала серии</div>
+            <div class="chart-metric-label" data-i18n="progress.sinceStreak">since streak start</div>
           </div>
           <div class="chart-metric">
             <div class="chart-metric-value" id="chartStreakDays">0</div>
-            <div class="chart-metric-label">дней в серии</div>
+            <div class="chart-metric-label" data-i18n="progress.streakDays">days in streak</div>
           </div>
           <div class="chart-metric">
             <div class="chart-metric-value" id="chartLifetimeTotal">0</div>
-            <div class="chart-metric-label">всего за всё время</div>
+            <div class="chart-metric-label" data-i18n="progress.lifetime">lifetime total</div>
           </div>
         </div>
         <div class="chart-canvas-wrap">
@@ -253,18 +264,18 @@
           <div class="card deadline-calendar-card">
             <div class="calendar-head">
               <div>
-                <div class="section-kicker">Календарь дедлайнов</div>
-                <h2 id="goalsCalendarTitle">Месяц</h2>
+                <div class="section-kicker" data-i18n="goals.calendarKicker">Deadline calendar</div>
+                <h2 id="goalsCalendarTitle" data-i18n="goals.month">Month</h2>
               </div>
               <div class="calendar-actions">
-                <div class="calendar-mode" role="group" aria-label="Формат календаря">
-                  <button id="goalModeMonthBtn" class="active" type="button">Месяц</button>
-                  <button id="goalModeWeekBtn" type="button">Неделя</button>
-                  <button id="goalModeDayBtn" type="button">День</button>
+                <div class="calendar-mode" role="group" data-i18n-aria-label="goals.calendarFormat" aria-label="Calendar format">
+                  <button id="goalModeMonthBtn" class="active" type="button" data-i18n="goals.month">Month</button>
+                  <button id="goalModeWeekBtn" type="button" data-i18n="goals.week">Week</button>
+                  <button id="goalModeDayBtn" type="button" data-i18n="goals.day">Day</button>
                 </div>
                 <div class="period-nav goal-period-nav">
                   <button id="prevGoalPeriodBtn" type="button">←</button>
-                  <button id="todayGoalPeriodBtn" type="button">Сегодня</button>
+                  <button id="todayGoalPeriodBtn" type="button" data-i18n="today.goToday">Today</button>
                   <button id="nextGoalPeriodBtn" type="button">→</button>
                 </div>
               </div>
@@ -275,8 +286,8 @@
           <aside class="card deadline-focus-card">
             <div class="section-top">
               <div>
-                <div class="section-kicker" id="deadlineFocusMeta">Ближайший дедлайн</div>
-                <h2 id="selectedDeadlineTitle">Дедлайн</h2>
+                <div class="section-kicker" id="deadlineFocusMeta" data-i18n="goals.nearestDeadline">Nearest deadline</div>
+                <h2 id="selectedDeadlineTitle" data-i18n="goals.deadline">Deadline</h2>
               </div>
               <div class="deadline-focus-nav">
                 <button id="prevDeadlineBtn" type="button">←</button>
@@ -290,30 +301,30 @@
         <section class="goals-hero">
           <div class="goals-title-row">
             <div>
-              <div class="section-kicker">Долгий маршрут</div>
-              <h2>Цели</h2>
+              <div class="section-kicker" data-i18n="goals.kicker">Long route</div>
+              <h2 data-i18n="goals.title">Goals</h2>
             </div>
           </div>
           <div class="goals-overview">
             <div class="goal-overview-item">
               <span id="goalsTotalCount">0</span>
-              <span>целей</span>
+              <span data-i18n="goals.total">goals</span>
             </div>
             <div class="goal-overview-item">
               <span id="goalsActiveCount">0</span>
-              <span>в работе</span>
+              <span data-i18n="goals.active">in progress</span>
             </div>
             <div class="goal-overview-item">
               <span id="goalsDueCount">0</span>
-              <span>срочно</span>
+              <span data-i18n="goals.due">urgent</span>
             </div>
             <div class="goal-overview-item">
               <span id="goalsArchivedCount">0</span>
-              <span>в архиве</span>
+              <span data-i18n="goals.archived">archived</span>
             </div>
             <button id="addGoalOpenBtn" class="goal-create-cell" type="button">
               <span>+</span>
-              <strong>Новая цель</strong>
+              <strong data-i18n="goals.newGoal">New goal</strong>
             </button>
           </div>
         </section>
@@ -325,15 +336,15 @@
         <section class="goals-archive-section">
           <div class="section-top">
             <div>
-              <div class="section-kicker">Архив</div>
-              <h2>Архив целей</h2>
+              <div class="section-kicker" data-i18n="goals.archiveKicker">Archive</div>
+              <h2 data-i18n="goals.archiveTitle">Goal archive</h2>
             </div>
-            <div class="goal-archive-tabs" role="group" aria-label="Раздел архива целей">
+            <div class="goal-archive-tabs" role="group" data-i18n-aria-label="goals.archiveArea" aria-label="Goal archive section">
               <button id="goalArchiveCompletedBtn" class="active" type="button">
-                Реализованы <span id="goalArchiveCompletedCount">0</span>
+                <span data-i18n="goals.completedArchive">Completed</span> <span id="goalArchiveCompletedCount">0</span>
               </button>
               <button id="goalArchiveFailedBtn" type="button">
-                Провалены <span id="goalArchiveFailedCount">0</span>
+                <span data-i18n="goals.failedArchive">Failed</span> <span id="goalArchiveFailedCount">0</span>
               </button>
             </div>
           </div>
@@ -343,33 +354,33 @@
 
       <div id="goalWorkspaceView" class="app-view goal-workspace-page" hidden>
         <div class="workspace-page-top">
-          <button id="goalWorkspaceBackBtn" class="secondary" type="button">← К целям</button>
+          <button id="goalWorkspaceBackBtn" class="secondary" type="button" data-i18n="workspace.back">← Back to goals</button>
           <div class="status">
             <span class="status-dot ready"></span>
-            <span>Рабочая вкладка задачи</span>
+            <span data-i18n="workspace.status">Task workspace</span>
           </div>
         </div>
 
         <section class="workspace-document">
           <div class="workspace-hero">
             <div>
-              <div class="section-kicker">Цель</div>
-              <div class="workspace-goal-name" id="goalWorkspaceGoalName">Цель</div>
+              <div class="section-kicker" data-i18n="workspace.goal">Goal</div>
+              <div class="workspace-goal-name" id="goalWorkspaceGoalName" data-i18n="workspace.goal">Goal</div>
             </div>
-            <h2 id="goalWorkspaceTaskName">Задача</h2>
+            <h2 id="goalWorkspaceTaskName" data-i18n="workspace.task">Task</h2>
           </div>
 
           <div class="workspace-board">
             <div class="workspace-mini-section">
               <div class="workspace-panel-head">
                 <div>
-                  <div class="section-kicker">Мини-цели</div>
-                  <h3>Шаги</h3>
+                  <div class="section-kicker" data-i18n="workspace.miniGoals">Mini-goals</div>
+                  <h3 data-i18n="workspace.steps">Steps</h3>
                 </div>
               </div>
               <div class="goal-mini-form">
-                <input id="goalMiniGoalInput" placeholder="Мини-цель: прочитать первую статью" />
-                <button id="goalMiniGoalAddBtn" class="primary" type="button">Добавить</button>
+                <input id="goalMiniGoalInput" data-i18n-placeholder="workspace.miniGoalPlaceholder" placeholder="Mini-goal: read the first article" />
+                <button id="goalMiniGoalAddBtn" class="primary" type="button" data-i18n="actions.add">Add</button>
               </div>
               <div id="goalMiniGoalList" class="goal-mini-list"></div>
             </div>
@@ -377,11 +388,11 @@
             <div class="workspace-notes-section">
               <div class="workspace-panel-head">
                 <div>
-                  <div class="section-kicker">Заметки</div>
-                  <h3>Рабочий лист</h3>
+                  <div class="section-kicker" data-i18n="workspace.notes">Notes</div>
+                  <h3 data-i18n="workspace.sheet">Work sheet</h3>
                 </div>
               </div>
-              <textarea id="goalWorkspaceNotes" class="workspace-notes-editor" rows="12" placeholder="Пиши мысли, конспект, ссылки, план, куски решения..."></textarea>
+              <textarea id="goalWorkspaceNotes" class="workspace-notes-editor" rows="12" data-i18n-placeholder="workspace.notesPlaceholder" placeholder="Write thoughts, notes, links, a plan, pieces of the solution..."></textarea>
             </div>
           </div>
         </section>
@@ -389,17 +400,54 @@
     </main>
   </div>
 
+  <div class="modal-backdrop" id="authModal" hidden>
+    <div class="modal-panel auth-modal-panel" role="dialog" aria-modal="true" aria-labelledby="authModalTitle">
+      <div class="modal-head">
+        <div>
+          <div class="section-kicker" data-i18n="auth.account">Account</div>
+          <h2 id="authModalTitle" data-i18n="auth.login">Sign in</h2>
+        </div>
+        <button id="authModalCloseBtn" type="button" data-i18n="auth.close">Close</button>
+      </div>
+
+      <div class="auth-tabs" role="tablist" data-i18n-aria-label="auth.account" aria-label="Account">
+        <button id="authLoginTabBtn" class="auth-tab active" type="button" role="tab" aria-selected="true" data-i18n="auth.login">Sign in</button>
+        <button id="authRegisterTabBtn" class="auth-tab" type="button" role="tab" aria-selected="false" data-i18n="auth.register">Register</button>
+      </div>
+
+      <form id="authForm" class="auth-form">
+        <div id="authNameField" hidden>
+          <input id="authNameInput" autocomplete="name" data-i18n-placeholder="auth.namePlaceholder" placeholder="Name" />
+        </div>
+        <input id="authEmailInput" autocomplete="email" inputmode="email" type="email" data-i18n-placeholder="auth.emailPlaceholder" placeholder="Email" required />
+        <input id="authPasswordInput" autocomplete="current-password" type="password" data-i18n-placeholder="auth.passwordPlaceholder" placeholder="Password" required minlength="6" />
+        <div id="authPasswordConfirmField" hidden>
+          <input id="authPasswordConfirmInput" autocomplete="new-password" type="password" data-i18n-placeholder="auth.confirmPasswordPlaceholder" placeholder="Repeat password" minlength="6" />
+        </div>
+
+        <div class="auth-actions">
+          <button id="authSubmitBtn" class="primary" type="submit" data-i18n="auth.submitLogin">Sign in</button>
+          <button id="authResetBtn" class="secondary" type="button" data-i18n="auth.resetPassword">Reset password</button>
+        </div>
+      </form>
+
+      <div class="auth-divider"><span data-i18n="auth.or">or</span></div>
+      <button id="authGoogleBtn" class="google-btn auth-google-btn" type="button"><span>G</span> <span data-i18n="auth.googleLogin">Sign in with Google</span></button>
+      <div id="authMessage" class="auth-message" role="status" aria-live="polite"></div>
+    </div>
+  </div>
+
   <div class="modal-backdrop" id="completedModal" hidden>
     <div class="modal-panel" role="dialog" aria-modal="true" aria-labelledby="completedModalTitle">
       <div class="modal-head">
         <div>
-          <div class="section-kicker">Выполненные</div>
-          <h2 id="completedModalTitle">Выполнено сегодня</h2>
+          <div class="section-kicker" data-i18n="completed.kicker">Completed</div>
+          <h2 id="completedModalTitle" data-i18n="completed.title">Completed today</h2>
         </div>
-        <button id="completedModalCloseBtn" type="button">Закрыть</button>
+        <button id="completedModalCloseBtn" type="button" data-i18n="auth.close">Close</button>
       </div>
       <div class="modal-tools">
-        <input id="completedSearchInput" type="search" placeholder="Найти выполненную привычку" />
+        <input id="completedSearchInput" type="search" data-i18n-placeholder="completed.searchPlaceholder" placeholder="Find a completed habit" />
         <div class="list-meta" id="completedModalMeta"></div>
       </div>
       <div class="completed-modal-list" id="completedModalList"></div>
@@ -410,25 +458,25 @@
     <div class="modal-panel goal-modal-panel" role="dialog" aria-modal="true" aria-labelledby="goalModalTitle">
       <div class="modal-head">
         <div>
-          <div class="section-kicker">Точка A → точка B</div>
-          <h2 id="goalModalTitle">Новая цель</h2>
+          <div class="section-kicker" data-i18n="goals.modalKicker">Point A → point B</div>
+          <h2 id="goalModalTitle" data-i18n="goals.newGoalTitle">New goal</h2>
         </div>
-        <button id="goalModalCloseBtn" type="button">Закрыть</button>
+        <button id="goalModalCloseBtn" type="button" data-i18n="auth.close">Close</button>
       </div>
 
       <div class="goal-form">
-        <input id="goalName" placeholder="Цель: найти работу, написать исследование, поднять жим" />
+        <input id="goalName" data-i18n-placeholder="goals.namePlaceholder" placeholder="Goal: find a job, write a paper, improve bench press" />
         <select id="goalType">
-          <option value="other">Другое</option>
-          <option value="project">Проект</option>
-          <option value="skill">Навык</option>
-          <option value="strength">Сила</option>
-          <option value="career">Карьера</option>
-          <option value="health">Здоровье</option>
+          <option value="other" data-i18n="goals.typeOther">Other</option>
+          <option value="project" data-i18n="goals.typeProject">Project</option>
+          <option value="skill" data-i18n="goals.typeSkill">Skill</option>
+          <option value="strength" data-i18n="goals.typeStrength">Strength</option>
+          <option value="career" data-i18n="goals.typeCareer">Career</option>
+          <option value="health" data-i18n="goals.typeHealth">Health</option>
         </select>
-        <textarea id="goalPointA" rows="4" placeholder="Точка A: что есть сейчас"></textarea>
-        <textarea id="goalPointB" rows="4" placeholder="Точка B: желаемый результат"></textarea>
-        <button id="goalSaveBtn" class="primary" type="button">Сохранить цель</button>
+        <textarea id="goalPointA" rows="4" data-i18n-placeholder="goals.pointAPlaceholder" placeholder="Point A: what exists now"></textarea>
+        <textarea id="goalPointB" rows="4" data-i18n-placeholder="goals.pointBPlaceholder" placeholder="Point B: desired result"></textarea>
+        <button id="goalSaveBtn" class="primary" type="button" data-i18n="goals.saveGoal">Save goal</button>
       </div>
     </div>
   </div>
@@ -437,17 +485,17 @@
     <div class="modal-panel goal-result-panel" role="dialog" aria-modal="true" aria-labelledby="goalResultTitle">
       <div class="modal-head">
         <div>
-          <div class="section-kicker">Итог цели</div>
-          <h2 id="goalResultTitle">Завершить цель</h2>
+          <div class="section-kicker" data-i18n="goals.resultKicker">Goal outcome</div>
+          <h2 id="goalResultTitle" data-i18n="goals.resultTitle">Finish goal</h2>
         </div>
-        <button id="goalResultCloseBtn" type="button">Закрыть</button>
+        <button id="goalResultCloseBtn" type="button" data-i18n="auth.close">Close</button>
       </div>
       <div class="goal-result-body">
-        <div class="goal-result-name" id="goalResultName">Цель</div>
+        <div class="goal-result-name" id="goalResultName" data-i18n="workspace.goal">Goal</div>
         <div class="goal-result-meta" id="goalResultMeta"></div>
         <div class="goal-result-actions">
-          <button id="goalResultCompletedBtn" class="success" type="button">Завершил</button>
-          <button id="goalResultFailedBtn" class="danger" type="button">Провалил</button>
+          <button id="goalResultCompletedBtn" class="success" type="button" data-i18n="goals.resultCompleted">Completed</button>
+          <button id="goalResultFailedBtn" class="danger" type="button" data-i18n="goals.resultFailed">Failed</button>
         </div>
       </div>
     </div>

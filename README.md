@@ -15,13 +15,14 @@ Live demo: https://whoisclownhere.github.io/Habit-Tracker/
 - Draws a progress chart for each habit with Chart.js.
 - Supports long-term goals from point A to point B.
 - Splits goals into milestones with evidence, metric values, deadlines, and completion status.
-- Saves user data in Firebase Firestore after Google sign-in.
+- Saves user data in Firebase Firestore after email/password or Google sign-in.
+- Supports English as the primary language plus Russian, German, Spanish, and French.
 - Supports light and dark themes.
 
 ## Tech Stack
 
 - HTML, CSS, and vanilla JavaScript
-- Firebase Authentication with Google provider
+- Firebase Authentication with Email/Password and Google providers
 - Firebase Firestore for per-user cloud storage
 - Chart.js for progress visualization
 - Vite scripts for local development and production builds
@@ -46,6 +47,7 @@ The current app is intentionally lightweight and does not require a frontend fra
     │   ├── utils
     │   │   ├── dates.js
     │   │   └── html.js
+    │   ├── i18n.js
     │   └── main.js
     └── styles
         └── main.css
@@ -101,7 +103,7 @@ The exported object is used by `src/app/main.js` to initialize Firebase Auth and
 
 Required Firebase services:
 
-- Authentication: enable Google as a sign-in provider.
+- Authentication: enable Email/Password and Google as sign-in providers.
 - Firestore Database: create a database for user data.
 - Authorized domains: add the local development domain and the production GitHub Pages domain in Firebase Authentication settings.
 
@@ -206,6 +208,7 @@ Goals contain their own milestone list:
 ## Development Notes
 
 - `src/app/main.js` currently contains app startup, state management, rendering, event handling, Firebase calls, streak calculations, and chart rendering.
+- `src/app/i18n.js` is the single source of truth for UI copy in English, Russian, German, Spanish, and French.
 - `src/app/utils/dates.js` contains reusable date helpers for local date keys, weeks, months, and ranges.
 - `src/app/utils/html.js` contains escaping helpers for safe HTML string rendering.
 - `docs/ARCHITECTURE.md` describes the current architecture and likely refactor targets.
@@ -217,6 +220,7 @@ Goals contain their own milestone list:
 - Move Firebase config to an environment-based setup for safer deployment workflows.
 - Add tests for streak, projection, and progress calculations.
 - Add import/export for local backups.
+- Keep every new UI string in `src/app/i18n.js` and wire static DOM through `data-i18n` attributes or dynamic DOM through `t()` / `tn()`.
 - Decide whether to keep the app vanilla or migrate fully to a framework-based Vite app.
 
 ## License

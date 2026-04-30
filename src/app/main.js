@@ -1,10 +1,16 @@
 import { initializeApp } from "https://www.gstatic.com/firebasejs/12.12.1/firebase-app.js";
 import {
   getAuth,
+  createUserWithEmailAndPassword,
+  getRedirectResult,
   GoogleAuthProvider,
+  sendPasswordResetEmail,
+  signInWithEmailAndPassword,
   signInWithPopup,
+  signInWithRedirect,
   signOut,
-  onAuthStateChanged
+  onAuthStateChanged,
+  updateProfile
 } from "https://www.gstatic.com/firebasejs/12.12.1/firebase-auth.js";
 import {
   getFirestore,
@@ -27,10 +33,20 @@ import {
   toDateInputValue
 } from "./utils/dates.js";
 import { escapeHtml } from "./utils/html.js";
+import {
+  applyStaticTranslations,
+  getDateLocale,
+  getLocale,
+  initLocale,
+  setLocale,
+  t,
+  tn
+} from "./i18n.js";
 
 const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
 const provider = new GoogleAuthProvider();
+provider.setCustomParameters({ prompt: "select_account" });
 const db = getFirestore(app);
 const TODAY_PAGE_SIZE = 6;
 const DAY_REVIEW_LIMIT = 80;
@@ -61,6 +77,11 @@ let resolvingGoalId = null;
 let goalToastTimer = null;
 let workspaceGoalId = null;
 let workspaceTaskId = null;
+let activeActionMenu = null;
+let authMode = "login";
+let isAuthModalOpen = false;
+let isAuthBusy = false;
+let authStateToken = 0;
 
 let data = {
   habits: [],
@@ -70,6 +91,23 @@ let data = {
 
 const signInBtn = document.getElementById("signInBtn");
 const signOutBtn = document.getElementById("signOutBtn");
+const languageSelect = document.getElementById("languageSelect");
+const authModal = document.getElementById("authModal");
+const authModalCloseBtn = document.getElementById("authModalCloseBtn");
+const authModalTitle = document.getElementById("authModalTitle");
+const authLoginTabBtn = document.getElementById("authLoginTabBtn");
+const authRegisterTabBtn = document.getElementById("authRegisterTabBtn");
+const authForm = document.getElementById("authForm");
+const authNameField = document.getElementById("authNameField");
+const authNameInput = document.getElementById("authNameInput");
+const authEmailInput = document.getElementById("authEmailInput");
+const authPasswordInput = document.getElementById("authPasswordInput");
+const authPasswordConfirmField = document.getElementById("authPasswordConfirmField");
+const authPasswordConfirmInput = document.getElementById("authPasswordConfirmInput");
+const authSubmitBtn = document.getElementById("authSubmitBtn");
+const authGoogleBtn = document.getElementById("authGoogleBtn");
+const authResetBtn = document.getElementById("authResetBtn");
+const authMessage = document.getElementById("authMessage");
 const themeToggle = document.getElementById("themeToggle");
 const habitsTabBtn = document.getElementById("habitsTabBtn");
 const goalsTabBtn = document.getElementById("goalsTabBtn");
@@ -166,13 +204,26 @@ const chart = document.getElementById("progressChart");
 let progressChartInstance = null;
 const statusDot = document.getElementById("statusDot");
 const statusText = document.getElementById("statusText");
+let currentStatus = { key: "status.signedOut", mode: "off", params: {} };
 
+initLocale();
+languageSelect.value = getLocale();
 signOutBtn.hidden = true;
 
 habitsTabBtn.addEventListener("click", () => switchView("habits"));
 goalsTabBtn.addEventListener("click", () => switchView("goals"));
-signInBtn.addEventListener("click", signIn);
-signOutBtn.addEventListener("click", () => signOut(auth));
+signInBtn.addEventListener("click", () => openAuthModal("login"));
+signOutBtn.addEventListener("click", handleSignOut);
+languageSelect.addEventListener("change", () => {
+  setLocale(languageSelect.value);
+  refreshLocalizedUi();
+});
+authModalCloseBtn.addEventListener("click", closeAuthModal);
+authLoginTabBtn.addEventListener("click", () => setAuthMode("login"));
+authRegisterTabBtn.addEventListener("click", () => setAuthMode("register"));
+authForm.addEventListener("submit", handleAuthSubmit);
+authGoogleBtn.addEventListener("click", handleGoogleSignIn);
+authResetBtn.addEventListener("click", handlePasswordReset);
 document.getElementById("addHabitBtn").addEventListener("click", addHabit);
 addGoalOpenBtn.addEventListener("click", () => openGoalModal());
 goalModalCloseBtn.addEventListener("click", closeGoalModal);
@@ -201,14 +252,22 @@ completedSearchInput.addEventListener("input", (event) => {
 completedModal.addEventListener("click", (event) => {
   if (event.target === completedModal) closeCompletedModal();
 });
+authModal.addEventListener("click", (event) => {
+  if (event.target === authModal) closeAuthModal();
+});
 goalModal.addEventListener("click", (event) => {
   if (event.target === goalModal) closeGoalModal();
 });
 document.addEventListener("keydown", (event) => {
+  if (event.key === "Escape") closeActionMenu();
+  if (event.key === "Escape" && isAuthModalOpen) closeAuthModal();
   if (event.key === "Escape" && isCompletedModalOpen) closeCompletedModal();
   if (event.key === "Escape" && isGoalModalOpen) closeGoalModal();
   if (event.key === "Escape" && isGoalResultModalOpen) closeGoalResultModal();
 });
+document.addEventListener("click", () => closeActionMenu());
+window.addEventListener("resize", () => closeActionMenu());
+window.addEventListener("scroll", () => closeActionMenu(), true);
 goalModeMonthBtn.addEventListener("click", () => setGoalsCalendarMode("month"));
 goalModeWeekBtn.addEventListener("click", () => setGoalsCalendarMode("week"));
 goalModeDayBtn.addEventListener("click", () => setGoalsCalendarMode("day"));
@@ -253,30 +312,43 @@ reviewDateInput.addEventListener("change", (event) => {
   selectReviewDate(event.target.value, { syncWeek: true });
 });
 themeToggle.addEventListener("click", toggleTheme);
+applyStaticTranslations();
 initTheme();
+refreshStatusText();
 switchView(activeView, { updateHash: false });
 
 window.addEventListener("hashchange", () => {
   switchView(getInitialView(), { updateHash: false });
 });
 
+handleRedirectResult();
+
 onAuthStateChanged(auth, async (user) => {
+  const token = ++authStateToken;
+  clearPendingSave();
   currentUser = user;
 
   if (!user) {
+    setAuthBusy(false);
     signInBtn.hidden = false;
     signOutBtn.hidden = true;
+    signOutBtn.disabled = false;
     data = { habits: [], records: {}, goals: [] };
     isDirty = false;
-    updateStatus("Вход не выполнен", "off");
+    updateStatus("status.signedOut", "off");
     render();
     return;
   }
 
   signInBtn.hidden = true;
   signOutBtn.hidden = false;
-  updateStatus(`Аккаунт: ${user.email || user.displayName || "Google"}`, "ready");
-  await loadFromFirebase();
+  signOutBtn.disabled = false;
+  setAuthBusy(false);
+  closeAuthModal();
+  updateStatus("status.loadingAccount", "dirty");
+  const loaded = await loadFromFirebase(user.uid);
+  if (token !== authStateToken || !isCurrentUser(user.uid)) return;
+  if (loaded) updateStatus("status.account", "ready", { user: getUserLabel(user) });
   render();
 });
 
@@ -288,6 +360,7 @@ function getInitialView() {
 }
 
 function switchView(view, options = {}) {
+  closeActionMenu();
   activeView = view === "workspace" ? "workspace" : view === "goals" ? "goals" : "habits";
   const isGoals = activeView === "goals";
   const isWorkspace = activeView === "workspace";
@@ -307,101 +380,449 @@ function switchView(view, options = {}) {
   if (isWorkspace) renderGoalWorkspacePage();
 }
 
+function makeActionMenu(actions, label = t("actions.menu")) {
+  const menu = document.createElement("div");
+  menu.className = "action-menu";
+
+  const trigger = document.createElement("button");
+  trigger.className = "action-menu-trigger";
+  trigger.type = "button";
+  trigger.textContent = "⋯";
+  trigger.setAttribute("aria-label", label);
+  trigger.setAttribute("aria-haspopup", "menu");
+  trigger.setAttribute("aria-expanded", "false");
+
+  const panel = document.createElement("div");
+  panel.className = "action-menu-panel";
+  panel.setAttribute("role", "menu");
+  panel.hidden = true;
+
+  actions.forEach(action => {
+    const item = document.createElement("button");
+    item.className = "action-menu-item" + (action.danger ? " danger" : "");
+    item.type = "button";
+    item.textContent = action.label;
+    item.setAttribute("role", "menuitem");
+    item.addEventListener("click", (event) => {
+      event.stopPropagation();
+      closeActionMenu(menu);
+      action.onSelect();
+    });
+    panel.appendChild(item);
+  });
+
+  trigger.addEventListener("click", (event) => {
+    event.stopPropagation();
+    toggleActionMenu(menu);
+  });
+
+  menu.addEventListener("click", (event) => event.stopPropagation());
+  menu.appendChild(trigger);
+  menu.appendChild(panel);
+  return menu;
+}
+
+function toggleActionMenu(menu) {
+  const panel = menu.querySelector(".action-menu-panel");
+  const trigger = menu.querySelector(".action-menu-trigger");
+  const shouldOpen = panel.hidden;
+
+  if (activeActionMenu && activeActionMenu !== menu) closeActionMenu(activeActionMenu);
+
+  panel.hidden = !shouldOpen;
+  menu.classList.toggle("open", shouldOpen);
+  trigger.setAttribute("aria-expanded", String(shouldOpen));
+  activeActionMenu = shouldOpen ? menu : null;
+  if (shouldOpen) positionActionMenu(menu);
+}
+
+function closeActionMenu(menu = activeActionMenu) {
+  if (!menu) return;
+
+  const panel = menu.querySelector(".action-menu-panel");
+  const trigger = menu.querySelector(".action-menu-trigger");
+  if (panel) panel.hidden = true;
+  if (trigger) trigger.setAttribute("aria-expanded", "false");
+  menu.classList.remove("open");
+  if (activeActionMenu === menu) activeActionMenu = null;
+}
+
+function syncModalOpenState() {
+  document.body.classList.toggle(
+    "modal-open",
+    isAuthModalOpen || isCompletedModalOpen || isGoalModalOpen || isGoalResultModalOpen
+  );
+}
+
+function positionActionMenu(menu) {
+  const panel = menu.querySelector(".action-menu-panel");
+  const trigger = menu.querySelector(".action-menu-trigger");
+  if (!panel || !trigger) return;
+
+  const gap = 6;
+  const margin = 12;
+  const triggerRect = trigger.getBoundingClientRect();
+  const panelRect = panel.getBoundingClientRect();
+  const maxLeft = Math.max(margin, window.innerWidth - panelRect.width - margin);
+  const left = Math.min(maxLeft, Math.max(margin, triggerRect.right - panelRect.width));
+  const belowTop = triggerRect.bottom + gap;
+  const aboveTop = triggerRect.top - panelRect.height - gap;
+  const top = belowTop + panelRect.height > window.innerHeight - margin
+    ? Math.max(margin, aboveTop)
+    : belowTop;
+
+  panel.style.left = `${left}px`;
+  panel.style.top = `${top}px`;
+}
+
 function initTheme() {
   const savedTheme = localStorage.getItem("habitTheme") || "light";
   document.body.classList.toggle("dark", savedTheme === "dark");
-  themeToggle.textContent = savedTheme === "dark" ? "Светлая тема" : "Тёмная тема";
+  themeToggle.textContent = savedTheme === "dark" ? t("theme.light") : t("theme.dark");
 }
 
 function toggleTheme() {
   const isDark = document.body.classList.toggle("dark");
   localStorage.setItem("habitTheme", isDark ? "dark" : "light");
-  themeToggle.textContent = isDark ? "Светлая тема" : "Тёмная тема";
+  themeToggle.textContent = isDark ? t("theme.light") : t("theme.dark");
   renderProgress();
 }
 
-async function signIn() {
+function refreshLocalizedUi() {
+  applyStaticTranslations();
+  initTheme();
+  refreshStatusText();
+  setAuthMode(authMode, { clearMessage: false });
+  syncGoalModalText();
+  syncGoalResultModalText();
+  render();
+}
+
+function openAuthModal(mode = authMode) {
+  setAuthMode(mode);
+  clearAuthMessage();
+  isAuthModalOpen = true;
+  authModal.hidden = false;
+  syncModalOpenState();
+  requestAnimationFrame(() => {
+    const firstField = authMode === "register" ? authNameInput : authEmailInput;
+    firstField.focus();
+  });
+}
+
+function closeAuthModal() {
+  isAuthModalOpen = false;
+  authModal.hidden = true;
+  syncModalOpenState();
+}
+
+function setAuthMode(mode, options = {}) {
+  authMode = mode === "register" ? "register" : "login";
+  const isRegister = authMode === "register";
+
+  authModalTitle.textContent = isRegister ? t("auth.register") : t("auth.login");
+  authSubmitBtn.textContent = isRegister ? t("auth.submitRegister") : t("auth.submitLogin");
+  authGoogleBtn.innerHTML = isRegister
+    ? `<span>G</span> ${t("auth.googleRegister")}`
+    : `<span>G</span> ${t("auth.googleLogin")}`;
+  authNameField.hidden = !isRegister;
+  authPasswordConfirmField.hidden = !isRegister;
+  authResetBtn.hidden = isRegister;
+  authPasswordInput.autocomplete = isRegister ? "new-password" : "current-password";
+  authPasswordConfirmInput.required = isRegister;
+  authLoginTabBtn.classList.toggle("active", !isRegister);
+  authRegisterTabBtn.classList.toggle("active", isRegister);
+  authLoginTabBtn.setAttribute("aria-selected", String(!isRegister));
+  authRegisterTabBtn.setAttribute("aria-selected", String(isRegister));
+  if (options.clearMessage !== false) clearAuthMessage();
+}
+
+async function handleAuthSubmit(event) {
+  event.preventDefault();
+  if (isAuthBusy) return;
+
+  const email = authEmailInput.value.trim();
+  const password = authPasswordInput.value;
+  const displayName = authNameInput.value.trim();
+  const passwordConfirm = authPasswordConfirmInput.value;
+
+  if (!email) {
+    showAuthMessage(t("auth.emailRequired"), "error");
+    authEmailInput.focus();
+    return;
+  }
+
+  if (password.length < 6) {
+    showAuthMessage(t("auth.passwordTooShort"), "error");
+    authPasswordInput.focus();
+    return;
+  }
+
+  if (authMode === "register" && password !== passwordConfirm) {
+    showAuthMessage(t("auth.passwordMismatch"), "error");
+    authPasswordConfirmInput.focus();
+    return;
+  }
+
+  setAuthBusy(true, authMode === "register" ? t("auth.busyCreate") : t("auth.busyLogin"));
+
   try {
-    await signInWithPopup(auth, provider);
+    if (authMode === "register") {
+      const credential = await createUserWithEmailAndPassword(auth, email, password);
+      if (displayName) await updateProfile(credential.user, { displayName });
+      showAuthMessage(t("auth.accountCreated"), "success");
+    } else {
+      await signInWithEmailAndPassword(auth, email, password);
+    }
   } catch (error) {
-    alert("Не удалось войти: " + error.message);
+    setAuthBusy(false);
+    showAuthError(error);
   }
 }
 
-function getUserDocRef() {
-  if (!currentUser) return null;
-  return doc(db, "users", currentUser.uid, "habitData", "main");
+async function handleGoogleSignIn() {
+  if (isAuthBusy) return;
+  setAuthBusy(true, t("auth.busyGoogle"));
+
+  try {
+    await signInWithPopup(auth, provider);
+  } catch (error) {
+    if (shouldUseRedirectForAuth(error)) {
+      showAuthMessage(t("auth.busyRedirect"), "success");
+      await signInWithRedirect(auth, provider);
+      return;
+    }
+
+    setAuthBusy(false);
+    showAuthError(error);
+  }
 }
 
-async function loadFromFirebase() {
-  const ref = getUserDocRef();
-  if (!ref) return;
+async function handlePasswordReset() {
+  if (isAuthBusy) return;
+
+  const email = authEmailInput.value.trim();
+  if (!email) {
+    showAuthMessage(t("auth.resetEmailRequired"), "error");
+    authEmailInput.focus();
+    return;
+  }
+
+  setAuthBusy(true, t("auth.busyReset"));
+
+  try {
+    await sendPasswordResetEmail(auth, email);
+    showAuthMessage(t("auth.resetSent"), "success");
+  } catch (error) {
+    showAuthError(error);
+  } finally {
+    setAuthBusy(false);
+  }
+}
+
+async function handleGoogleRedirectResult() {
+  try {
+    const result = await getRedirectResult(auth);
+    if (result?.user) updateStatus("status.googleComplete", "dirty");
+  } catch (error) {
+    openAuthModal("login");
+    showAuthError(error);
+    updateStatus("status.signInError", "error");
+  }
+}
+
+function handleRedirectResult() {
+  handleGoogleRedirectResult();
+}
+
+async function handleSignOut() {
+  closeAuthModal();
+  const uid = currentUser?.uid;
+  const shouldSaveBeforeExit = Boolean(uid && isDirty);
+  clearPendingSave();
+  signOutBtn.disabled = true;
+
+  if (shouldSaveBeforeExit) {
+    updateStatus("status.savingBeforeSignOut", "dirty");
+    const saved = await saveToFirebase(false, uid);
+    if (!saved && isCurrentUser(uid)) {
+      signOutBtn.disabled = false;
+      updateStatus("status.signOutSaveFailed", "error");
+      return;
+    }
+  }
+
+  updateStatus("status.signingOut", "dirty");
+
+  try {
+    await signOut(auth);
+  } catch (error) {
+    signOutBtn.disabled = false;
+    updateStatus("status.signOutError", "error");
+    alert(t("alerts.signOutFailed", { message: getAuthErrorMessage(error) }));
+  }
+}
+
+function setAuthBusy(isBusy, message = "") {
+  isAuthBusy = isBusy;
+  authSubmitBtn.disabled = isBusy;
+  authGoogleBtn.disabled = isBusy;
+  authResetBtn.disabled = isBusy;
+  authLoginTabBtn.disabled = isBusy;
+  authRegisterTabBtn.disabled = isBusy;
+  signInBtn.disabled = isBusy;
+  if (message) showAuthMessage(message, "info");
+}
+
+function showAuthError(error) {
+  showAuthMessage(getAuthErrorMessage(error), "error");
+}
+
+function showAuthMessage(message, mode = "info") {
+  authMessage.textContent = message;
+  authMessage.className = `auth-message ${mode}`;
+}
+
+function clearAuthMessage() {
+  authMessage.textContent = "";
+  authMessage.className = "auth-message";
+}
+
+function getAuthErrorMessage(error) {
+  const code = error?.code || "";
+  const messages = {
+    "auth/email-already-in-use": "auth.error.emailAlreadyInUse",
+    "auth/invalid-email": "auth.error.invalidEmail",
+    "auth/invalid-credential": "auth.error.invalidCredential",
+    "auth/user-not-found": "auth.error.userNotFound",
+    "auth/wrong-password": "auth.error.wrongPassword",
+    "auth/weak-password": "auth.error.weakPassword",
+    "auth/popup-closed-by-user": "auth.error.popupClosed",
+    "auth/popup-blocked": "auth.error.popupBlocked",
+    "auth/cancelled-popup-request": "auth.error.cancelledPopup",
+    "auth/operation-not-allowed": "auth.error.operationNotAllowed",
+    "auth/unauthorized-domain": "auth.error.unauthorizedDomain",
+    "auth/network-request-failed": "auth.error.network",
+    "auth/too-many-requests": "auth.error.tooManyRequests"
+  };
+
+  return messages[code]
+    ? t(messages[code])
+    : t("auth.error.fallback", { message: error?.message || t("auth.error.unknown") });
+}
+
+function shouldUseRedirectForAuth(error) {
+  return ["auth/popup-blocked", "auth/operation-not-supported-in-this-environment"].includes(error?.code);
+}
+
+function getUserLabel(user) {
+  return user.email || user.displayName || t("auth.accountFallback");
+}
+
+function isCurrentUser(uid) {
+  return Boolean(uid && currentUser?.uid === uid);
+}
+
+function getUserDocRef(uid = currentUser?.uid) {
+  if (!uid) return null;
+  return doc(db, "users", uid, "habitData", "main");
+}
+
+function createStarterData() {
+  return {
+    habits: [
+      { id: crypto.randomUUID(), name: t("data.starter.pushups"), unit: t("data.starter.pushupsUnit"), target: 15, createdAt: toDateInputValue(new Date()) },
+      { id: crypto.randomUUID(), name: t("data.starter.reading"), unit: t("data.starter.readingUnit"), target: 20, createdAt: toDateInputValue(new Date()) }
+    ],
+    records: {},
+    goals: []
+  };
+}
+
+async function loadFromFirebase(expectedUid = currentUser?.uid) {
+  const ref = getUserDocRef(expectedUid);
+  if (!ref || !isCurrentUser(expectedUid)) return false;
 
   try {
     const snap = await getDoc(ref);
+    if (!isCurrentUser(expectedUid)) return false;
 
     if (!snap.exists()) {
-      data = {
-        habits: [
-          { id: crypto.randomUUID(), name: "Отжимания 🏃", unit: "раз", target: 15, createdAt: toDateInputValue(new Date()) },
-          { id: crypto.randomUUID(), name: "Чтение 📖", unit: "страниц", target: 20, createdAt: toDateInputValue(new Date()) }
-        ],
-        records: {},
-        goals: []
-      };
-      await saveToFirebase(false);
-      return;
+      data = createStarterData();
+      const saved = await saveToFirebase(false, expectedUid);
+      return saved && isCurrentUser(expectedUid);
     }
 
     const saved = snap.data();
     data = normalizeData(saved.data || saved);
     isDirty = false;
-    updateStatus("Данные синхронизированы", "ready");
+    updateStatus("status.dataSynced", "ready");
+    return true;
   } catch (error) {
-    alert("Не удалось загрузить данные: " + error.message);
+    if (!isCurrentUser(expectedUid)) return false;
+    updateStatus("status.syncError", "error");
+    alert(t("alerts.loadFailed", { message: error.message }));
+    return false;
   }
 }
 
-async function saveToFirebase(showAlert = false) {
-  const ref = getUserDocRef();
-  if (!currentUser || !ref) {
-    alert("Сначала войди через Google.");
-    return;
+async function saveToFirebase(showAlert = false, expectedUid = currentUser?.uid) {
+  const ref = getUserDocRef(expectedUid);
+  if (!currentUser || !ref || !isCurrentUser(expectedUid)) {
+    if (showAlert) alert(t("alerts.signInBeforeSave"));
+    return false;
   }
 
   try {
     await setDoc(ref, {
       data,
       updatedAt: serverTimestamp(),
-      ownerUid: currentUser.uid,
+      ownerUid: expectedUid,
       ownerEmail: currentUser.email || null
     });
 
     isDirty = false;
-    updateStatus("Сохранено", "ready");
-    if (showAlert) alert("Данные сохранены.");
+    updateStatus("status.saved", "ready");
+    if (showAlert) alert(t("alerts.dataSaved"));
+    return true;
   } catch (error) {
-    alert("Не удалось сохранить данные: " + error.message);
+    alert(t("alerts.saveFailed", { message: error.message }));
+    updateStatus("status.saveError", "error");
+    return false;
   }
 }
 
 function scheduleAutoSave() {
   if (!currentUser) return;
   clearTimeout(saveTimer);
-  saveTimer = setTimeout(() => saveToFirebase(false), 700);
+  const uid = currentUser.uid;
+  saveTimer = setTimeout(() => {
+    if (isCurrentUser(uid)) saveToFirebase(false, uid);
+  }, 700);
+}
+
+function clearPendingSave() {
+  clearTimeout(saveTimer);
+  saveTimer = null;
 }
 
 function markDirty() {
   isDirty = true;
-  updateStatus("Сохраняю изменения...", "dirty");
+  updateStatus("status.savingChanges", "dirty");
   scheduleAutoSave();
 }
 
-function updateStatus(text, mode) {
-  statusText.textContent = text;
+function updateStatus(key, mode, params = {}) {
+  currentStatus = { key, mode, params };
+  refreshStatusText();
+}
+
+function refreshStatusText() {
+  statusText.textContent = t(currentStatus.key, currentStatus.params);
   statusDot.className = "status-dot";
-  if (mode === "ready") statusDot.classList.add("ready");
-  if (mode === "dirty") statusDot.classList.add("dirty");
+  if (currentStatus.mode === "ready") statusDot.classList.add("ready");
+  if (currentStatus.mode === "dirty") statusDot.classList.add("dirty");
+  if (currentStatus.mode === "error") statusDot.classList.add("error");
 }
 
 function normalizeData(input) {
@@ -429,7 +850,7 @@ function normalizeGoal(goal) {
 
   return {
     id: goal.id || crypto.randomUUID(),
-    name: goal.name || "Цель",
+    name: goal.name || t("data.goalFallback"),
     type: goal.type || "other",
     pointA: goal.pointA || fallbackPointA,
     pointB: goal.pointB || fallbackPointB,
@@ -444,7 +865,7 @@ function normalizeGoal(goal) {
 function normalizeGoalTask(task) {
   return {
     id: task.id || crypto.randomUUID(),
-    title: task.title || task.evidence || "Задача",
+    title: task.title || task.evidence || t("data.taskFallback"),
     deadline: task.deadline || "",
     done: Boolean(task.done),
     completedAt: task.completedAt || "",
@@ -467,7 +888,7 @@ function normalizeMiniGoal(miniGoal = {}) {
 
   return {
     id: safeMiniGoal.id || crypto.randomUUID(),
-    title: safeMiniGoal.title || "Мини-цель",
+    title: safeMiniGoal.title || t("data.miniGoalFallback"),
     done: Boolean(safeMiniGoal.done),
     completedAt: safeMiniGoal.completedAt || ""
   };
@@ -495,7 +916,7 @@ function render() {
 
 function renderTodayHeader() {
   const today = new Date();
-  todayDateLabel.textContent = today.toLocaleDateString("ru-RU", {
+  todayDateLabel.textContent = today.toLocaleDateString(getDateLocale(), {
     weekday: "long",
     day: "numeric",
     month: "long"
@@ -511,14 +932,14 @@ function renderTodayLists() {
   if (!currentUser) {
     renderTodaySummary(0, 0);
     completedTodayBtn.disabled = true;
-    activeList.innerHTML = `<div class="empty">Войди через Google, чтобы увидеть сегодняшние задачи.</div>`;
+    activeList.innerHTML = `<div class="empty">${t("empty.signInToday")}</div>`;
     return;
   }
 
   if (data.habits.length === 0) {
     renderTodaySummary(0, 0);
     completedTodayBtn.disabled = true;
-    activeList.innerHTML = `<div class="empty">Пока нет привычек. Добавь первую ниже.</div>`;
+    activeList.innerHTML = `<div class="empty">${t("empty.noHabits")}</div>`;
     return;
   }
 
@@ -537,8 +958,8 @@ function renderTodayLists() {
 
   if (activeHabits.length === 0) {
     const emptyText = todaySearchQuery
-      ? "Ничего не найдено среди активных привычек."
-      : "Все привычки на сегодня выполнены.";
+      ? t("empty.noActiveResults")
+      : t("empty.allDoneToday");
     activeList.innerHTML = `<div class="empty">${emptyText}</div>`;
   } else {
     activeHabits.forEach(({ habit, record }) => activeList.appendChild(makeQuestItem(habit, record, todayKey)));
@@ -593,38 +1014,40 @@ function getVisibleTodayHabits(todayKey) {
 
 function getTodayListMeta(result) {
   if (result.matchCount === 0) {
-    return result.isPartialSearch ? `Проверено ${formatHabitCount(result.scannedCount)}` : "";
+    return result.isPartialSearch ? t("today.checked", { countText: formatHabitCount(result.scannedCount) }) : "";
   }
 
   if (result.isPartialSearch) {
-    return `Показано ${result.startIndex + 1}-${result.endIndex}, найдено ${result.matchCount}+`;
+    return t("today.showingFound", {
+      start: result.startIndex + 1,
+      end: result.endIndex,
+      count: result.matchCount
+    });
   }
 
   return result.matchCount > result.items.length
-    ? `Показано ${result.startIndex + 1}-${result.endIndex} из ${result.matchCount}`
+    ? t("today.showingOf", {
+      start: result.startIndex + 1,
+      end: result.endIndex,
+      count: result.matchCount
+    })
     : formatHabitCount(result.matchCount);
 }
 
-function pluralizeRu(count, one, few, many) {
-  const abs = Math.abs(count);
-  const mod10 = abs % 10;
-  const mod100 = abs % 100;
-
-  if (mod10 === 1 && mod100 !== 11) return one;
-  if (mod10 >= 2 && mod10 <= 4 && (mod100 < 12 || mod100 > 14)) return few;
-  return many;
-}
-
 function formatHabitCount(count) {
-  return `${count} ${pluralizeRu(count, "привычка", "привычки", "привычек")}`;
+  return tn("counts.habit", count);
 }
 
 function formatCompletedHabitCount(count) {
-  return `${count} ${pluralizeRu(count, "привычка выполнена", "привычки выполнены", "привычек выполнено")}`;
+  return tn("counts.completedHabit", count);
 }
 
 function formatDayCount(count) {
-  return `${count} ${pluralizeRu(count, "день", "дня", "дней")}`;
+  return tn("counts.day", count);
+}
+
+function formatTaskCount(count) {
+  return tn("counts.task", count);
 }
 
 function habitMatchesSearch(habit, query) {
@@ -638,7 +1061,7 @@ function openCompletedModal() {
   completedSearchQuery = "";
   completedSearchInput.value = "";
   completedModal.hidden = false;
-  document.body.classList.add("modal-open");
+  syncModalOpenState();
   renderCompletedModal();
   completedSearchInput.focus();
 }
@@ -646,7 +1069,7 @@ function openCompletedModal() {
 function closeCompletedModal() {
   isCompletedModalOpen = false;
   completedModal.hidden = true;
-  if (!isGoalModalOpen && !isGoalResultModalOpen) document.body.classList.remove("modal-open");
+  syncModalOpenState();
 }
 
 function renderCompletedModal() {
@@ -655,7 +1078,7 @@ function renderCompletedModal() {
 
   if (!currentUser) {
     completedModalMeta.textContent = "";
-    completedModalList.innerHTML = `<div class="empty">Войди через Google, чтобы посмотреть выполненные привычки.</div>`;
+    completedModalList.innerHTML = `<div class="empty">${t("completed.signInEmpty")}</div>`;
     return;
   }
 
@@ -663,16 +1086,16 @@ function renderCompletedModal() {
   const visibleItems = completedItems.filter(({ habit }) => habitMatchesSearch(habit, completedSearchQuery));
 
   completedModalMeta.textContent = completedSearchQuery
-    ? `Найдено: ${visibleItems.length} из ${completedItems.length}`
+    ? t("today.foundOf", { visible: visibleItems.length, total: completedItems.length })
     : formatCompletedHabitCount(completedItems.length);
 
   if (completedItems.length === 0) {
-    completedModalList.innerHTML = `<div class="empty">Сегодня пока ничего не выполнено.</div>`;
+    completedModalList.innerHTML = `<div class="empty">${t("completed.noneToday")}</div>`;
     return;
   }
 
   if (visibleItems.length === 0) {
-    completedModalList.innerHTML = `<div class="empty">Ничего не найдено.</div>`;
+    completedModalList.innerHTML = `<div class="empty">${t("empty.noResults")}</div>`;
     return;
   }
 
@@ -699,7 +1122,7 @@ function getHabitDetails(habitId, record) {
 
   return {
     id: habitId,
-    name: habit?.name || record.habitName || "Привычка",
+    name: habit?.name || record.habitName || t("habit.fallback"),
     unit: habit?.unit ?? record.habitUnit ?? "",
     target: habit?.target ?? record.habitTarget ?? ""
   };
@@ -738,17 +1161,17 @@ function makeQuestItem(habit, record, dateKey) {
   const info = document.createElement("div");
   const targetText = habit.target
     ? `${escapeHtml(habit.target)}${habit.unit ? " " + escapeHtml(habit.unit) : ""}`
-    : "не задана";
+    : t("habit.targetUnset");
   info.innerHTML = `
     <div class="quest-name">${escapeHtml(habit.name)}</div>
-    <div class="quest-meta">Цель: ${targetText}</div>
+    <div class="quest-meta">${t("habit.targetMeta", { target: targetText })}</div>
   `;
 
   const value = document.createElement("input");
   value.className = "quest-value";
   value.type = "number";
   value.min = "0";
-  value.placeholder = habit.unit || "значение";
+  value.placeholder = habit.unit || t("habit.valuePlaceholder");
   value.value = record.value ?? "";
   value.oninput = () => {
     record.value = value.value === "" ? "" : Number(value.value);
@@ -773,7 +1196,7 @@ function makeCompletedQuestItem(habit, record, dateKey) {
   check.className = "quest-check quest-check-done";
   check.type = "button";
   check.textContent = "✓";
-  check.title = "Вернуть в активные";
+  check.title = t("habit.returnToActive");
   check.onclick = () => {
     record.done = false;
     applyHabitSnapshot(record, habit);
@@ -785,14 +1208,14 @@ function makeCompletedQuestItem(habit, record, dateKey) {
   const info = document.createElement("div");
   info.innerHTML = `
     <div class="quest-name">${escapeHtml(habit.name)}</div>
-    <div class="quest-meta">Выполнено · количество можно изменить</div>
+    <div class="quest-meta">${t("habit.completedEditable")}</div>
   `;
 
   const value = document.createElement("input");
   value.className = "quest-value";
   value.type = "number";
   value.min = "0";
-  value.placeholder = habit.unit || "значение";
+  value.placeholder = habit.unit || t("habit.valuePlaceholder");
   value.value = record.value ?? "";
   value.oninput = () => {
     record.value = value.value === "" ? "" : Number(value.value);
@@ -814,31 +1237,31 @@ function makeCompletedQuestItem(habit, record, dateKey) {
 function toggleHabitManager() {
   isHabitManagerOpen = !isHabitManagerOpen;
   habitManagerPanel.classList.toggle("open", isHabitManagerOpen);
-  toggleHabitManagerBtn.textContent = isHabitManagerOpen ? "Скрыть настройки" : "Изменить привычки";
+  toggleHabitManagerBtn.textContent = isHabitManagerOpen ? t("habits.hideSettings") : t("habits.configure");
   if (isHabitManagerOpen) renderHabitManager();
 }
 
 function renderHabitManager() {
   habitManagerPanel.classList.toggle("open", isHabitManagerOpen);
-  toggleHabitManagerBtn.textContent = isHabitManagerOpen ? "Скрыть настройки" : "Изменить привычки";
+  toggleHabitManagerBtn.textContent = isHabitManagerOpen ? t("habits.hideSettings") : t("habits.configure");
   habitManagerList.innerHTML = "";
 
   if (!isHabitManagerOpen) return;
 
   if (!currentUser) {
-    habitManagerList.innerHTML = `<div class="empty habit-manager-empty">Войди через Google, чтобы изменять привычки.</div>`;
+    habitManagerList.innerHTML = `<div class="empty habit-manager-empty">${t("empty.signInHabitManager")}</div>`;
     return;
   }
 
   if (data.habits.length === 0) {
-    habitManagerList.innerHTML = `<div class="empty habit-manager-empty">Пока нет привычек для редактирования.</div>`;
+    habitManagerList.innerHTML = `<div class="empty habit-manager-empty">${t("empty.noHabitsToEdit")}</div>`;
     return;
   }
 
   if (data.habits.length > HABIT_MANAGER_LIMIT) {
     const note = document.createElement("div");
     note.className = "empty habit-manager-empty";
-    note.textContent = `Показаны ${HABIT_MANAGER_LIMIT} из ${data.habits.length} привычек. Для больших списков используй поиск в сегодняшнем блоке.`;
+    note.textContent = t("habit.managerLimit", { limit: HABIT_MANAGER_LIMIT, total: data.habits.length });
     habitManagerList.appendChild(note);
   }
 
@@ -848,42 +1271,41 @@ function renderHabitManager() {
 
     const nameInput = document.createElement("input");
     nameInput.value = habit.name || "";
-    nameInput.placeholder = "Название";
+    nameInput.placeholder = t("habit.fieldName");
     nameInput.onchange = () => updateHabitField(habit.id, "name", nameInput.value.trim());
 
     const unitInput = document.createElement("input");
     unitInput.value = habit.unit || "";
-    unitInput.placeholder = "Единица";
+    unitInput.placeholder = t("habit.fieldUnit");
     unitInput.onchange = () => updateHabitField(habit.id, "unit", unitInput.value.trim());
 
     const targetInput = document.createElement("input");
     targetInput.type = "number";
     targetInput.min = "0";
     targetInput.value = habit.target ?? "";
-    targetInput.placeholder = "Цель";
+    targetInput.placeholder = t("habit.fieldTarget");
     targetInput.onchange = () => updateHabitField(habit.id, "target", targetInput.value === "" ? "" : Number(targetInput.value));
 
-    const saveInlineBtn = document.createElement("button");
-    saveInlineBtn.className = "success";
-    saveInlineBtn.textContent = "Применить";
-    saveInlineBtn.onclick = () => {
-      updateHabit(habit.id, {
-        name: nameInput.value.trim(),
-        unit: unitInput.value.trim(),
-        target: targetInput.value === "" ? "" : Number(targetInput.value)
-      });
-    };
-
-    const deleteBtn = document.createElement("button");
-    deleteBtn.className = "danger";
-    deleteBtn.textContent = "Удалить";
-    deleteBtn.onclick = () => deleteHabit(habit);
+    const actionMenu = makeActionMenu([
+      {
+        label: t("actions.edit"),
+        onSelect: () => updateHabit(habit.id, {
+          name: nameInput.value.trim(),
+          unit: unitInput.value.trim(),
+          target: targetInput.value === "" ? "" : Number(targetInput.value)
+        })
+      },
+      {
+        label: t("actions.delete"),
+        danger: true,
+        onSelect: () => deleteHabit(habit)
+      }
+    ], t("habit.menuLabel", { name: habit.name || t("habit.unnamed") }));
 
     item.appendChild(nameInput);
     item.appendChild(unitInput);
     item.appendChild(targetInput);
-    item.appendChild(saveInlineBtn);
-    item.appendChild(deleteBtn);
+    item.appendChild(actionMenu);
     habitManagerList.appendChild(item);
   });
 }
@@ -897,13 +1319,13 @@ function updateHabit(habitId, updates, rerender = true) {
   if (!habit) return;
 
   if (Object.prototype.hasOwnProperty.call(updates, "name") && !updates.name) {
-    alert("Название привычки не может быть пустым.");
+    alert(t("habit.nameRequired"));
     renderHabitManager();
     return;
   }
 
   if (Object.prototype.hasOwnProperty.call(updates, "target") && Number(updates.target) < 0) {
-    alert("Цель не может быть отрицательной.");
+    alert(t("habit.targetNegative"));
     renderHabitManager();
     return;
   }
@@ -935,8 +1357,8 @@ function renderDayReview() {
   const isTodayOpen = isToday && !isTodayComplete();
 
   reviewDayTitle.textContent = isToday
-    ? "Сегодня"
-    : date.toLocaleDateString("ru-RU", { day: "numeric", month: "long", weekday: "long" });
+    ? t("review.today")
+    : date.toLocaleDateString(getDateLocale(), { day: "numeric", month: "long", weekday: "long" });
 
   reviewStreak.textContent = streakOnDate;
   reviewStreakBox.classList.remove("danger", "future");
@@ -944,31 +1366,31 @@ function renderDayReview() {
   else if (streakOnDate === 0 && !isTodayOpen) reviewStreakBox.classList.add("danger");
 
   reviewStreakText.textContent = isFuture
-    ? "Прогноз серии, если каждый день до этой даты будет закрыт полностью."
+    ? t("review.futureStreak")
     : isToday
       ? isTodayOpen
-        ? "Будет в серии, когда закроешь сегодня."
-        : "Серия с учётом сегодняшнего дня."
+        ? t("review.todayOpen")
+        : t("review.todayClosed")
       : streakOnDate > 0
-        ? "Серия к концу этого дня."
-        : "В этот день серия была прервана или ещё не началась.";
+        ? t("review.pastPositive")
+        : t("review.pastZero");
 
   renderFutureProjection(reviewDate);
 
   daySummaryList.innerHTML = "";
 
   if (isFuture) {
-    daySummaryList.innerHTML = `<div class="empty">Будущий день пока нельзя отметить. Ниже показан только прогноз.</div>`;
+    daySummaryList.innerHTML = `<div class="empty">${t("review.futureEmpty")}</div>`;
     return;
   }
 
   if (!currentUser) {
-    daySummaryList.innerHTML = `<div class="empty">Войди через Google, чтобы посмотреть историю по дням.</div>`;
+    daySummaryList.innerHTML = `<div class="empty">${t("review.signInEmpty")}</div>`;
     return;
   }
 
   if (data.habits.length === 0) {
-    daySummaryList.innerHTML = `<div class="empty">Пока нет привычек для отображения.</div>`;
+    daySummaryList.innerHTML = `<div class="empty">${t("review.noHabitsEmpty")}</div>`;
     return;
   }
 
@@ -991,7 +1413,7 @@ function renderDayReview() {
     item.innerHTML = `
       <div>
         <div class="day-summary-name">${escapeHtml(habit.name)}</div>
-        <div class="day-summary-meta">${done ? "Выполнено" : "Не выполнено"}${habit.target ? ` · цель ${habit.target} ${escapeHtml(habit.unit || "")}` : ""}</div>
+        <div class="day-summary-meta">${done ? t("review.done") : t("review.notDone")}${habit.target ? ` · ${t("review.target", { target: habit.target, unit: escapeHtml(habit.unit || "") })}` : ""}</div>
       </div>
       <div class="day-summary-value">${escapeHtml(valueText)}</div>
     `;
@@ -1002,8 +1424,8 @@ function renderDayReview() {
   const summary = document.createElement("div");
   summary.className = "empty";
   summary.textContent = data.habits.length > visibleHabits.length
-    ? `Итого: ${completedCount}/${data.habits.length} привычек выполнено. В обзоре показаны первые ${visibleHabits.length}.`
-    : `Итого: ${completedCount}/${data.habits.length} привычек выполнено.`;
+    ? t("review.totalShown", { done: completedCount, total: data.habits.length, shown: visibleHabits.length })
+    : t("review.total", { done: completedCount, total: data.habits.length });
   daySummaryList.prepend(summary);
 }
 
@@ -1020,15 +1442,15 @@ function renderFutureProjection(dateKey) {
   }
 
   futureProjectionBox.hidden = false;
-  futureProjectionTitle.textContent = `Прогноз на ${formatDayCount(daysAhead)}`;
-  futureProjectionText.textContent = "Расчёт показывает итог к выбранной дате, если каждый день выполнять дневную цель.";
+  futureProjectionTitle.textContent = t("projection.titleDays", { daysText: formatDayCount(daysAhead) });
+  futureProjectionText.textContent = t("projection.text");
 
   futureProjectionTable.innerHTML = `
     <div class="projection-row projection-head">
-      <div class="projection-cell">Привычка</div>
-      <div class="projection-cell">Сейчас</div>
-      <div class="projection-cell">+ цель</div>
-      <div class="projection-cell">Итого</div>
+      <div class="projection-cell">${t("projection.habit")}</div>
+      <div class="projection-cell">${t("projection.now")}</div>
+      <div class="projection-cell">${t("projection.targetAdd")}</div>
+      <div class="projection-cell">${t("projection.total")}</div>
     </div>
   `;
 
@@ -1036,10 +1458,10 @@ function renderFutureProjection(dateKey) {
     const row = document.createElement("div");
     row.className = "projection-row";
     row.innerHTML = `
-      <div class="projection-cell projection-total">Показаны ${PROJECTION_LIMIT}</div>
+      <div class="projection-cell projection-total">${t("projection.shown", { limit: PROJECTION_LIMIT })}</div>
       <div class="projection-cell"></div>
       <div class="projection-cell"></div>
-      <div class="projection-cell">из ${data.habits.length}</div>
+      <div class="projection-cell">${t("projection.ofTotal", { total: data.habits.length })}</div>
     `;
     futureProjectionTable.appendChild(row);
   }
@@ -1074,23 +1496,25 @@ function renderRewardState() {
   dailyRingFill.style.width = `${percent}%`;
 
   if (!currentUser) {
-    streakMessage.textContent = "Войди, чтобы вести серию.";
+    streakMessage.textContent = t("streak.signIn");
   } else if (total === 0) {
-    streakMessage.textContent = "Добавь привычки, чтобы начать серию.";
+    streakMessage.textContent = t("streak.addHabit");
   } else if (done === total) {
-    streakMessage.textContent = "День закрыт. Серия сохранена.";
+    streakMessage.textContent = t("streak.saved");
   } else {
     const remaining = total - done;
-    const pronoun = remaining === 1 ? "её" : "их";
-    streakMessage.textContent = `Будет ${formatDayCount(streak)} подряд. Осталось: ${formatHabitCount(remaining)}. Выполни ${pronoun} сегодня.`;
+    streakMessage.textContent = t("streak.inProgress", {
+      streakText: formatDayCount(streak),
+      habitText: formatHabitCount(remaining)
+    });
   }
 }
 
 function renderPeriodProgress() {
   const weekDays = getWeekDaysFromStart(visibleWeekStart);
   const monthDays = getMonthDays(visibleMonthDate);
-  document.getElementById("weekCalendarTitle").textContent = `${formatFullDate(weekDays[0])} — ${formatFullDate(weekDays[6])}`;
-  document.getElementById("monthCalendarTitle").textContent = visibleMonthDate.toLocaleDateString("ru-RU", {
+  document.getElementById("weekCalendarTitle").textContent = `${formatFullDate(weekDays[0], getDateLocale())} — ${formatFullDate(weekDays[6], getDateLocale())}`;
+  document.getElementById("monthCalendarTitle").textContent = visibleMonthDate.toLocaleDateString(getDateLocale(), {
     month: "long",
     year: "numeric"
   });
@@ -1179,7 +1603,7 @@ function renderProgressOptions() {
   if (data.habits.length > optionHabits.length) {
     const option = document.createElement("option");
     option.disabled = true;
-    option.textContent = `Показаны ${optionHabits.length} из ${data.habits.length}`;
+    option.textContent = t("progress.optionsShown", { shown: optionHabits.length, total: data.habits.length });
     progressHabit.appendChild(option);
   }
 
@@ -1270,7 +1694,7 @@ function renderChartMetrics(habit) {
 }
 
 function drawChart(chartData, habit) {
-  const labels = chartData.map(d => formatShortDate(d.dateKey));
+  const labels = chartData.map(d => formatShortDate(d.dateKey, getDateLocale()));
   const values = chartData.map(d => d.value);
   const target = habit.target ? Number(habit.target) : null;
   const visibleValues = values.filter(v => v !== null && !Number.isNaN(v));
@@ -1305,7 +1729,7 @@ function drawChart(chartData, habit) {
 
   if (target) {
     datasets.push({
-      label: `Цель: ${target}`,
+      label: t("chart.target", { target }),
       data: values.map(() => target),
       borderColor: toRgba(warningColor, 0.7),
       borderDash: [7, 7],
@@ -1344,7 +1768,7 @@ function drawChart(chartData, habit) {
           displayColors: false,
           callbacks: {
             label: (context) => {
-              if (context.datasetIndex === 1) return `Цель: ${target}`;
+              if (context.datasetIndex === 1) return t("chart.target", { target });
               const unit = habit.unit ? ` ${habit.unit}` : "";
               return `${habit.name}: ${context.parsed.y}${unit}`;
             }
@@ -1424,7 +1848,7 @@ function getCssColor(variableName) {
 
 function addHabit() {
   if (!currentUser) {
-    alert("Сначала войди через Google.");
+    alert(t("habit.signInRequired"));
     return;
   }
 
@@ -1433,7 +1857,7 @@ function addHabit() {
   const targetRaw = document.getElementById("habitTarget").value;
 
   if (!name) {
-    alert("Введите название привычки.");
+    alert(t("habit.enterName"));
     return;
   }
 
@@ -1456,28 +1880,33 @@ function addHabit() {
 function openGoalModal(goalId = null) {
   const goal = goalId ? data.goals.find(item => item.id === goalId) : null;
   editingGoalId = goal?.id || null;
-  goalModalTitle.textContent = goal ? "Редактировать цель" : "Новая цель";
-  goalSaveBtn.textContent = goal ? "Сохранить изменения" : "Сохранить цель";
+  syncGoalModalText();
   document.getElementById("goalName").value = goal?.name || "";
   document.getElementById("goalType").value = goal?.type || "other";
   document.getElementById("goalPointA").value = goal?.pointA || "";
   document.getElementById("goalPointB").value = goal?.pointB || "";
   isGoalModalOpen = true;
   goalModal.hidden = false;
-  document.body.classList.add("modal-open");
+  syncModalOpenState();
   document.getElementById("goalName").focus();
+}
+
+function syncGoalModalText() {
+  const isEditing = Boolean(editingGoalId);
+  goalModalTitle.textContent = isEditing ? t("goals.editGoalTitle") : t("goals.newGoalTitle");
+  goalSaveBtn.textContent = isEditing ? t("goals.saveChanges") : t("goals.saveGoal");
 }
 
 function closeGoalModal() {
   isGoalModalOpen = false;
   editingGoalId = null;
   goalModal.hidden = true;
-  if (!isCompletedModalOpen && !isGoalResultModalOpen) document.body.classList.remove("modal-open");
+  syncModalOpenState();
 }
 
 function saveGoalFromModal() {
   if (!currentUser) {
-    alert("Сначала войди через Google.");
+    alert(t("goals.signInRequired"));
     return;
   }
 
@@ -1487,12 +1916,12 @@ function saveGoalFromModal() {
   const pointB = document.getElementById("goalPointB").value.trim();
 
   if (!name) {
-    alert("Введите название цели.");
+    alert(t("goals.enterName"));
     return;
   }
 
   if (!pointA || !pointB) {
-    alert("Заполни точку A и точку B.");
+    alert(t("goals.fillPoints"));
     return;
   }
 
@@ -1534,17 +1963,17 @@ function renderGoalsList() {
   const activeGoals = getActiveGoals();
 
   if (!currentUser) {
-    goalsList.innerHTML = `<div class="empty">Войди через Google, чтобы вести долгосрочные цели.</div>`;
+    goalsList.innerHTML = `<div class="empty">${t("goals.signInEmpty")}</div>`;
     return;
   }
 
   if (data.goals.length === 0) {
-    goalsList.innerHTML = `<div class="empty">Создай цель через кнопку «Новая цель», а затем добавь задачи с дедлайнами.</div>`;
+    goalsList.innerHTML = `<div class="empty">${t("goals.noneEmpty")}</div>`;
     return;
   }
 
   if (activeGoals.length === 0) {
-    goalsList.innerHTML = `<div class="empty">Активных целей нет. Завершённые и проваленные цели лежат в архиве ниже.</div>`;
+    goalsList.innerHTML = `<div class="empty">${t("goals.noActiveEmpty")}</div>`;
     return;
   }
 
@@ -1581,14 +2010,14 @@ function renderGoalArchive() {
   goalArchiveList.innerHTML = "";
 
   if (!currentUser) {
-    goalArchiveList.innerHTML = `<div class="empty">Войди через Google, чтобы посмотреть архив целей.</div>`;
+    goalArchiveList.innerHTML = `<div class="empty">${t("goals.archiveSignInEmpty")}</div>`;
     return;
   }
 
   if (visibleGoals.length === 0) {
     const emptyText = goalArchiveMode === "completed"
-      ? "Реализованных целей пока нет. Когда закончишь цель, она появится здесь."
-      : "Проваленных целей пока нет. Если цель сорвалась, её можно отправить сюда из текущих целей.";
+      ? t("goals.archiveCompletedEmpty")
+      : t("goals.archiveFailedEmpty");
     goalArchiveList.innerHTML = `<div class="empty">${emptyText}</div>`;
     return;
   }
@@ -1612,7 +2041,7 @@ function makeGoalArchiveCard(goal) {
   const progress = getGoalProgress(goal);
   const isCompleted = goal.status === "completed";
   const statusDate = getGoalArchiveDate(goal);
-  const statusLabel = isCompleted ? "Реализована" : "Провалена";
+  const statusLabel = isCompleted ? t("goals.statusCompleted") : t("goals.statusFailed");
 
   card.className = `goal-archive-card ${isCompleted ? "completed" : "failed"}`;
   card.innerHTML = `
@@ -1623,44 +2052,69 @@ function makeGoalArchiveCard(goal) {
       </div>
       <div class="goal-archive-status">
         <span>${statusLabel}</span>
-        <strong>${escapeHtml(statusDate ? formatDeadlineLong(statusDate) : "дата не указана")}</strong>
+        <strong>${escapeHtml(statusDate ? formatDeadlineLong(statusDate) : t("goals.noDate"))}</strong>
       </div>
     </div>
 
     <div class="goal-route-grid">
       <div class="goal-route-box">
-        <span>Точка A</span>
-        <strong>${escapeHtml(goal.pointA || "Не задано")}</strong>
+        <span>${t("goals.pointA")}</span>
+        <strong>${escapeHtml(goal.pointA || t("goals.notSet"))}</strong>
       </div>
       <div class="goal-route-box">
-        <span>Точка B</span>
-        <strong>${escapeHtml(goal.pointB || "Не задано")}</strong>
+        <span>${t("goals.pointB")}</span>
+        <strong>${escapeHtml(goal.pointB || t("goals.notSet"))}</strong>
       </div>
     </div>
 
     <div class="goal-stats">
       <div class="goal-stat">
         <span>${Math.round(progress.percent)}%</span>
-        <span>закрыто</span>
+        <span>${t("goals.closed")}</span>
       </div>
       <div class="goal-stat">
         <span>${progress.doneCount}/${progress.totalCount}</span>
-        <span>задач</span>
+        <span>${t("goals.tasks")}</span>
       </div>
       <div class="goal-stat">
         <span>${escapeHtml(formatDeadlineShort(goal.createdAt))}</span>
-        <span>создана</span>
+        <span>${t("goals.created")}</span>
       </div>
     </div>
 
-    <div class="goal-archive-actions">
-      <button class="secondary goal-restore" type="button">Вернуть в работу</button>
-      <button class="danger goal-delete" type="button">Удалить</button>
+    <div class="goal-archive-actions"></div>
+
+    <div class="goal-task-archive compact">
+      <div class="goal-task-archive-head">
+        <div>
+          <div class="section-kicker">${t("goals.taskArchive")}</div>
+          <h3>${t("workspace.label")}</h3>
+        </div>
+        <span>${(goal.tasks || []).length}</span>
+      </div>
+      <div class="goal-task-archive-list"></div>
     </div>
   `;
 
-  card.querySelector(".goal-restore").onclick = () => restoreGoal(goal);
-  card.querySelector(".goal-delete").onclick = () => deleteGoal(goal);
+  card.querySelector(".goal-archive-actions").appendChild(makeActionMenu([
+    {
+      label: t("actions.edit"),
+      onSelect: () => openGoalModal(goal.id)
+    },
+    {
+      label: t("actions.returnToWork"),
+      onSelect: () => restoreGoal(goal)
+    },
+    {
+      label: t("actions.delete"),
+      danger: true,
+      onSelect: () => deleteGoal(goal)
+    }
+  ], t("goals.menuArchiveLabel", { name: goal.name || t("habit.unnamed") })));
+  renderGoalTaskArchive(goal, card.querySelector(".goal-task-archive-list"), {
+    includeOpen: true,
+    emptyText: t("goals.noTasksInGoal")
+  });
   return card;
 }
 
@@ -1675,6 +2129,8 @@ function makeGoalCard(goal) {
   card.className = "goal-item";
   const progress = getGoalProgress(goal);
   const sortedTasks = getSortedGoalTasks(goal);
+  const activeTasks = sortedTasks.filter(task => !task.done);
+  const archivedTasks = getArchivedGoalTasks(goal);
   const nextTask = getNextGoalTask(goal);
   const typeLabel = getGoalTypeLabel(goal.type);
   const canFinish = progress.totalCount > 0 && progress.doneCount === progress.totalCount;
@@ -1686,20 +2142,18 @@ function makeGoalCard(goal) {
         <div class="goal-name">${escapeHtml(goal.name)}</div>
       </div>
       <div class="goal-card-actions">
-        <button class="secondary goal-edit" type="button">Изменить</button>
-        <button class="primary goal-result" type="button">Завершить цель</button>
-        <button class="danger goal-delete" type="button">Удалить</button>
+        <button class="primary goal-result" type="button">${t("goals.finishGoal")}</button>
       </div>
     </div>
 
     <div class="goal-route-grid">
       <div class="goal-route-box">
-        <span>Точка A</span>
-        <strong>${escapeHtml(goal.pointA || "Не задано")}</strong>
+        <span>${t("goals.pointA")}</span>
+        <strong>${escapeHtml(goal.pointA || t("goals.notSet"))}</strong>
       </div>
       <div class="goal-route-box">
-        <span>Точка B</span>
-        <strong>${escapeHtml(goal.pointB || "Не задано")}</strong>
+        <span>${t("goals.pointB")}</span>
+        <strong>${escapeHtml(goal.pointB || t("goals.notSet"))}</strong>
       </div>
     </div>
 
@@ -1710,53 +2164,74 @@ function makeGoalCard(goal) {
     <div class="goal-stats">
       <div class="goal-stat">
         <span>${Math.round(progress.percent)}%</span>
-        <span>прогресс</span>
+        <span>${t("goals.progress")}</span>
       </div>
       <div class="goal-stat">
         <span>${progress.doneCount}/${progress.totalCount}</span>
-        <span>задач закрыто</span>
+        <span>${t("goals.tasksClosed")}</span>
       </div>
       <div class="goal-stat">
         <span>${escapeHtml(nextTask ? formatDeadlineShort(nextTask.deadline) : "—")}</span>
-        <span>следующий дедлайн</span>
+        <span>${t("goals.nextDeadline")}</span>
       </div>
     </div>
 
     <div class="goal-next">
-      ${canFinish ? "Все задачи закрыты. Можно завершить цель и отправить её в реализованные." : nextTask ? makeNextTaskHtml(nextTask) : "Следующая задача пока не задана."}
+      ${canFinish ? t("goals.allTasksClosed") : nextTask ? makeNextTaskHtml(nextTask) : t("goals.noNextTask")}
     </div>
 
     <div class="goal-task-form">
-      <input class="goal-task-title-input" placeholder="Задача: написать параграф, отправить резюме, выпустить статью" />
+      <input class="goal-task-title-input" placeholder="${t("goals.taskPlaceholder")}" />
       <input class="goal-task-deadline-input" type="date" />
-      <button class="success add-goal-task-btn" type="button">+ Задача</button>
+      <button class="success add-goal-task-btn" type="button">${t("goals.addTask")}</button>
     </div>
 
     <div class="goal-task-list"></div>
+
+    <div class="goal-task-archive">
+      <div class="goal-task-archive-head">
+        <div>
+          <div class="section-kicker">${t("goals.taskArchive")}</div>
+          <h3>${t("goals.completedTasks")}</h3>
+        </div>
+        <span>${archivedTasks.length}</span>
+      </div>
+      <div class="goal-task-archive-list"></div>
+    </div>
   `;
 
-  card.querySelector(".goal-edit").onclick = () => openGoalModal(goal.id);
   card.querySelector(".goal-result").onclick = () => openGoalResultModal(goal.id);
-  card.querySelector(".goal-delete").onclick = () => deleteGoal(goal);
+  card.querySelector(".goal-card-actions").appendChild(makeActionMenu([
+    {
+      label: t("actions.edit"),
+      onSelect: () => openGoalModal(goal.id)
+    },
+    {
+      label: t("actions.delete"),
+      danger: true,
+      onSelect: () => deleteGoal(goal)
+    }
+  ], t("goals.menuGoalLabel", { name: goal.name || t("habit.unnamed") })));
   card.querySelector(".add-goal-task-btn").onclick = () => addGoalTask(goal.id, card);
   card.querySelector(".goal-progress-fill").style.width = `${progress.percent}%`;
 
   const taskList = card.querySelector(".goal-task-list");
-  if (sortedTasks.length === 0) {
-    taskList.innerHTML = `<div class="empty goal-task-empty">Задач с дедлайнами пока нет.</div>`;
+  if (activeTasks.length === 0) {
+    taskList.innerHTML = `<div class="empty goal-task-empty">${sortedTasks.length === 0 ? t("goals.noDeadlineTasks") : t("goals.allTasksClosedEmpty")}</div>`;
   } else {
-    sortedTasks.forEach(task => {
+    activeTasks.forEach(task => {
       taskList.appendChild(makeGoalTaskItem(goal, task));
     });
   }
+  renderGoalTaskArchive(goal, card.querySelector(".goal-task-archive-list"));
 
   return card;
 }
 
 function makeNextTaskHtml(task) {
   return `
-    <span>Следующий дедлайн</span>
-    <strong>${escapeHtml(task.title || "Задача")}</strong>
+    <span>${t("goals.nextTaskLabel")}</span>
+    <strong>${escapeHtml(task.title || t("data.taskFallback"))}</strong>
     <small>${escapeHtml(formatDeadlineLong(task.deadline))}</small>
   `;
 }
@@ -1769,19 +2244,85 @@ function makeGoalTaskItem(goal, task) {
   item.innerHTML = `
     <button class="quest-check ${task.done ? "quest-check-done" : ""}" type="button">✓</button>
     <div class="goal-task-main">
-      <div class="goal-task-title">${escapeHtml(task.title || "Задача")}</div>
+      <div class="goal-task-title">${escapeHtml(task.title || t("data.taskFallback"))}</div>
       <div class="goal-task-meta">${escapeHtml(formatDeadlineLong(task.deadline))}</div>
     </div>
     <div class="deadline-pill ${deadlineState.className}">${escapeHtml(deadlineState.text)}</div>
-    <button class="primary goal-task-work" type="button">Работать</button>
-    <button class="secondary goal-task-edit" type="button">Изменить</button>
-    <button class="danger goal-task-delete" type="button">Удалить</button>
+    <button class="primary goal-task-work" type="button">${t("goals.work")}</button>
   `;
 
   item.querySelector(".quest-check").onclick = () => toggleGoalTask(goal.id, task.id);
   item.querySelector(".goal-task-work").onclick = () => openGoalWorkspace(goal.id, task.id);
-  item.querySelector(".goal-task-edit").onclick = () => editGoalTask(goal.id, task.id);
-  item.querySelector(".goal-task-delete").onclick = () => deleteGoalTask(goal.id, task.id);
+  item.appendChild(makeActionMenu([
+    {
+      label: t("actions.edit"),
+      onSelect: () => editGoalTask(goal.id, task.id)
+    },
+    {
+      label: t("actions.delete"),
+      danger: true,
+      onSelect: () => deleteGoalTask(goal.id, task.id)
+    }
+  ], t("goals.menuTaskLabel", { name: task.title || t("habit.unnamed") })));
+
+  return item;
+}
+
+function renderGoalTaskArchive(goal, list, options = {}) {
+  const tasks = options.includeOpen ? getGoalArchiveWorkspaceTasks(goal) : getArchivedGoalTasks(goal);
+  list.innerHTML = "";
+
+  if (tasks.length === 0) {
+    list.innerHTML = `<div class="empty goal-task-empty">${escapeHtml(options.emptyText || t("goals.completedTasksEmpty"))}</div>`;
+    return;
+  }
+
+  tasks.forEach(task => {
+    list.appendChild(makeGoalArchiveTaskItem(goal, task, options));
+  });
+}
+
+function makeGoalArchiveTaskItem(goal, task, options = {}) {
+  const item = document.createElement("div");
+  const workspaceMeta = getTaskWorkspaceMeta(task);
+  const statusText = task.done
+    ? t("goals.taskClosedAt", { date: task.completedAt ? formatDeadlineLong(task.completedAt) : t("goals.noDate") })
+    : t("goals.taskNotClosed");
+  const statusClass = task.done ? "done" : "";
+
+  item.className = "goal-archive-task-item" + (task.done ? " done" : "");
+  item.innerHTML = `
+    <button class="quest-check ${task.done ? "quest-check-done" : ""}" type="button">✓</button>
+    <div class="goal-task-main">
+      <div class="goal-task-title">${escapeHtml(task.title || t("data.taskFallback"))}</div>
+      <div class="goal-task-meta">${escapeHtml(statusText)} · ${escapeHtml(t("goals.deadlineMeta", { date: formatDeadlineLong(task.deadline) }))}</div>
+    </div>
+    <div class="deadline-pill ${statusClass}">${task.done ? t("goals.taskInArchive") : t("goals.taskOpen")}</div>
+    <div class="goal-task-workspace-meta">${escapeHtml(workspaceMeta)}</div>
+    <button class="primary goal-task-work" type="button">${t("workspace.label")}</button>
+  `;
+
+  item.querySelector(".quest-check").onclick = () => toggleGoalTask(goal.id, task.id);
+  item.querySelector(".goal-task-work").onclick = () => openGoalWorkspace(goal.id, task.id);
+  item.appendChild(makeActionMenu([
+    {
+      label: t("actions.edit"),
+      onSelect: () => editGoalTask(goal.id, task.id)
+    },
+    {
+      label: task.done ? t("actions.returnToWork") : t("actions.closeTask"),
+      onSelect: () => toggleGoalTask(goal.id, task.id)
+    },
+    {
+      label: t("actions.delete"),
+      danger: true,
+      onSelect: () => deleteGoalTask(goal.id, task.id)
+    }
+  ], t("goals.menuArchiveTaskLabel", { name: task.title || t("habit.unnamed") })));
+
+  if (options.includeOpen && !task.done) {
+    item.querySelector(".quest-check").setAttribute("aria-label", t("actions.closeTask"));
+  }
 
   return item;
 }
@@ -1796,12 +2337,12 @@ function addGoalTask(goalId, card) {
   const deadline = deadlineInput.value;
 
   if (!title) {
-    alert("Назови задачу.");
+    alert(t("goals.nameTaskRequired"));
     return;
   }
 
   if (!deadline) {
-    alert("Укажи дедлайн для задачи.");
+    alert(t("goals.deadlineRequired"));
     return;
   }
 
@@ -1828,12 +2369,12 @@ function editGoalTask(goalId, taskId) {
   const task = findGoalTask(goalId, taskId);
   if (!task) return;
 
-  const title = prompt("Задача", task.title || "");
+  const title = prompt(t("goals.promptTask"), task.title || "");
   if (!title || !title.trim()) return;
 
-  const deadline = prompt("Дедлайн в формате YYYY-MM-DD", task.deadline || toDateInputValue(new Date()));
+  const deadline = prompt(t("goals.promptDeadline"), task.deadline || toDateInputValue(new Date()));
   if (!deadline || !/^\d{4}-\d{2}-\d{2}$/.test(deadline)) {
-    alert("Дедлайн должен быть в формате YYYY-MM-DD.");
+    alert(t("goals.deadlineInvalid"));
     return;
   }
 
@@ -1861,7 +2402,7 @@ function deleteGoalTask(goalId, taskId) {
   if (!goal) return;
   const task = goal.tasks.find(item => item.id === taskId);
   if (!task) return;
-  if (!confirm(`Удалить задачу «${task.title}»?`)) return;
+  if (!confirm(t("goals.confirmDeleteTask", { title: task.title }))) return;
   goal.tasks = goal.tasks.filter(item => item.id !== taskId);
   hasManualGoalDateSelection = false;
   markDirty();
@@ -1869,7 +2410,7 @@ function deleteGoalTask(goalId, taskId) {
 }
 
 function deleteGoal(goal) {
-  if (!confirm(`Удалить цель «${goal.name}»?`)) return;
+  if (!confirm(t("goals.confirmDeleteGoal", { name: goal.name }))) return;
   data.goals = data.goals.filter(item => item.id !== goal.id);
   hasManualGoalDateSelection = false;
   markDirty();
@@ -1879,22 +2420,31 @@ function deleteGoal(goal) {
 function openGoalResultModal(goalId) {
   const goal = data.goals.find(item => item.id === goalId);
   if (!goal) return;
-  const progress = getGoalProgress(goal);
 
   resolvingGoalId = goal.id;
   isGoalResultModalOpen = true;
-  goalResultName.textContent = goal.name || "Цель";
-  goalResultMeta.textContent = `${progress.doneCount}/${progress.totalCount} задач закрыто · выбери итог маршрута`;
+  syncGoalResultModalText();
   goalResultModal.hidden = false;
-  document.body.classList.add("modal-open");
+  syncModalOpenState();
   goalResultCompletedBtn.focus();
+}
+
+function syncGoalResultModalText() {
+  if (!isGoalResultModalOpen || !resolvingGoalId) return;
+
+  const goal = data.goals.find(item => item.id === resolvingGoalId);
+  if (!goal) return;
+
+  const progress = getGoalProgress(goal);
+  goalResultName.textContent = goal.name || t("data.goalFallback");
+  goalResultMeta.textContent = t("goals.resultMeta", { done: progress.doneCount, total: progress.totalCount });
 }
 
 function closeGoalResultModal() {
   isGoalResultModalOpen = false;
   resolvingGoalId = null;
   goalResultModal.hidden = true;
-  if (!isCompletedModalOpen && !isGoalModalOpen) document.body.classList.remove("modal-open");
+  syncModalOpenState();
 }
 
 function resolveGoalResult(status) {
@@ -1902,14 +2452,11 @@ function resolveGoalResult(status) {
   if (!goal) return;
 
   const isCompleted = status === "completed";
-  const statusText = isCompleted ? "завершенную" : "проваленную";
-  const confirmed = confirm(`Ты точно хочешь отметить цель «${goal.name}» как ${statusText}?`);
+  const confirmed = confirm(t(isCompleted ? "goals.confirmResultCompleted" : "goals.confirmResultFailed", { name: goal.name }));
 
   if (!confirmed) {
     closeGoalResultModal();
-    showGoalToast(isCompleted
-      ? "Окей, не торопимся. Цель остаётся в работе, можно довести её спокойно."
-      : "Хорошо, продолжаем бороться. Один сложный день ещё не обязан быть финалом.");
+    showGoalToast(t(isCompleted ? "goals.resultCancelledCompleted" : "goals.resultCancelledFailed"));
     return;
   }
 
@@ -1918,9 +2465,7 @@ function resolveGoalResult(status) {
 
   closeGoalResultModal();
   launchGoalConfetti(status);
-  showGoalToast(isCompleted
-    ? "Цель завершена и отправлена в реализованные."
-    : "Цель перенесена в проваленные. Это тоже данные для следующей попытки.");
+  showGoalToast(t(isCompleted ? "goals.toastCompleted" : "goals.toastFailed"));
 }
 
 function completeGoal(goal) {
@@ -2000,12 +2545,12 @@ function renderGoalWorkspacePage() {
   const route = getWorkspaceRoute();
 
   if (!currentUser) {
-    renderWorkspaceEmpty("Войди через Google в этой вкладке, чтобы открыть рабочее пространство.");
+    renderWorkspaceEmpty(t("workspace.signInEmpty"));
     return;
   }
 
   if (!route) {
-    renderWorkspaceEmpty("Задача для работы не выбрана.");
+    renderWorkspaceEmpty(t("workspace.noTaskSelected"));
     return;
   }
 
@@ -2014,7 +2559,7 @@ function renderGoalWorkspacePage() {
   const context = findGoalTaskContext(workspaceGoalId, workspaceTaskId);
 
   if (!context) {
-    renderWorkspaceEmpty("Эта задача больше не найдена. Возможно, её удалили или цель ушла в архив.");
+    renderWorkspaceEmpty(t("workspace.taskMissing"));
     return;
   }
 
@@ -2024,8 +2569,8 @@ function renderGoalWorkspacePage() {
   goalWorkspaceNotes.disabled = false;
   goalMiniGoalInput.disabled = false;
   goalMiniGoalAddBtn.disabled = false;
-  goalWorkspaceGoalName.textContent = goal.name || "Цель";
-  goalWorkspaceTaskName.textContent = task.title || "Задача";
+  goalWorkspaceGoalName.textContent = goal.name || t("data.goalFallback");
+  goalWorkspaceTaskName.textContent = task.title || t("data.taskFallback");
   if (document.activeElement !== goalWorkspaceNotes) {
     goalWorkspaceNotes.value = workspace.notes || "";
     resizeWorkspaceNotesEditor();
@@ -2034,7 +2579,7 @@ function renderGoalWorkspacePage() {
 }
 
 function renderWorkspaceEmpty(message) {
-  goalWorkspaceGoalName.textContent = "Workspace";
+  goalWorkspaceGoalName.textContent = t("workspace.label");
   goalWorkspaceTaskName.textContent = message;
   goalWorkspaceNotes.value = "";
   resizeWorkspaceNotesEditor();
@@ -2058,7 +2603,7 @@ function renderWorkspaceMiniGoals(workspace) {
   goalMiniGoalList.innerHTML = "";
 
   if (workspace.miniGoals.length === 0) {
-    goalMiniGoalList.innerHTML = `<div class="empty goal-mini-empty">Мини-целей пока нет.</div>`;
+    goalMiniGoalList.innerHTML = `<div class="empty goal-mini-empty">${t("workspace.emptyMiniGoals")}</div>`;
     return;
   }
 
@@ -2068,11 +2613,20 @@ function renderWorkspaceMiniGoals(workspace) {
     item.innerHTML = `
       <button class="quest-check ${miniGoal.done ? "quest-check-done" : ""}" type="button">✓</button>
       <div class="goal-mini-title">${escapeHtml(miniGoal.title)}</div>
-      <button class="danger goal-mini-delete" type="button">Удалить</button>
     `;
 
     item.querySelector(".quest-check").onclick = () => toggleWorkspaceMiniGoal(miniGoal.id);
-    item.querySelector(".goal-mini-delete").onclick = () => deleteWorkspaceMiniGoal(miniGoal.id);
+    item.appendChild(makeActionMenu([
+      {
+        label: t("actions.edit"),
+        onSelect: () => editWorkspaceMiniGoal(miniGoal.id)
+      },
+      {
+        label: t("actions.delete"),
+        danger: true,
+        onSelect: () => deleteWorkspaceMiniGoal(miniGoal.id)
+      }
+    ], t("workspace.menuMiniGoalLabel", { name: miniGoal.title || t("habit.unnamed") })));
     goalMiniGoalList.appendChild(item);
   });
 }
@@ -2128,6 +2682,23 @@ function toggleWorkspaceMiniGoal(miniGoalId) {
   renderGoals();
 }
 
+function editWorkspaceMiniGoal(miniGoalId) {
+  const context = findGoalTaskContext(workspaceGoalId, workspaceTaskId);
+  if (!context) return;
+
+  const workspace = ensureTaskWorkspace(context.task);
+  const miniGoal = workspace.miniGoals.find(item => item.id === miniGoalId);
+  if (!miniGoal) return;
+
+  const title = prompt(t("workspace.promptMiniGoal"), miniGoal.title || "");
+  if (!title || !title.trim()) return;
+
+  miniGoal.title = title.trim();
+  markDirty();
+  renderWorkspaceMiniGoals(workspace);
+  renderGoals();
+}
+
 function deleteWorkspaceMiniGoal(miniGoalId) {
   const context = findGoalTaskContext(workspaceGoalId, workspaceTaskId);
   if (!context) return;
@@ -2169,6 +2740,39 @@ function getSortedGoalTasks(goal) {
   });
 }
 
+function getArchivedGoalTasks(goal) {
+  return [...(goal.tasks || [])]
+    .filter(task => task.done)
+    .sort(sortArchivedGoalTasks);
+}
+
+function getGoalArchiveWorkspaceTasks(goal) {
+  return [...(goal.tasks || [])].sort((a, b) => {
+    if (a.done !== b.done) return Number(b.done) - Number(a.done);
+    return sortArchivedGoalTasks(a, b);
+  });
+}
+
+function sortArchivedGoalTasks(a, b) {
+  const aCompleted = a.completedAt || "";
+  const bCompleted = b.completedAt || "";
+  if (aCompleted !== bCompleted) return String(bCompleted).localeCompare(String(aCompleted));
+  if (a.deadline !== b.deadline) return String(b.deadline || "").localeCompare(String(a.deadline || ""));
+  return String(a.title || "").localeCompare(String(b.title || ""));
+}
+
+function getTaskWorkspaceMeta(task) {
+  const workspace = task.workspace && typeof task.workspace === "object" ? task.workspace : {};
+  const notes = typeof workspace.notes === "string" ? workspace.notes.trim() : "";
+  const miniGoals = Array.isArray(workspace.miniGoals) ? workspace.miniGoals : [];
+  const miniDone = miniGoals.filter(item => item.done).length;
+  const parts = [];
+
+  if (notes) parts.push(t("workspace.hasNotes"));
+  if (miniGoals.length) parts.push(`${miniDone}/${miniGoals.length} ${tn("counts.miniGoal", miniGoals.length).replace(String(miniGoals.length), "").trim()}`);
+  return parts.length ? parts.join(" · ") : t("workspace.emptyWorkspace");
+}
+
 function getNextGoalTask(goal) {
   return getSortedGoalTasks(goal).find(task => !task.done) || null;
 }
@@ -2207,12 +2811,12 @@ function getActiveGoals() {
 
 function getGoalTypeLabel(type) {
   const labels = {
-    strength: "Сила",
-    skill: "Навык",
-    project: "Проект",
-    career: "Карьера",
-    health: "Здоровье",
-    other: "Другое"
+    strength: t("goals.typeStrength"),
+    skill: t("goals.typeSkill"),
+    project: t("goals.typeProject"),
+    career: t("goals.typeCareer"),
+    health: t("goals.typeHealth"),
+    other: t("goals.typeOther")
   };
   return labels[type] || labels.other;
 }
@@ -2226,7 +2830,7 @@ function renderDeadlineCalendar() {
   goalsCalendarTitle.textContent = getGoalCalendarTitle();
 
   if (goalsCalendarMode !== "day") {
-    ["Пн", "Вт", "Ср", "Чт", "Пт", "Сб", "Вс"].forEach(label => {
+    getWeekdayLabels().forEach(label => {
       const item = document.createElement("div");
       item.className = "deadline-weekday";
       item.textContent = label;
@@ -2249,7 +2853,7 @@ function renderDeadlineCalendar() {
     dayButton.innerHTML = `
       <div class="deadline-day-top">
         <span>${day.getDate()}</span>
-        <small>${day.toLocaleDateString("ru-RU", { weekday: "short" })}</small>
+        <small>${day.toLocaleDateString(getDateLocale(), { weekday: "short" })}</small>
       </div>
       <div class="deadline-day-items">
         ${items.slice(0, goalsCalendarMode === "day" ? 12 : 3).map(item => `
@@ -2274,10 +2878,10 @@ function renderDeadlineFocus() {
   const items = getDeadlineItemsForDate(selectedGoalDate);
   selectedDeadlineTitle.textContent = selectedGoalDate
     ? formatDeadlineFocusTitle(selectedGoalDate)
-    : "Дедлайн";
+    : t("goals.deadline");
   deadlineFocusMeta.textContent = items.length > 0
-    ? `${items.length} ${pluralizeRu(items.length, "задача", "задачи", "задач")} на дату`
-    : "Нет дедлайнов на дату";
+    ? t("deadlines.metaTasks", { countText: formatTaskCount(items.length) })
+    : t("deadlines.noneMeta");
 
   const deadlineDates = getDeadlineDates();
   prevDeadlineBtn.disabled = deadlineDates.length === 0 || selectedGoalDate <= deadlineDates[0];
@@ -2286,12 +2890,12 @@ function renderDeadlineFocus() {
   selectedDeadlineList.innerHTML = "";
 
   if (!currentUser) {
-    selectedDeadlineList.innerHTML = `<div class="empty">Войди через Google, чтобы видеть дедлайны.</div>`;
+    selectedDeadlineList.innerHTML = `<div class="empty">${t("deadlines.signInEmpty")}</div>`;
     return;
   }
 
   if (items.length === 0) {
-    selectedDeadlineList.innerHTML = `<div class="empty">На этот день задач нет.</div>`;
+    selectedDeadlineList.innerHTML = `<div class="empty">${t("deadlines.noneForDay")}</div>`;
     return;
   }
 
@@ -2430,7 +3034,7 @@ function getGoalCalendarDays() {
 
 function getGoalCalendarTitle() {
   if (goalsCalendarMode === "day") {
-    return goalsVisibleDate.toLocaleDateString("ru-RU", {
+    return goalsVisibleDate.toLocaleDateString(getDateLocale(), {
       weekday: "long",
       day: "numeric",
       month: "long",
@@ -2440,22 +3044,22 @@ function getGoalCalendarTitle() {
 
   if (goalsCalendarMode === "week") {
     const week = getWeekDaysFromStart(getWeekStart(goalsVisibleDate));
-    return `${formatFullDate(week[0])} — ${formatFullDate(week[6])}`;
+    return `${formatFullDate(week[0], getDateLocale())} — ${formatFullDate(week[6], getDateLocale())}`;
   }
 
-  return goalsVisibleDate.toLocaleDateString("ru-RU", {
+  return goalsVisibleDate.toLocaleDateString(getDateLocale(), {
     month: "long",
     year: "numeric"
   });
 }
 
 function getTaskDeadlineState(task) {
-  if (task.done) return { text: "готово", className: "done" };
-  if (!task.deadline) return { text: "без срока", className: "" };
+  if (task.done) return { text: t("deadlines.done"), className: "done" };
+  if (!task.deadline) return { text: t("deadlines.noDueDate"), className: "" };
 
   const todayKey = toDateInputValue(new Date());
-  if (task.deadline < todayKey) return { text: "просрочено", className: "danger" };
-  if (task.deadline === todayKey) return { text: "сегодня", className: "warning" };
+  if (task.deadline < todayKey) return { text: t("deadlines.overdue"), className: "danger" };
+  if (task.deadline === todayKey) return { text: t("deadlines.today"), className: "warning" };
 
   const daysLeft = Math.ceil((parseDateKey(task.deadline) - parseDateKey(todayKey)) / 86400000);
   if (daysLeft <= 7) return { text: `${formatDayCount(daysLeft)}`, className: "warning" };
@@ -2471,12 +3075,12 @@ function isTaskUrgent(task) {
 
 function formatDeadlineShort(deadline) {
   if (!deadline) return "—";
-  return formatShortDate(deadline);
+  return formatShortDate(deadline, getDateLocale());
 }
 
 function formatDeadlineLong(deadline) {
-  if (!deadline) return "без дедлайна";
-  return parseDateKey(deadline).toLocaleDateString("ru-RU", {
+  if (!deadline) return t("deadlines.noDeadline");
+  return parseDateKey(deadline).toLocaleDateString(getDateLocale(), {
     day: "numeric",
     month: "long",
     year: "numeric"
@@ -2484,11 +3088,15 @@ function formatDeadlineLong(deadline) {
 }
 
 function formatDeadlineFocusTitle(deadline) {
-  return parseDateKey(deadline).toLocaleDateString("ru-RU", {
+  return parseDateKey(deadline).toLocaleDateString(getDateLocale(), {
     weekday: "long",
     day: "numeric",
     month: "long"
   });
+}
+
+function getWeekdayLabels() {
+  return ["mon", "tue", "wed", "thu", "fri", "sat", "sun"].map(day => t(`calendar.weekday.${day}`));
 }
 
 function formatGoalMetric(value, unit = "") {
@@ -2498,11 +3106,11 @@ function formatGoalMetric(value, unit = "") {
 }
 
 function renameHabit(habit) {
-  const newName = prompt("Название привычки", habit.name);
+  const newName = prompt(t("habit.promptName"), habit.name);
   if (!newName || !newName.trim()) return;
 
-  const newTarget = prompt("Цель в день", habit.target || "");
-  const newUnit = prompt("Единица", habit.unit || "");
+  const newTarget = prompt(t("habit.promptTarget"), habit.target || "");
+  const newUnit = prompt(t("habit.promptUnit"), habit.unit || "");
 
   habit.name = newName.trim();
   habit.target = newTarget === "" ? "" : Number(newTarget);
@@ -2512,7 +3120,7 @@ function renameHabit(habit) {
 }
 
 function deleteHabit(habit) {
-  if (!confirm(`Удалить привычку «${habit.name}»?`)) return;
+  if (!confirm(t("habit.confirmDelete", { name: habit.name }))) return;
   data.habits = data.habits.filter(h => h.id !== habit.id);
   Object.values(data.records).forEach(day => delete day[habit.id]);
   markDirty();

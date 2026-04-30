@@ -28,14 +28,14 @@ export function toDateInputValue(date) {
   return local.toISOString().slice(0, 10);
 }
 
-export function formatShortDate(dateKey) {
+export function formatShortDate(dateKey, locale = "en-US") {
   const [year, month, day] = dateKey.split("-").map(Number);
   const date = new Date(year, month - 1, day);
-  return date.toLocaleDateString("ru-RU", { day: "2-digit", month: "2-digit" });
+  return date.toLocaleDateString(locale, { day: "2-digit", month: "2-digit" });
 }
 
-export function formatFullDate(date) {
-  return date.toLocaleDateString("ru-RU", { day: "numeric", month: "long" });
+export function formatFullDate(date, locale = "en-US") {
+  return date.toLocaleDateString(locale, { day: "numeric", month: "long" });
 }
 
 export function getWeekDays(date) {

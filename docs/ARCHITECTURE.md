@@ -7,6 +7,7 @@ This project is currently a lightweight vanilla web app served as static files.
 - `index.html` contains the document structure and loads the app assets.
 - `src/styles/main.css` contains the visual system and responsive layout.
 - `src/app/main.js` contains app startup, state management, rendering, and UI events.
+- `src/app/i18n.js` contains the supported locale list, translation dictionaries, pluralization helpers, and static DOM translation helper.
 - `src/app/config/firebaseConfig.js` contains the Firebase project configuration.
 - `src/app/utils/dates.js` contains reusable date formatting and range helpers.
 - `src/app/utils/html.js` contains HTML escaping helpers for safe DOM strings.
@@ -17,6 +18,19 @@ This project is currently a lightweight vanilla web app served as static files.
 ## Visual System
 
 The app style is intentionally strict and editorial: thin borders, square surfaces, Georgia display type for important objects and metrics, system sans-serif for controls, and restrained semantic color. The source of truth is the token block at the top of `src/styles/main.css`, with practical usage rules in `docs/DESIGN_SYSTEM.md`.
+
+## Internationalization
+
+English is the primary product language. Russian, German, Spanish, and French are supported through the same UI surface.
+
+All user-facing copy belongs in `src/app/i18n.js`:
+
+- static HTML text uses `data-i18n`, `data-i18n-placeholder`, `data-i18n-aria-label`, or `data-i18n-title`;
+- dynamic JavaScript text uses `t("key")`;
+- counts and plural-sensitive labels use `tn("key", count)`;
+- dates use `getDateLocale()` and the date helpers in `src/app/utils/dates.js`.
+
+When adding a UI change, add translation keys for all supported locales in the same change. Do not hard-code visible English text in render functions unless it is user data, a symbol, or a stable product name.
 
 ## Current Data Model
 

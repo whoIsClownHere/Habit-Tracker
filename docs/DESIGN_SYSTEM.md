@@ -1,76 +1,91 @@
 # Habitline Design System
 
-Этот документ фиксирует общий стиль сайта, чтобы новые блоки, экраны и состояния выглядели как часть Habitline, а не как отдельная вставка.
+This document keeps new blocks, screens, and states feeling like part of Habitline rather than one-off additions.
 
-## ДНК интерфейса
+## Interface DNA
 
-Habitline выглядит как строгая рабочая доска для ежедневной дисциплины:
+Habitline is a strict working board for daily discipline:
 
-- тонкие 1px-линии вместо декоративных теней;
-- квадратные формы с радиусом `2px`;
-- спокойный теплый фон и белые рабочие поверхности;
-- крупная serif-типографика для смысла, чисел и названий;
-- системный sans-serif для управления, статусов, подписей и форм;
-- зеленый используется как сигнал прогресса, а не как общий декоративный цвет;
-- желтый, красный и синий используются только для состояния: предупреждение, опасность, прогноз.
+- thin 1px rules instead of decorative shadows;
+- square surfaces with a `2px` radius;
+- calm warm page background and white working surfaces;
+- large serif typography for meaning, numbers, and object names;
+- system sans-serif for controls, statuses, captions, and forms;
+- green is a progress signal, not a decorative theme color;
+- yellow, red, and blue are reserved for state: warning, danger, projection.
 
-Новый элемент должен сначала быть полезным и сканируемым. Декор добавляется только если он несет состояние или помогает структуре.
+A new element should be useful and scannable first. Decoration is only added when it communicates state or improves structure.
 
-## Источник Правды
+## Source Of Truth
 
-Основной файл стиля: `src/styles/main.css`.
+Main style file: `src/styles/main.css`.
 
-В начале файла находятся дизайн-токены. Если появляется новый повторяющийся цвет, spacing, размер или поведение, сначала добавь токен туда, а затем используй его в компонентах.
+The top of that file contains the design tokens. If a repeated color, spacing value, size, or behavior appears, add or reuse a token first, then apply it in components.
 
-Не добавляй новые hex-цвета прямо в середине CSS, кроме редких локальных эффектов вроде canvas-графика или конфетти. Для обычного UI нужны переменные.
+Do not add new hex colors in the middle of the CSS except for rare local effects such as chart or confetti rendering. Normal UI should use variables.
 
-Перед добавлением нового UI или изменением визуального направления всегда читай этот документ. Если дизайн меняется, обнови этот файл и примени изменение ко всем затронутым экранам и компонентам, чтобы приложение оставалось единым.
+Before adding UI or changing the visual direction, read this document. If the design changes, update this file and apply the change across every affected screen and component.
 
-## Цвета
+## Internationalization
 
-Основные поверхности:
+English is the primary UI language. The app also supports Russian, German, Spanish, and French.
 
-- `--bg`: фон страницы.
-- `--card`: основная рабочая поверхность.
-- `--card-2`: вторичная поверхность внутри карточек.
-- `--text`: главный текст и активные элементы.
-- `--muted`: вспомогательный текст.
-- `--line`: все разделители и рамки.
-- `--accent-soft`: hover и нейтральная подсветка.
+All user-facing strings must live in `src/app/i18n.js`:
 
-Состояния:
+- static HTML uses `data-i18n`, `data-i18n-placeholder`, `data-i18n-aria-label`, or `data-i18n-title`;
+- dynamic text in JavaScript uses `t("key")`;
+- plural-sensitive counts use `tn("key", count)`;
+- dates use `getDateLocale()` and helpers from `src/app/utils/dates.js`.
 
-- `--success`: выполнено, прогресс, положительное действие.
-- `--success-soft`: мягкий фон выполненного состояния.
-- `--warning`: срочно, сегодня, серия под угрозой.
-- `--warning-soft`: мягкий фон предупреждения.
-- `--danger`: удаление, провал, просрочка.
-- `--info`: прогноз или будущая дата.
-- `--info-soft`: мягкий фон прогноза.
+When adding or changing UI copy, add or update the same key in all supported locales in the same change. Avoid placing visible copy directly in `main.js` or `index.html` unless it is a symbol, user-created content, or a stable product name.
 
-Правило: цвет не должен становиться темой экрана. Экран остается черно-белым с теплыми поверхностями; цвет появляется только как смысловой маркер.
+Design for longer translated text. Use `minmax(0, 1fr)`, `min-width: 0`, and `overflow-wrap: anywhere` where labels, buttons, or cards can grow.
 
-## Типографика
+## Color
 
-Шрифты:
+Core surfaces:
 
-- UI: `var(--font-ui)` для body, кнопок, форм, статусов, подписей.
-- Display: `var(--font-display)` для `h1`, `h2`, `h3`, названий привычек/целей, крупных чисел.
+- `--bg`: page background.
+- `--card`: main working surface.
+- `--card-2`: secondary surface inside cards.
+- `--text`: main text and active controls.
+- `--muted`: supporting text.
+- `--line`: dividers and borders.
+- `--accent-soft`: hover and neutral highlight.
 
-Иерархия:
+States:
 
-- Бренд `h1`: около `50px`, на мобильных `42px`.
-- Главные заголовки секций: `30-44px`.
-- Названия карточек/задач: `20-30px`.
-- Крупные метрики: `28-46px`, всегда display-шрифтом.
-- Обычный интерфейсный текст: `13-15px`.
-- Kicker/label: `11-12px`, uppercase, letter-spacing `0.08-0.09em`.
+- `--success`: completed, progress, positive action.
+- `--success-soft`: soft completed-state background.
+- `--warning`: urgent, today, streak at risk.
+- `--warning-soft`: soft warning background.
+- `--danger`: delete, failed, overdue.
+- `--info`: projection or future date.
+- `--info-soft`: soft projection background.
 
-Правило: если текст является объектом работы, например название привычки, задачи или цели, он может быть serif. Если текст является управлением или пояснением, он должен быть sans-serif.
+Rule: color should not become the screen theme. The app stays black and white with warm surfaces; color appears only as a semantic marker.
+
+## Typography
+
+Fonts:
+
+- UI: `var(--font-ui)` for body, buttons, forms, statuses, labels.
+- Display: `var(--font-display)` for `h1`, `h2`, `h3`, habit and goal names, and large metrics.
+
+Hierarchy:
+
+- Brand `h1`: around `50px`, `42px` on mobile.
+- Main section headings: `30-44px`.
+- Card, task, and object names: `20-30px`.
+- Large metrics: `28-46px`, always display type.
+- Regular UI text: `13-15px`.
+- Kicker and labels: `11-12px`, uppercase, letter-spacing `0.08-0.09em`.
+
+Rule: if text is a working object, such as a habit, task, or goal name, it can use serif type. If text is a control or explanation, it should use sans-serif.
 
 ## Spacing
 
-Базовая шкала уже задана в CSS:
+The base scale is already defined in CSS:
 
 ```css
 --space-1: 4px;
@@ -90,243 +105,162 @@ Habitline выглядит как строгая рабочая доска дл�
 --space-15: 38px;
 ```
 
-Практические правила:
+Practical rules:
 
-- между крупными секциями: `22-24px`;
-- внутри карточки: `20px`;
-- заголовок секции отделяется от тела через `16px` и нижнюю линию;
-- элементы списка: `10-12px` gap и padding;
-- компактные управляющие группы: `6-8px`;
-- формы: `10px` gap, поля с padding `10px 11px`;
-- не использовать случайные значения вроде `17px`, `23px`, `31px`.
+- large sections: `22-24px` gaps;
+- inside a card: around `20px`;
+- section headers separate from content with `16px` and a bottom rule;
+- list items: `10-12px` gap and padding;
+- compact control groups: `6-8px`;
+- forms: `10px` gap, inputs with `10px 11px` padding;
+- avoid random values such as `17px`, `23px`, or `31px`.
 
 ## Layout
 
-Страница:
+Page:
 
-- контейнер `.app`: максимум `1120px`;
+- `.app`: max width `1120px`;
 - desktop padding: `38px 34px`;
 - mobile padding: `22px 16px`;
-- основной поток `.layout`: flex-column с gap `24px`.
+- `.layout`: column flex with `24px` gap.
 
-Сетки:
+Grids:
 
-- два главных столбца: `1.2fr 0.8fr` или близко к этому;
-- равные аналитические карточки: `1fr 1fr`;
-- метрики: `repeat(3, 1fr)`;
-- календарь месяца/недели: `repeat(7, minmax(0, 1fr))`.
+- main two-column areas: `1.2fr 0.8fr` or close;
+- paired analytics cards: `1fr 1fr`;
+- metrics: `repeat(3, 1fr)`;
+- month and week calendars: `repeat(7, minmax(0, 1fr))`.
 
 Breakpoints:
 
-- до `1040px`: рабочее пространство цели становится одной колонкой;
-- до `960px`: основные двухколоночные сетки становятся одной колонкой;
-- до `760px`: кнопки, статистика, календарь и формы становятся вертикальными.
+- up to `1040px`: goal workspace becomes one column;
+- up to `960px`: main two-column grids become one column;
+- up to `760px`: buttons, stats, calendars, and forms stack vertically.
 
-Правило: если блок может иметь длинный русский текст, используй `minmax(0, 1fr)`, `min-width: 0` и `overflow-wrap: anywhere`.
+## Components
 
-## Компоненты
+### Section Card
 
-### Карточка С Секционным Заголовком
-
-Используй для большинства самостоятельных блоков.
+Use for most standalone blocks.
 
 ```html
 <section class="card">
   <div class="section-top">
     <div>
-      <div class="section-kicker">Контекст</div>
-      <h2>Название</h2>
+      <div class="section-kicker" data-i18n="example.context">Context</div>
+      <h2 data-i18n="example.title">Title</h2>
     </div>
-    <button class="secondary" type="button">Действие</button>
+    <button class="secondary" type="button" data-i18n="example.action">Action</button>
   </div>
 
   <!-- content -->
 </section>
 ```
 
-Правила:
+Rules:
 
-- `.card` всегда имеет `border`, `background`, `padding`, `radius`;
-- `.section-top` всегда отделяет заголовок линией;
-- action-кнопка справа, на мобильных падает под заголовок.
+- `.card` always has border, background, padding, and radius;
+- `.section-top` always separates the header with a rule;
+- the action button sits on the right and drops under the heading on mobile.
 
-### Кнопки
+### Buttons
 
-Базовая кнопка нейтральная. Дополнительные классы задают смысл:
+The base button is neutral. Modifier classes carry meaning:
 
 ```html
-<button type="button">Нейтрально</button>
-<button class="primary" type="button">Главное</button>
-<button class="success" type="button">Готово</button>
-<button class="danger" type="button">Удалить</button>
+<button type="button">Neutral</button>
+<button class="primary" type="button">Primary</button>
+<button class="success" type="button">Done</button>
+<button class="danger" type="button">Delete</button>
 ```
 
-Правила:
+Rules:
 
-- `primary`: одно главное действие в локальном контексте;
-- `success`: подтверждение, выполнение, переход к сегодняшнему прогрессу;
-- `danger`: удаление, провал, необратимое действие;
-- кнопка не должна быть декоративной плашкой, она должна запускать действие.
+- `primary`: one main action in the local context;
+- `success`: confirmation, completion, or today's progress;
+- `danger`: deletion, failure, or irreversible action;
+- buttons trigger actions and are not decorative chips.
 
-### Метрики
+### Action Menu
 
-Метрики выглядят как таблица из тонких линий.
+Use `.action-menu` for secondary actions on a working entity. The visible ellipsis button opens verbs such as edit and delete.
+
+Rules:
+
+- keep the most important primary action visible next to the menu;
+- mark delete as a danger action;
+- close the menu on outside click and `Escape`;
+- repeated cards and rows should not bring back separate edit and delete buttons.
+
+### Metrics
+
+Metrics look like a table made of thin rules.
 
 ```html
 <div class="goal-stats">
   <div class="goal-stat">
     <span>12</span>
-    <span>выполнено</span>
-  </div>
-  <div class="goal-stat">
-    <span>80%</span>
-    <span>закрыто</span>
-  </div>
-  <div class="goal-stat">
-    <span>3</span>
-    <span>дня</span>
+    <span data-i18n="example.done">done</span>
   </div>
 </div>
 ```
 
-Можно повторять паттерн `goal-stats/goal-stat`, `period-stats/period-stat`, `today-summary/today-summary-item`, но не смешивать разные визуальные языки внутри одного блока.
+You may reuse `goal-stats/goal-stat`, `period-stats/period-stat`, and `today-summary/today-summary-item`, but do not mix visual languages inside one block.
 
-### Элемент Списка
+### List Item
 
-Рабочие сущности строятся как строка с чеком, контентом и действием/значением.
+Working entities are rows with a check, content, and an action or value.
 
 ```html
 <div class="quest-item">
   <button class="quest-check" type="button">✓</button>
   <div>
-    <div class="quest-name">Название</div>
-    <div class="quest-meta">Вспомогательная строка</div>
+    <div class="quest-name">Name</div>
+    <div class="quest-meta">Supporting line</div>
   </div>
   <input class="quest-value" type="number" min="0" />
 </div>
 ```
 
-Правила:
+Rules:
 
-- чек слева фиксированного размера;
-- контент в середине получает `minmax(0, 1fr)`;
-- value/action справа фиксируется, а на мобильных уходит на следующую строку;
-- выполненное состояние использует `--success-soft`.
+- the check on the left has fixed size;
+- middle content uses `minmax(0, 1fr)`;
+- value or action on the right is fixed and moves to a new row on mobile;
+- completed state uses `--success-soft`.
 
-### Плашки И Статусы
+### Pills And Statuses
 
-Для коротких статусов используй рамку, маленький текст и состояние:
+Use a border, small type, and semantic state:
 
 ```html
-<div class="deadline-pill warning">сегодня</div>
-<div class="deadline-pill danger">просрочено</div>
-<div class="deadline-pill done">готово</div>
+<div class="deadline-pill warning">today</div>
+<div class="deadline-pill danger">overdue</div>
+<div class="deadline-pill done">done</div>
 ```
 
-Правила:
+Rules:
 
-- текст короткий: 1-2 слова;
-- цвет выбирается по смыслу;
-- плашки не используются как большие кнопки.
+- keep text short;
+- choose color by meaning;
+- do not use pills as large buttons.
 
-### Формы
+### Forms
 
-Формы должны быть плотными, но читаемыми.
+Forms should be dense but readable.
 
 ```html
 <div class="habit-form">
-  <input placeholder="Название" />
-  <input placeholder="Единица" />
-  <input type="number" min="0" placeholder="Цель" />
-  <button class="primary" type="button">Добавить</button>
+  <input data-i18n-placeholder="habit.fieldName" placeholder="Name" />
+  <input data-i18n-placeholder="habit.fieldUnit" placeholder="Unit" />
+  <input type="number" min="0" data-i18n-placeholder="habit.fieldTarget" placeholder="Target" />
+  <button class="primary" type="button" data-i18n="actions.add">Add</button>
 </div>
 ```
 
-Правила:
+Rules:
 
-- desktop: grid с `minmax`;
-- mobile: одна колонка;
-- placeholder описывает пример данных, а не инструкцию;
-- поля не должны менять высоту соседних блоков при вводе.
-
-### Модальные Окна
-
-Модалка использует `.modal-backdrop`, `.modal-panel`, `.modal-head`.
-
-Правила:
-
-- панель имеет рамку `var(--text)`, а не тень;
-- максимум высоты ограничен viewport;
-- длинные списки внутри получают `overflow: auto`;
-- Escape и клик по backdrop закрывают модалку, если это уже принято в текущем JS.
-
-## Паттерн Нового Экрана
-
-Для нового экрана используй такой порядок:
-
-```html
-<div id="newView" class="layout app-view" hidden>
-  <section class="card">
-    <div class="section-top">
-      <div>
-        <div class="section-kicker">Раздел</div>
-        <h2>Главный блок</h2>
-      </div>
-      <button class="primary" type="button">Действие</button>
-    </div>
-
-    <div class="your-feature-grid">
-      <!-- content -->
-    </div>
-  </section>
-</div>
-```
-
-CSS:
-
-```css
-.your-feature-grid {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(280px, 0.45fr);
-  gap: var(--space-10);
-  align-items: start;
-}
-
-@media (max-width: 960px) {
-  .your-feature-grid {
-    grid-template-columns: 1fr;
-  }
-}
-```
-
-## Текст И Тон
-
-UI говорит коротко и спокойно:
-
-- хорошо: `Сегодня`, `Выполнено`, `Следующий дедлайн`, `Сохранено`;
-- допустимо: одна короткая поясняющая строка, если без нее состояние непонятно;
-- плохо: длинные инструкции внутри рабочего экрана, маркетинговые фразы, декоративные лозунги.
-
-Кнопки должны называться глаголом или ясным существительным: `Добавить`, `Сохранить`, `Удалить`, `Работать`.
-
-## Чеклист Перед Добавлением Нового Элемента
-
-- Использованы существующие токены цвета, spacing, border, radius.
-- Новый цвет добавлен в `:root` и `body.dark`.
-- Компонент работает в светлой и темной теме.
-- Есть состояние empty, loading или disabled, если данные могут отсутствовать.
-- На `960px` и `760px` нет горизонтального переполнения.
-- Длинный русский текст не ломает сетку.
-- Главный текст serif, управляющий текст sans-serif.
-- Нет вложенных карточек ради декора.
-- Нет inline-style в HTML, если стиль можно описать классом.
-- Динамический HTML в JS экранирует пользовательский текст через `escapeHtml`.
-
-## Что Не Делать
-
-- Не добавлять большие скругления, мягкие карточки или тени для обычных блоков.
-- Не строить UI из однотонных цветных секций.
-- Не использовать цвет как украшение без состояния.
-- Не делать новый spacing вне шкалы.
-- Не вставлять hero/landing-паттерны в приложение.
-- Не прятать важную рабочую информацию за декоративными иллюстрациями.
+- desktop: grid with `minmax`;
+- mobile: one column;
+- placeholders describe example data, not instructions;
+- validation and helper messages must be localized through `src/app/i18n.js`.
