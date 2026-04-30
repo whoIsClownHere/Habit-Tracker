@@ -17,6 +17,7 @@ Live demo: https://whoisclownhere.github.io/Habit-Tracker/
 - Splits goals into milestones with evidence, metric values, deadlines, and completion status.
 - Saves user data in Firebase Firestore after email/password or Google sign-in.
 - Supports English as the primary language plus Russian, German, Spanish, and French.
+- Includes a local QA account with seed data for repeatable manual testing.
 - Supports light and dark themes.
 
 ## Tech Stack
@@ -39,7 +40,10 @@ The current app is intentionally lightweight and does not require a frontend fra
 ├── README.md
 ├── docs
 │   ├── ARCHITECTURE.md
-│   └── DESIGN_SYSTEM.md
+│   ├── DESIGN_SYSTEM.md
+│   └── TESTING.md
+├── scripts
+│   └── qa-check.mjs
 └── src
     ├── app
     │   ├── config
@@ -169,6 +173,16 @@ The goals view is for longer routes:
 - milestone list
 - milestone deadlines
 - active, urgent, and completed goal state
+
+## Testing
+
+Use the local QA account for repeatable checks without touching Firebase:
+
+```text
+test@habitline.local / test1234
+```
+
+You can also click `Use test account` in the sign-in modal. The QA panel includes seed-data reset controls and scenario prompts. See `docs/TESTING.md`.
 
 ## Data Model
 

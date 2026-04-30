@@ -52,6 +52,21 @@
     </nav>
 
     <main>
+      <section id="testingPanel" class="testing-panel card" hidden>
+        <div class="section-top testing-panel-head">
+          <div>
+            <div class="section-kicker" data-i18n="testing.kicker">QA mode</div>
+            <h2 data-i18n="testing.title">Testing account</h2>
+            <div class="testing-account-meta" id="testingAccountMeta"></div>
+          </div>
+          <div class="testing-actions">
+            <button id="testingSeedBtn" class="secondary" type="button" data-i18n="testing.seedData">Reload seed data</button>
+            <button id="testingResetBtn" class="danger" type="button" data-i18n="testing.resetData">Reset test data</button>
+          </div>
+        </div>
+        <div class="testing-scenarios" id="testingScenarios"></div>
+      </section>
+
       <div id="habitsView" class="layout app-view">
       <section class="hero-grid">
         <div class="card today-card">
@@ -433,6 +448,8 @@
 
       <div class="auth-divider"><span data-i18n="auth.or">or</span></div>
       <button id="authGoogleBtn" class="google-btn auth-google-btn" type="button"><span>G</span> <span data-i18n="auth.googleLogin">Sign in with Google</span></button>
+      <button id="authTestBtn" class="secondary test-account-btn" type="button" data-i18n="testing.useAccount">Use test account</button>
+      <div class="test-account-hint" data-i18n="testing.accountHint">Local QA account: test@habitline.local / test1234</div>
       <div id="authMessage" class="auth-message" role="status" aria-live="polite"></div>
     </div>
   </div>

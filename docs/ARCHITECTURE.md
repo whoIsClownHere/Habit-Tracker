@@ -8,10 +8,12 @@ This project is currently a lightweight vanilla web app served as static files.
 - `src/styles/main.css` contains the visual system and responsive layout.
 - `src/app/main.js` contains app startup, state management, rendering, and UI events.
 - `src/app/i18n.js` contains the supported locale list, translation dictionaries, pluralization helpers, and static DOM translation helper.
+- `scripts/qa-check.mjs` verifies that the locale dictionaries and UI key usage stay aligned.
 - `src/app/config/firebaseConfig.js` contains the Firebase project configuration.
 - `src/app/utils/dates.js` contains reusable date formatting and range helpers.
 - `src/app/utils/html.js` contains HTML escaping helpers for safe DOM strings.
 - `docs/DESIGN_SYSTEM.md` defines the design language, tokens, layout rules, and component templates for new UI.
+- `docs/TESTING.md` describes the local QA account, seed data, smoke scenarios, and QA command.
 - `README.md` contains the user-facing project summary.
 - `package.json` keeps local dev/build commands for future Vite migration.
 
@@ -31,6 +33,12 @@ All user-facing copy belongs in `src/app/i18n.js`:
 - dates use `getDateLocale()` and the date helpers in `src/app/utils/dates.js`.
 
 When adding a UI change, add translation keys for all supported locales in the same change. Do not hard-code visible English text in render functions unless it is user data, a symbol, or a stable product name.
+
+## Testing Mode
+
+The app has an isolated local QA account: `test@habitline.local` / `test1234`. It is not a Firebase account. The session and seeded data are stored in `localStorage`, so QA can exercise auth-like flows, persistence, habits, goals, workspaces, and localization without touching production user documents.
+
+The QA panel appears only in test mode and provides seed-data reset controls plus smoke-scenario prompts.
 
 ## Current Data Model
 

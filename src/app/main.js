@@ -54,6 +54,15 @@ const HABIT_MANAGER_LIMIT = 80;
 const PROGRESS_OPTION_LIMIT = 200;
 const PROJECTION_LIMIT = 80;
 const TODAY_SEARCH_SCAN_LIMIT = 5000;
+const TEST_ACCOUNT = {
+  uid: "local-test-account",
+  email: "test@habitline.local",
+  password: "test1234",
+  displayName: "Habitline QA",
+  isTestAccount: true
+};
+const TEST_SESSION_KEY = "habitline.testSession";
+const TEST_DATA_KEY = "habitline.testData";
 
 let currentUser = null;
 let isDirty = false;
@@ -106,9 +115,15 @@ const authPasswordConfirmField = document.getElementById("authPasswordConfirmFie
 const authPasswordConfirmInput = document.getElementById("authPasswordConfirmInput");
 const authSubmitBtn = document.getElementById("authSubmitBtn");
 const authGoogleBtn = document.getElementById("authGoogleBtn");
+const authTestBtn = document.getElementById("authTestBtn");
 const authResetBtn = document.getElementById("authResetBtn");
 const authMessage = document.getElementById("authMessage");
 const themeToggle = document.getElementById("themeToggle");
+const testingPanel = document.getElementById("testingPanel");
+const testingAccountMeta = document.getElementById("testingAccountMeta");
+const testingScenarios = document.getElementById("testingScenarios");
+const testingSeedBtn = document.getElementById("testingSeedBtn");
+const testingResetBtn = document.getElementById("testingResetBtn");
 const habitsTabBtn = document.getElementById("habitsTabBtn");
 const goalsTabBtn = document.getElementById("goalsTabBtn");
 const habitsView = document.getElementById("habitsView");
@@ -223,7 +238,10 @@ authLoginTabBtn.addEventListener("click", () => setAuthMode("login"));
 authRegisterTabBtn.addEventListener("click", () => setAuthMode("register"));
 authForm.addEventListener("submit", handleAuthSubmit);
 authGoogleBtn.addEventListener("click", handleGoogleSignIn);
+authTestBtn.addEventListener("click", () => startTestAccount({ seedIfMissing: true }));
 authResetBtn.addEventListener("click", handlePasswordReset);
+testingSeedBtn.addEventListener("click", () => reloadTestSeedData());
+testingResetBtn.addEventListener("click", () => resetTestData());
 document.getElementById("addHabitBtn").addEventListener("click", addHabit);
 addGoalOpenBtn.addEventListener("click", () => openGoalModal());
 goalModalCloseBtn.addEventListener("click", closeGoalModal);
@@ -315,6 +333,7 @@ themeToggle.addEventListener("click", toggleTheme);
 applyStaticTranslations();
 initTheme();
 refreshStatusText();
+restoreTestAccountSession();
 switchView(activeView, { updateHash: false });
 
 window.addEventListener("hashchange", () => {
@@ -324,6 +343,8 @@ window.addEventListener("hashchange", () => {
 handleRedirectResult();
 
 onAuthStateChanged(auth, async (user) => {
+  if (isTestMode()) return;
+
   const token = ++authStateToken;
   clearPendingSave();
   currentUser = user;
@@ -564,6 +585,11 @@ async function handleAuthSubmit(event) {
     return;
   }
 
+  if (authMode === "login" && isTestCredentials(email, password)) {
+    startTestAccount({ seedIfMissing: true });
+    return;
+  }
+
   setAuthBusy(true, authMode === "register" ? t("auth.busyCreate") : t("auth.busyLogin"));
 
   try {
@@ -632,11 +658,105 @@ async function handleGoogleRedirectResult() {
 }
 
 function handleRedirectResult() {
+  if (isTestMode()) return;
   handleGoogleRedirectResult();
+}
+
+function isTestCredentials(email, password) {
+  return email.toLowerCase() === TEST_ACCOUNT.email && password === TEST_ACCOUNT.password;
+}
+
+function isTestMode() {
+  return Boolean(currentUser?.isTestAccount);
+}
+
+function getTestUser() {
+  return { ...TEST_ACCOUNT };
+}
+
+function restoreTestAccountSession() {
+  if (localStorage.getItem(TEST_SESSION_KEY) !== "active") return;
+
+  currentUser = getTestUser();
+  data = loadTestData() || createTestingData();
+  localStorage.setItem(TEST_DATA_KEY, JSON.stringify(data));
+  signInBtn.hidden = true;
+  signOutBtn.hidden = false;
+  signOutBtn.disabled = false;
+  isDirty = false;
+  updateStatus("status.account", "ready", { user: getUserLabel(currentUser) });
+}
+
+function startTestAccount({ seedIfMissing = false, forceSeed = false } = {}) {
+  clearPendingSave();
+  currentUser = getTestUser();
+  localStorage.setItem(TEST_SESSION_KEY, "active");
+
+  const stored = forceSeed ? null : loadTestData();
+  data = stored || createTestingData();
+  if (forceSeed || seedIfMissing || !stored) localStorage.setItem(TEST_DATA_KEY, JSON.stringify(data));
+
+  isDirty = false;
+  setAuthBusy(false);
+  signInBtn.hidden = true;
+  signOutBtn.hidden = false;
+  signOutBtn.disabled = false;
+  closeAuthModal();
+  updateStatus("status.account", "ready", { user: getUserLabel(currentUser) });
+  showAuthMessage(t("testing.started"), "success");
+  render();
+}
+
+function loadTestData() {
+  try {
+    const raw = localStorage.getItem(TEST_DATA_KEY);
+    return raw ? normalizeData(JSON.parse(raw)) : null;
+  } catch {
+    return null;
+  }
+}
+
+function saveTestData() {
+  if (!isTestMode()) return false;
+  localStorage.setItem(TEST_DATA_KEY, JSON.stringify(data));
+  isDirty = false;
+  updateStatus("status.account", "ready", { user: getUserLabel(currentUser) });
+  return true;
+}
+
+function reloadTestSeedData() {
+  if (!isTestMode()) return;
+  data = createTestingData();
+  saveTestData();
+  render();
+  showGoalToast(t("testing.seeded"));
+}
+
+function resetTestData() {
+  if (!isTestMode()) return;
+  if (!confirm(t("testing.resetConfirm"))) return;
+  localStorage.removeItem(TEST_DATA_KEY);
+  reloadTestSeedData();
 }
 
 async function handleSignOut() {
   closeAuthModal();
+
+  if (isTestMode()) {
+    if (isDirty) saveTestData();
+    clearPendingSave();
+    localStorage.removeItem(TEST_SESSION_KEY);
+    currentUser = null;
+    data = { habits: [], records: {}, goals: [] };
+    isDirty = false;
+    signInBtn.hidden = false;
+    signOutBtn.hidden = true;
+    signOutBtn.disabled = false;
+    updateStatus("status.signedOut", "off");
+    render();
+    return;
+  }
+
   const uid = currentUser?.uid;
   const shouldSaveBeforeExit = Boolean(uid && isDirty);
   clearPendingSave();
@@ -667,6 +787,7 @@ function setAuthBusy(isBusy, message = "") {
   isAuthBusy = isBusy;
   authSubmitBtn.disabled = isBusy;
   authGoogleBtn.disabled = isBusy;
+  authTestBtn.disabled = isBusy;
   authResetBtn.disabled = isBusy;
   authLoginTabBtn.disabled = isBusy;
   authRegisterTabBtn.disabled = isBusy;
@@ -739,6 +860,167 @@ function createStarterData() {
   };
 }
 
+function createTestingData() {
+  const today = toDateInputValue(new Date());
+  const yesterday = shiftDateKey(today, -1);
+  const twoDaysAgo = shiftDateKey(today, -2);
+  const threeDaysAgo = shiftDateKey(today, -3);
+  const tomorrow = shiftDateKey(today, 1);
+  const nextWeek = shiftDateKey(today, 7);
+  const lastWeek = shiftDateKey(today, -7);
+
+  const habits = [
+    { id: "qa-water", name: "Hydration", unit: "glasses", target: 8, createdAt: threeDaysAgo },
+    { id: "qa-reading", name: "Reading", unit: "pages", target: 25, createdAt: threeDaysAgo },
+    { id: "qa-training", name: "Training", unit: "min", target: 45, createdAt: threeDaysAgo },
+    { id: "qa-language", name: "Language practice", unit: "min", target: 20, createdAt: twoDaysAgo },
+    { id: "qa-journal", name: "Journal", unit: "entry", target: 1, createdAt: twoDaysAgo },
+    { id: "qa-meditation", name: "Meditation", unit: "min", target: 10, createdAt: yesterday },
+    { id: "qa-walk", name: "Walk", unit: "steps", target: 7000, createdAt: yesterday },
+    { id: "qa-planning", name: "Plan tomorrow", unit: "plan", target: 1, createdAt: today }
+  ];
+
+  const records = {
+    [threeDaysAgo]: {
+      "qa-water": makeTestingRecord(true, 8, habits[0]),
+      "qa-reading": makeTestingRecord(true, 30, habits[1]),
+      "qa-training": makeTestingRecord(true, 45, habits[2])
+    },
+    [twoDaysAgo]: {
+      "qa-water": makeTestingRecord(true, 7, habits[0]),
+      "qa-reading": makeTestingRecord(true, 25, habits[1]),
+      "qa-training": makeTestingRecord(false, 20, habits[2]),
+      "qa-language": makeTestingRecord(true, 25, habits[3]),
+      "qa-journal": makeTestingRecord(true, 1, habits[4])
+    },
+    [yesterday]: {
+      "qa-water": makeTestingRecord(true, 8, habits[0]),
+      "qa-reading": makeTestingRecord(true, 40, habits[1]),
+      "qa-training": makeTestingRecord(true, 50, habits[2]),
+      "qa-language": makeTestingRecord(true, 20, habits[3]),
+      "qa-journal": makeTestingRecord(true, 1, habits[4]),
+      "qa-meditation": makeTestingRecord(true, 12, habits[5]),
+      "qa-walk": makeTestingRecord(true, 8100, habits[6])
+    },
+    [today]: {
+      "qa-water": makeTestingRecord(true, 6, habits[0]),
+      "qa-reading": makeTestingRecord(true, 25, habits[1]),
+      "qa-training": makeTestingRecord(false, "", habits[2]),
+      "qa-language": makeTestingRecord(false, "", habits[3])
+    }
+  };
+
+  return {
+    habits,
+    records,
+    goals: [
+      {
+        id: "qa-goal-launch",
+        name: "Launch the testing workflow",
+        type: "project",
+        pointA: "Manual checks are scattered across the app",
+        pointB: "A reusable QA checklist exists for every release",
+        createdAt: lastWeek,
+        status: "active",
+        completedAt: "",
+        failedAt: "",
+        tasks: [
+          {
+            id: "qa-task-auth",
+            title: "Verify auth modal and test account session",
+            deadline: today,
+            done: false,
+            completedAt: "",
+            workspace: {
+              notes: "Check login, sign out, reload, and saved local test data.",
+              miniGoals: [
+                { id: "qa-mini-auth-1", title: "Open auth modal", done: true, completedAt: yesterday },
+                { id: "qa-mini-auth-2", title: "Use test account button", done: false, completedAt: "" }
+              ]
+            }
+          },
+          {
+            id: "qa-task-locale",
+            title: "Switch all supported languages",
+            deadline: tomorrow,
+            done: false,
+            completedAt: "",
+            workspace: {
+              notes: "Scan header, dashboard cards, modals, goal workspace, and empty states in every locale.",
+              miniGoals: []
+            }
+          },
+          {
+            id: "qa-task-docs",
+            title: "Document the QA route",
+            deadline: nextWeek,
+            done: true,
+            completedAt: yesterday,
+            workspace: {
+              notes: "Keep docs/TESTING.md updated when scenarios change.",
+              miniGoals: [
+                { id: "qa-mini-docs-1", title: "List core smoke scenarios", done: true, completedAt: yesterday }
+              ]
+            }
+          }
+        ]
+      },
+      {
+        id: "qa-goal-completed",
+        name: "Ship multilingual interface",
+        type: "project",
+        pointA: "Russian-only UI copy",
+        pointB: "English primary UI with five supported languages",
+        createdAt: lastWeek,
+        status: "completed",
+        completedAt: yesterday,
+        failedAt: "",
+        tasks: [
+          {
+            id: "qa-task-i18n",
+            title: "Move UI copy into dictionaries",
+            deadline: yesterday,
+            done: true,
+            completedAt: yesterday,
+            workspace: {
+              notes: "Dictionary alignment is covered by the QA script.",
+              miniGoals: []
+            }
+          }
+        ]
+      },
+      {
+        id: "qa-goal-failed",
+        name: "Try unsafe production testing",
+        type: "other",
+        pointA: "Could test directly against real user data",
+        pointB: "Use isolated local test data instead",
+        createdAt: lastWeek,
+        status: "failed",
+        completedAt: "",
+        failedAt: twoDaysAgo,
+        tasks: []
+      }
+    ]
+  };
+}
+
+function makeTestingRecord(done, value, habit) {
+  return {
+    done,
+    value,
+    habitName: habit.name,
+    habitUnit: habit.unit,
+    habitTarget: habit.target
+  };
+}
+
+function shiftDateKey(dateKey, days) {
+  const date = parseDateKey(dateKey);
+  date.setDate(date.getDate() + days);
+  return toDateInputValue(date);
+}
+
 async function loadFromFirebase(expectedUid = currentUser?.uid) {
   const ref = getUserDocRef(expectedUid);
   if (!ref || !isCurrentUser(expectedUid)) return false;
@@ -797,6 +1079,10 @@ function scheduleAutoSave() {
   clearTimeout(saveTimer);
   const uid = currentUser.uid;
   saveTimer = setTimeout(() => {
+    if (isTestMode()) {
+      saveTestData();
+      return;
+    }
     if (isCurrentUser(uid)) saveToFirebase(false, uid);
   }, 700);
 }
@@ -901,6 +1187,7 @@ function normalizeOptionalNumber(value) {
 }
 
 function render() {
+  renderTestingPanel();
   renderTodayHeader();
   renderTodayLists();
   renderRewardState();
@@ -912,6 +1199,35 @@ function render() {
   renderProgressOptions();
   renderProgress();
   if (isCompletedModalOpen) renderCompletedModal();
+}
+
+function renderTestingPanel() {
+  testingPanel.hidden = !isTestMode();
+  testingScenarios.innerHTML = "";
+  if (!isTestMode()) return;
+
+  testingAccountMeta.textContent = t("testing.meta", { email: currentUser.email });
+
+  getTestingScenarios().forEach(scenario => {
+    const item = document.createElement("div");
+    item.className = "testing-scenario";
+    item.innerHTML = `
+      <strong>${escapeHtml(t(scenario.titleKey))}</strong>
+      <span>${escapeHtml(t(scenario.textKey))}</span>
+    `;
+    testingScenarios.appendChild(item);
+  });
+}
+
+function getTestingScenarios() {
+  return [
+    { titleKey: "testing.scenario.authTitle", textKey: "testing.scenario.authText" },
+    { titleKey: "testing.scenario.habitsTitle", textKey: "testing.scenario.habitsText" },
+    { titleKey: "testing.scenario.historyTitle", textKey: "testing.scenario.historyText" },
+    { titleKey: "testing.scenario.goalsTitle", textKey: "testing.scenario.goalsText" },
+    { titleKey: "testing.scenario.workspaceTitle", textKey: "testing.scenario.workspaceText" },
+    { titleKey: "testing.scenario.localeTitle", textKey: "testing.scenario.localeText" }
+  ];
 }
 
 function renderTodayHeader() {
