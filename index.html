@@ -351,25 +351,39 @@
         </div>
 
         <section class="workspace-document">
-          <div class="section-kicker">Цель</div>
-          <div class="workspace-goal-name" id="goalWorkspaceGoalName">Цель</div>
-          <h2 id="goalWorkspaceTaskName">Задача</h2>
-
-          <div class="workspace-mini-section">
-            <div class="section-top">
-              <div>
-                <div class="section-kicker">Мини-цели</div>
-                <h2>Шаги</h2>
-              </div>
+          <div class="workspace-hero">
+            <div>
+              <div class="section-kicker">Цель</div>
+              <div class="workspace-goal-name" id="goalWorkspaceGoalName">Цель</div>
             </div>
-            <div class="goal-mini-form">
-              <input id="goalMiniGoalInput" placeholder="Мини-цель: прочитать первую статью" />
-              <button id="goalMiniGoalAddBtn" class="primary" type="button">Добавить</button>
-            </div>
-            <div id="goalMiniGoalList" class="goal-mini-list"></div>
+            <h2 id="goalWorkspaceTaskName">Задача</h2>
           </div>
 
-          <textarea id="goalWorkspaceNotes" class="workspace-notes-editor" rows="12" placeholder="Пиши мысли, конспект, ссылки, план, куски решения..."></textarea>
+          <div class="workspace-board">
+            <div class="workspace-mini-section">
+              <div class="workspace-panel-head">
+                <div>
+                  <div class="section-kicker">Мини-цели</div>
+                  <h3>Шаги</h3>
+                </div>
+              </div>
+              <div class="goal-mini-form">
+                <input id="goalMiniGoalInput" placeholder="Мини-цель: прочитать первую статью" />
+                <button id="goalMiniGoalAddBtn" class="primary" type="button">Добавить</button>
+              </div>
+              <div id="goalMiniGoalList" class="goal-mini-list"></div>
+            </div>
+
+            <div class="workspace-notes-section">
+              <div class="workspace-panel-head">
+                <div>
+                  <div class="section-kicker">Заметки</div>
+                  <h3>Рабочий лист</h3>
+                </div>
+              </div>
+              <textarea id="goalWorkspaceNotes" class="workspace-notes-editor" rows="12" placeholder="Пиши мысли, конспект, ссылки, план, куски решения..."></textarea>
+            </div>
+          </div>
         </section>
       </div>
     </main>

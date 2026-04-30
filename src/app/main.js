@@ -1754,7 +1754,7 @@ function makeGoalTaskItem(goal, task) {
   `;
 
   item.querySelector(".quest-check").onclick = () => toggleGoalTask(goal.id, task.id);
-  item.querySelector(".goal-task-work").onclick = () => openGoalWorkspaceTab(goal.id, task.id);
+  item.querySelector(".goal-task-work").onclick = () => openGoalWorkspace(goal.id, task.id);
   item.querySelector(".goal-task-edit").onclick = () => editGoalTask(goal.id, task.id);
   item.querySelector(".goal-task-delete").onclick = () => deleteGoalTask(goal.id, task.id);
 
@@ -1966,10 +1966,8 @@ function launchGoalConfetti(status) {
   }, 3200);
 }
 
-function openGoalWorkspaceTab(goalId, taskId) {
-  const url = new URL(window.location.href);
-  url.hash = `workspace=${encodeURIComponent(goalId)}:${encodeURIComponent(taskId)}`;
-  window.open(url.toString(), "_blank", "noopener");
+function openGoalWorkspace(goalId, taskId) {
+  window.location.hash = `workspace=${encodeURIComponent(goalId)}:${encodeURIComponent(taskId)}`;
 }
 
 function renderGoalWorkspacePage() {
