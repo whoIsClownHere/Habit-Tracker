@@ -48,15 +48,34 @@ let visibleWeekStart = getWeekStart(new Date());
 let visibleMonthDate = new Date();
 let todayPageIndex = 0;
 let todaySearchQuery = "";
+let activeView = getInitialView();
+let isGoalModalOpen = false;
+let editingGoalId = null;
+let goalsCalendarMode = "month";
+let goalsVisibleDate = new Date();
+let selectedGoalDate = "";
+let hasManualGoalDateSelection = false;
+let goalArchiveMode = "completed";
+let isGoalResultModalOpen = false;
+let resolvingGoalId = null;
+let goalToastTimer = null;
+let workspaceGoalId = null;
+let workspaceTaskId = null;
 
 let data = {
   habits: [],
-  records: {}
+  records: {},
+  goals: []
 };
 
 const signInBtn = document.getElementById("signInBtn");
 const signOutBtn = document.getElementById("signOutBtn");
 const themeToggle = document.getElementById("themeToggle");
+const habitsTabBtn = document.getElementById("habitsTabBtn");
+const goalsTabBtn = document.getElementById("goalsTabBtn");
+const habitsView = document.getElementById("habitsView");
+const goalsView = document.getElementById("goalsView");
+const goalWorkspaceView = document.getElementById("goalWorkspaceView");
 const activeList = document.getElementById("activeList");
 const todayHabitSearch = document.getElementById("todayHabitSearch");
 const todayListMeta = document.getElementById("todayListMeta");
@@ -97,6 +116,49 @@ const progressHabit = document.getElementById("progressHabit");
 const habitManagerPanel = document.getElementById("habitManagerPanel");
 const habitManagerList = document.getElementById("habitManagerList");
 const toggleHabitManagerBtn = document.getElementById("toggleHabitManagerBtn");
+const addGoalOpenBtn = document.getElementById("addGoalOpenBtn");
+const goalModal = document.getElementById("goalModal");
+const goalModalCloseBtn = document.getElementById("goalModalCloseBtn");
+const goalModalTitle = document.getElementById("goalModalTitle");
+const goalSaveBtn = document.getElementById("goalSaveBtn");
+const goalsList = document.getElementById("goalsList");
+const goalsTotalCount = document.getElementById("goalsTotalCount");
+const goalsActiveCount = document.getElementById("goalsActiveCount");
+const goalsDueCount = document.getElementById("goalsDueCount");
+const goalsArchivedCount = document.getElementById("goalsArchivedCount");
+const goalsCalendarTitle = document.getElementById("goalsCalendarTitle");
+const goalsCalendarGrid = document.getElementById("goalsCalendarGrid");
+const goalModeMonthBtn = document.getElementById("goalModeMonthBtn");
+const goalModeWeekBtn = document.getElementById("goalModeWeekBtn");
+const goalModeDayBtn = document.getElementById("goalModeDayBtn");
+const prevGoalPeriodBtn = document.getElementById("prevGoalPeriodBtn");
+const nextGoalPeriodBtn = document.getElementById("nextGoalPeriodBtn");
+const todayGoalPeriodBtn = document.getElementById("todayGoalPeriodBtn");
+const selectedDeadlineTitle = document.getElementById("selectedDeadlineTitle");
+const selectedDeadlineList = document.getElementById("selectedDeadlineList");
+const deadlineFocusMeta = document.getElementById("deadlineFocusMeta");
+const prevDeadlineBtn = document.getElementById("prevDeadlineBtn");
+const nextDeadlineBtn = document.getElementById("nextDeadlineBtn");
+const goalArchiveCompletedBtn = document.getElementById("goalArchiveCompletedBtn");
+const goalArchiveFailedBtn = document.getElementById("goalArchiveFailedBtn");
+const goalArchiveCompletedCount = document.getElementById("goalArchiveCompletedCount");
+const goalArchiveFailedCount = document.getElementById("goalArchiveFailedCount");
+const goalArchiveList = document.getElementById("goalArchiveList");
+const goalResultModal = document.getElementById("goalResultModal");
+const goalResultCloseBtn = document.getElementById("goalResultCloseBtn");
+const goalResultName = document.getElementById("goalResultName");
+const goalResultMeta = document.getElementById("goalResultMeta");
+const goalResultCompletedBtn = document.getElementById("goalResultCompletedBtn");
+const goalResultFailedBtn = document.getElementById("goalResultFailedBtn");
+const goalConfettiLayer = document.getElementById("goalConfettiLayer");
+const goalToast = document.getElementById("goalToast");
+const goalWorkspaceBackBtn = document.getElementById("goalWorkspaceBackBtn");
+const goalWorkspaceGoalName = document.getElementById("goalWorkspaceGoalName");
+const goalWorkspaceTaskName = document.getElementById("goalWorkspaceTaskName");
+const goalWorkspaceNotes = document.getElementById("goalWorkspaceNotes");
+const goalMiniGoalInput = document.getElementById("goalMiniGoalInput");
+const goalMiniGoalAddBtn = document.getElementById("goalMiniGoalAddBtn");
+const goalMiniGoalList = document.getElementById("goalMiniGoalList");
 let isHabitManagerOpen = false;
 let isCompletedModalOpen = false;
 let completedSearchQuery = "";
@@ -107,9 +169,14 @@ const statusText = document.getElementById("statusText");
 
 signOutBtn.style.display = "none";
 
+habitsTabBtn.addEventListener("click", () => switchView("habits"));
+goalsTabBtn.addEventListener("click", () => switchView("goals"));
 signInBtn.addEventListener("click", signIn);
 signOutBtn.addEventListener("click", () => signOut(auth));
 document.getElementById("addHabitBtn").addEventListener("click", addHabit);
+addGoalOpenBtn.addEventListener("click", () => openGoalModal());
+goalModalCloseBtn.addEventListener("click", closeGoalModal);
+goalSaveBtn.addEventListener("click", saveGoalFromModal);
 toggleHabitManagerBtn.addEventListener("click", toggleHabitManager);
 document.getElementById("todayBtn").addEventListener("click", goToToday);
 todayHabitSearch.addEventListener("input", (event) => {
@@ -134,8 +201,35 @@ completedSearchInput.addEventListener("input", (event) => {
 completedModal.addEventListener("click", (event) => {
   if (event.target === completedModal) closeCompletedModal();
 });
+goalModal.addEventListener("click", (event) => {
+  if (event.target === goalModal) closeGoalModal();
+});
 document.addEventListener("keydown", (event) => {
   if (event.key === "Escape" && isCompletedModalOpen) closeCompletedModal();
+  if (event.key === "Escape" && isGoalModalOpen) closeGoalModal();
+  if (event.key === "Escape" && isGoalResultModalOpen) closeGoalResultModal();
+});
+goalModeMonthBtn.addEventListener("click", () => setGoalsCalendarMode("month"));
+goalModeWeekBtn.addEventListener("click", () => setGoalsCalendarMode("week"));
+goalModeDayBtn.addEventListener("click", () => setGoalsCalendarMode("day"));
+prevGoalPeriodBtn.addEventListener("click", () => changeGoalCalendarPeriod(-1));
+nextGoalPeriodBtn.addEventListener("click", () => changeGoalCalendarPeriod(1));
+todayGoalPeriodBtn.addEventListener("click", goToTodayGoalDate);
+prevDeadlineBtn.addEventListener("click", () => stepSelectedDeadline(-1));
+nextDeadlineBtn.addEventListener("click", () => stepSelectedDeadline(1));
+goalArchiveCompletedBtn.addEventListener("click", () => setGoalArchiveMode("completed"));
+goalArchiveFailedBtn.addEventListener("click", () => setGoalArchiveMode("failed"));
+goalResultCloseBtn.addEventListener("click", closeGoalResultModal);
+goalResultCompletedBtn.addEventListener("click", () => resolveGoalResult("completed"));
+goalResultFailedBtn.addEventListener("click", () => resolveGoalResult("failed"));
+goalResultModal.addEventListener("click", (event) => {
+  if (event.target === goalResultModal) closeGoalResultModal();
+});
+goalWorkspaceBackBtn.addEventListener("click", () => switchView("goals"));
+goalWorkspaceNotes.addEventListener("input", updateWorkspaceNotes);
+goalMiniGoalAddBtn.addEventListener("click", addWorkspaceMiniGoal);
+goalMiniGoalInput.addEventListener("keydown", (event) => {
+  if (event.key === "Enter") addWorkspaceMiniGoal();
 });
 document.getElementById("prevWeekCalendar").addEventListener("click", () => changeVisibleWeek(-1));
 document.getElementById("nextWeekCalendar").addEventListener("click", () => changeVisibleWeek(1));
@@ -160,6 +254,11 @@ reviewDateInput.addEventListener("change", (event) => {
 });
 themeToggle.addEventListener("click", toggleTheme);
 initTheme();
+switchView(activeView, { updateHash: false });
+
+window.addEventListener("hashchange", () => {
+  switchView(getInitialView(), { updateHash: false });
+});
 
 onAuthStateChanged(auth, async (user) => {
   currentUser = user;
@@ -167,7 +266,7 @@ onAuthStateChanged(auth, async (user) => {
   if (!user) {
     signInBtn.style.display = "inline-flex";
     signOutBtn.style.display = "none";
-    data = { habits: [], records: {} };
+    data = { habits: [], records: {}, goals: [] };
     isDirty = false;
     updateStatus("Вход не выполнен", "off");
     render();
@@ -182,6 +281,31 @@ onAuthStateChanged(auth, async (user) => {
 });
 
 render();
+
+function getInitialView() {
+  if (getWorkspaceRoute()) return "workspace";
+  return window.location.hash === "#goals" ? "goals" : "habits";
+}
+
+function switchView(view, options = {}) {
+  activeView = view === "workspace" ? "workspace" : view === "goals" ? "goals" : "habits";
+  const isGoals = activeView === "goals";
+  const isWorkspace = activeView === "workspace";
+
+  habitsView.hidden = isGoals || isWorkspace;
+  goalsView.hidden = !isGoals;
+  goalWorkspaceView.hidden = !isWorkspace;
+  habitsTabBtn.classList.toggle("active", activeView === "habits");
+  goalsTabBtn.classList.toggle("active", isGoals);
+  habitsTabBtn.setAttribute("aria-selected", String(activeView === "habits"));
+  goalsTabBtn.setAttribute("aria-selected", String(isGoals));
+
+  if (options.updateHash !== false) {
+    history.replaceState(null, "", isWorkspace ? window.location.hash : isGoals ? "#goals" : "#habits");
+  }
+
+  if (isWorkspace) renderGoalWorkspacePage();
+}
 
 function initTheme() {
   const savedTheme = localStorage.getItem("habitTheme") || "light";
@@ -222,7 +346,8 @@ async function loadFromFirebase() {
           { id: crypto.randomUUID(), name: "Отжимания 🏃", unit: "раз", target: 15, createdAt: toDateInputValue(new Date()) },
           { id: crypto.randomUUID(), name: "Чтение 📖", unit: "страниц", target: 20, createdAt: toDateInputValue(new Date()) }
         ],
-        records: {}
+        records: {},
+        goals: []
       };
       await saveToFirebase(false);
       return;
@@ -282,8 +407,76 @@ function updateStatus(text, mode) {
 function normalizeData(input) {
   return {
     habits: Array.isArray(input.habits) ? input.habits : [],
-    records: input.records && typeof input.records === "object" ? input.records : {}
+    records: input.records && typeof input.records === "object" ? input.records : {},
+    goals: Array.isArray(input.goals) ? input.goals.map(normalizeGoal) : []
   };
+}
+
+function normalizeGoal(goal) {
+  const unit = goal.unit || "";
+  const legacyCurrent = goal.current ?? goal.currentMetric ?? "";
+  const legacyTarget = goal.target ?? goal.targetMetric ?? "";
+  const currentMetric = normalizeOptionalNumber(legacyCurrent);
+  const targetMetric = normalizeOptionalNumber(legacyTarget);
+  const fallbackPointA = currentMetric === "" ? "" : formatGoalMetric(currentMetric, unit);
+  const fallbackPointB = targetMetric === "" ? "" : formatGoalMetric(targetMetric, unit);
+  const rawTasks = Array.isArray(goal.tasks)
+    ? goal.tasks
+    : Array.isArray(goal.milestones)
+      ? goal.milestones
+      : [];
+  const status = ["completed", "failed"].includes(goal.status) ? goal.status : "active";
+
+  return {
+    id: goal.id || crypto.randomUUID(),
+    name: goal.name || "Цель",
+    type: goal.type || "other",
+    pointA: goal.pointA || fallbackPointA,
+    pointB: goal.pointB || fallbackPointB,
+    createdAt: goal.createdAt || toDateInputValue(new Date()),
+    status,
+    completedAt: status === "completed" ? goal.completedAt || goal.archivedAt || toDateInputValue(new Date()) : "",
+    failedAt: status === "failed" ? goal.failedAt || goal.archivedAt || toDateInputValue(new Date()) : "",
+    tasks: rawTasks.map(normalizeGoalTask)
+  };
+}
+
+function normalizeGoalTask(task) {
+  return {
+    id: task.id || crypto.randomUUID(),
+    title: task.title || task.evidence || "Задача",
+    deadline: task.deadline || "",
+    done: Boolean(task.done),
+    completedAt: task.completedAt || "",
+    workspace: normalizeTaskWorkspace(task.workspace)
+  };
+}
+
+function normalizeTaskWorkspace(workspace = {}) {
+  const safeWorkspace = workspace && typeof workspace === "object" ? workspace : {};
+  const rawMiniGoals = Array.isArray(safeWorkspace.miniGoals) ? safeWorkspace.miniGoals : [];
+
+  return {
+    notes: typeof safeWorkspace.notes === "string" ? safeWorkspace.notes : "",
+    miniGoals: rawMiniGoals.map(normalizeMiniGoal)
+  };
+}
+
+function normalizeMiniGoal(miniGoal = {}) {
+  const safeMiniGoal = miniGoal && typeof miniGoal === "object" ? miniGoal : {};
+
+  return {
+    id: safeMiniGoal.id || crypto.randomUUID(),
+    title: safeMiniGoal.title || "Мини-цель",
+    done: Boolean(safeMiniGoal.done),
+    completedAt: safeMiniGoal.completedAt || ""
+  };
+}
+
+function normalizeOptionalNumber(value) {
+  if (value === "" || value === null || value === undefined) return "";
+  const number = Number(value);
+  return Number.isNaN(number) ? "" : number;
 }
 
 function render() {
@@ -291,6 +484,8 @@ function render() {
   renderTodayLists();
   renderRewardState();
   renderHabitManager();
+  renderGoals();
+  renderGoalWorkspacePage();
   renderDayReview();
   renderPeriodProgress();
   renderProgressOptions();
@@ -451,7 +646,7 @@ function openCompletedModal() {
 function closeCompletedModal() {
   isCompletedModalOpen = false;
   completedModal.hidden = true;
-  document.body.classList.remove("modal-open");
+  if (!isGoalModalOpen && !isGoalResultModalOpen) document.body.classList.remove("modal-open");
 }
 
 function renderCompletedModal() {
@@ -732,7 +927,12 @@ function renderDayReview() {
   const todayKey = toDateInputValue(new Date());
   const isToday = reviewDate === todayKey;
   const isFuture = reviewDate > todayKey;
-  const streakOnDate = isFuture ? calculateProjectedGlobalStreakAtDate(reviewDate) : calculateGlobalStreakAtDate(reviewDate);
+  const streakOnDate = isFuture
+    ? calculateProjectedGlobalStreakAtDate(reviewDate)
+    : isToday
+      ? calculateMotivationalGlobalStreak()
+      : calculateGlobalStreakAtDate(reviewDate);
+  const isTodayOpen = isToday && !isTodayComplete();
 
   reviewDayTitle.textContent = isToday
     ? "Сегодня"
@@ -741,12 +941,14 @@ function renderDayReview() {
   reviewStreak.textContent = streakOnDate;
   reviewStreakBox.classList.remove("danger", "future");
   if (isFuture) reviewStreakBox.classList.add("future");
-  else if (streakOnDate === 0) reviewStreakBox.classList.add("danger");
+  else if (streakOnDate === 0 && !isTodayOpen) reviewStreakBox.classList.add("danger");
 
   reviewStreakText.textContent = isFuture
     ? "Прогноз серии, если каждый день до этой даты будет закрыт полностью."
     : isToday
-      ? "Серия с учётом сегодняшнего дня."
+      ? isTodayOpen
+        ? "Будет в серии, когда закроешь сегодня."
+        : "Серия с учётом сегодняшнего дня."
       : streakOnDate > 0
         ? "Серия к концу этого дня."
         : "В этот день серия была прервана или ещё не началась.";
@@ -866,7 +1068,7 @@ function renderRewardState() {
   const total = data.habits.length;
   const done = countDoneRecordsForDate(todayKey);
   const percent = total === 0 ? 0 : Math.round((done / total) * 100);
-  const streak = calculateGlobalStreak();
+  const streak = calculateMotivationalGlobalStreak();
 
   heroStreak.textContent = streak;
   dailyRingFill.style.width = `${percent}%`;
@@ -880,7 +1082,7 @@ function renderRewardState() {
   } else {
     const remaining = total - done;
     const pronoun = remaining === 1 ? "её" : "их";
-    streakMessage.textContent = `Осталось: ${formatHabitCount(remaining)}. Выполни ${pronoun} сегодня, чтобы сохранить серию.`;
+    streakMessage.textContent = `Будет ${formatDayCount(streak)} подряд. Осталось: ${formatHabitCount(remaining)}. Выполни ${pronoun} сегодня.`;
   }
 }
 
@@ -1046,9 +1248,9 @@ function getChartPointValue(record, habit) {
 
 function renderChartMetrics(habit) {
   const todayKey = toDateInputValue(new Date());
-  const streakStart = getHabitStreakStartDate(habit.id, todayKey);
-  const totalSinceStreak = streakStart ? calculateTotalBetweenDates(habit.id, streakStart, todayKey) : 0;
-  const streakDays = calculateStreak(habit.id);
+  const streakStart = getMotivationalHabitStreakStartDate(habit.id);
+  const totalSinceStreak = streakStart ? calculateMotivationalTotalBetweenDates(habit, streakStart, todayKey) : 0;
+  const streakDays = calculateMotivationalHabitStreak(habit.id);
   const lifetimeTotal = calculateLifetimeTotal(habit.id);
   const unit = habit.unit ? ` ${habit.unit}` : "";
 
@@ -1227,6 +1429,1051 @@ function addHabit() {
   render();
 }
 
+function openGoalModal(goalId = null) {
+  const goal = goalId ? data.goals.find(item => item.id === goalId) : null;
+  editingGoalId = goal?.id || null;
+  goalModalTitle.textContent = goal ? "Редактировать цель" : "Новая цель";
+  goalSaveBtn.textContent = goal ? "Сохранить изменения" : "Сохранить цель";
+  document.getElementById("goalName").value = goal?.name || "";
+  document.getElementById("goalType").value = goal?.type || "other";
+  document.getElementById("goalPointA").value = goal?.pointA || "";
+  document.getElementById("goalPointB").value = goal?.pointB || "";
+  isGoalModalOpen = true;
+  goalModal.hidden = false;
+  document.body.classList.add("modal-open");
+  document.getElementById("goalName").focus();
+}
+
+function closeGoalModal() {
+  isGoalModalOpen = false;
+  editingGoalId = null;
+  goalModal.hidden = true;
+  if (!isCompletedModalOpen && !isGoalResultModalOpen) document.body.classList.remove("modal-open");
+}
+
+function saveGoalFromModal() {
+  if (!currentUser) {
+    alert("Сначала войди через Google.");
+    return;
+  }
+
+  const name = document.getElementById("goalName").value.trim();
+  const type = document.getElementById("goalType").value || "other";
+  const pointA = document.getElementById("goalPointA").value.trim();
+  const pointB = document.getElementById("goalPointB").value.trim();
+
+  if (!name) {
+    alert("Введите название цели.");
+    return;
+  }
+
+  if (!pointA || !pointB) {
+    alert("Заполни точку A и точку B.");
+    return;
+  }
+
+  if (editingGoalId) {
+    const goal = data.goals.find(item => item.id === editingGoalId);
+    if (!goal) return;
+    Object.assign(goal, { name, type, pointA, pointB });
+  } else {
+    data.goals.push({
+      id: crypto.randomUUID(),
+      name,
+      type,
+      pointA,
+      pointB,
+      createdAt: toDateInputValue(new Date()),
+      status: "active",
+      completedAt: "",
+      failedAt: "",
+      tasks: []
+    });
+  }
+
+  markDirty();
+  closeGoalModal();
+  renderGoals();
+}
+
+function renderGoals() {
+  renderGoalOverview();
+  ensureSelectedGoalDate();
+  renderDeadlineCalendar();
+  renderDeadlineFocus();
+  renderGoalsList();
+  renderGoalArchive();
+}
+
+function renderGoalsList() {
+  goalsList.innerHTML = "";
+  const activeGoals = getActiveGoals();
+
+  if (!currentUser) {
+    goalsList.innerHTML = `<div class="empty">Войди через Google, чтобы вести долгосрочные цели.</div>`;
+    return;
+  }
+
+  if (data.goals.length === 0) {
+    goalsList.innerHTML = `<div class="empty">Создай цель через кнопку «Новая цель», а затем добавь задачи с дедлайнами.</div>`;
+    return;
+  }
+
+  if (activeGoals.length === 0) {
+    goalsList.innerHTML = `<div class="empty">Активных целей нет. Завершённые и проваленные цели лежат в архиве ниже.</div>`;
+    return;
+  }
+
+  activeGoals.forEach(goal => goalsList.appendChild(makeGoalCard(goal)));
+}
+
+function renderGoalOverview() {
+  const goals = Array.isArray(data.goals) ? data.goals : [];
+  const activeGoals = goals.filter(isGoalActive);
+  const archivedGoals = goals.filter(isGoalArchived);
+  const urgentTasks = getAllDeadlineItems().filter(item => isTaskUrgent(item.task));
+  goalsTotalCount.textContent = goals.length;
+  goalsActiveCount.textContent = activeGoals.length;
+  goalsDueCount.textContent = urgentTasks.length;
+  goalsArchivedCount.textContent = archivedGoals.length;
+}
+
+function setGoalArchiveMode(mode) {
+  goalArchiveMode = mode === "failed" ? "failed" : "completed";
+  renderGoalArchive();
+}
+
+function renderGoalArchive() {
+  const completedGoals = getArchivedGoals("completed");
+  const failedGoals = getArchivedGoals("failed");
+  const visibleGoals = goalArchiveMode === "failed" ? failedGoals : completedGoals;
+
+  goalArchiveCompletedCount.textContent = completedGoals.length;
+  goalArchiveFailedCount.textContent = failedGoals.length;
+  goalArchiveCompletedBtn.classList.toggle("active", goalArchiveMode === "completed");
+  goalArchiveFailedBtn.classList.toggle("active", goalArchiveMode === "failed");
+  goalArchiveCompletedBtn.setAttribute("aria-pressed", String(goalArchiveMode === "completed"));
+  goalArchiveFailedBtn.setAttribute("aria-pressed", String(goalArchiveMode === "failed"));
+  goalArchiveList.innerHTML = "";
+
+  if (!currentUser) {
+    goalArchiveList.innerHTML = `<div class="empty">Войди через Google, чтобы посмотреть архив целей.</div>`;
+    return;
+  }
+
+  if (visibleGoals.length === 0) {
+    const emptyText = goalArchiveMode === "completed"
+      ? "Реализованных целей пока нет. Когда закончишь цель, она появится здесь."
+      : "Проваленных целей пока нет. Если цель сорвалась, её можно отправить сюда из текущих целей.";
+    goalArchiveList.innerHTML = `<div class="empty">${emptyText}</div>`;
+    return;
+  }
+
+  visibleGoals.forEach(goal => goalArchiveList.appendChild(makeGoalArchiveCard(goal)));
+}
+
+function getArchivedGoals(status) {
+  return (data.goals || [])
+    .filter(goal => goal.status === status)
+    .sort((a, b) => {
+      const aDate = getGoalArchiveDate(a);
+      const bDate = getGoalArchiveDate(b);
+      if (aDate !== bDate) return String(bDate).localeCompare(String(aDate));
+      return String(a.name || "").localeCompare(String(b.name || ""));
+    });
+}
+
+function makeGoalArchiveCard(goal) {
+  const card = document.createElement("div");
+  const progress = getGoalProgress(goal);
+  const isCompleted = goal.status === "completed";
+  const statusDate = getGoalArchiveDate(goal);
+  const statusLabel = isCompleted ? "Реализована" : "Провалена";
+
+  card.className = `goal-archive-card ${isCompleted ? "completed" : "failed"}`;
+  card.innerHTML = `
+    <div class="goal-archive-head">
+      <div>
+        <div class="goal-type">${escapeHtml(getGoalTypeLabel(goal.type))}</div>
+        <div class="goal-name">${escapeHtml(goal.name)}</div>
+      </div>
+      <div class="goal-archive-status">
+        <span>${statusLabel}</span>
+        <strong>${escapeHtml(statusDate ? formatDeadlineLong(statusDate) : "дата не указана")}</strong>
+      </div>
+    </div>
+
+    <div class="goal-route-grid">
+      <div class="goal-route-box">
+        <span>Точка A</span>
+        <strong>${escapeHtml(goal.pointA || "Не задано")}</strong>
+      </div>
+      <div class="goal-route-box">
+        <span>Точка B</span>
+        <strong>${escapeHtml(goal.pointB || "Не задано")}</strong>
+      </div>
+    </div>
+
+    <div class="goal-stats">
+      <div class="goal-stat">
+        <span>${Math.round(progress.percent)}%</span>
+        <span>закрыто</span>
+      </div>
+      <div class="goal-stat">
+        <span>${progress.doneCount}/${progress.totalCount}</span>
+        <span>задач</span>
+      </div>
+      <div class="goal-stat">
+        <span>${escapeHtml(formatDeadlineShort(goal.createdAt))}</span>
+        <span>создана</span>
+      </div>
+    </div>
+
+    <div class="goal-archive-actions">
+      <button class="secondary goal-restore" type="button">Вернуть в работу</button>
+      <button class="danger goal-delete" type="button">Удалить</button>
+    </div>
+  `;
+
+  card.querySelector(".goal-restore").onclick = () => restoreGoal(goal);
+  card.querySelector(".goal-delete").onclick = () => deleteGoal(goal);
+  return card;
+}
+
+function getGoalArchiveDate(goal) {
+  if (goal.status === "completed") return goal.completedAt || "";
+  if (goal.status === "failed") return goal.failedAt || "";
+  return "";
+}
+
+function makeGoalCard(goal) {
+  const card = document.createElement("div");
+  card.className = "goal-item";
+  const progress = getGoalProgress(goal);
+  const sortedTasks = getSortedGoalTasks(goal);
+  const nextTask = getNextGoalTask(goal);
+  const typeLabel = getGoalTypeLabel(goal.type);
+  const canFinish = progress.totalCount > 0 && progress.doneCount === progress.totalCount;
+
+  card.innerHTML = `
+    <div class="goal-head">
+      <div>
+        <div class="goal-type">${escapeHtml(typeLabel)}</div>
+        <div class="goal-name">${escapeHtml(goal.name)}</div>
+      </div>
+      <div class="goal-card-actions">
+        <button class="secondary goal-edit" type="button">Изменить</button>
+        <button class="primary goal-result" type="button">Завершить цель</button>
+        <button class="danger goal-delete" type="button">Удалить</button>
+      </div>
+    </div>
+
+    <div class="goal-route-grid">
+      <div class="goal-route-box">
+        <span>Точка A</span>
+        <strong>${escapeHtml(goal.pointA || "Не задано")}</strong>
+      </div>
+      <div class="goal-route-box">
+        <span>Точка B</span>
+        <strong>${escapeHtml(goal.pointB || "Не задано")}</strong>
+      </div>
+    </div>
+
+    <div class="goal-progress-line">
+      <div class="goal-progress-fill" style="width: ${progress.percent}%"></div>
+    </div>
+
+    <div class="goal-stats">
+      <div class="goal-stat">
+        <span>${Math.round(progress.percent)}%</span>
+        <span>прогресс</span>
+      </div>
+      <div class="goal-stat">
+        <span>${progress.doneCount}/${progress.totalCount}</span>
+        <span>задач закрыто</span>
+      </div>
+      <div class="goal-stat">
+        <span>${escapeHtml(nextTask ? formatDeadlineShort(nextTask.deadline) : "—")}</span>
+        <span>следующий дедлайн</span>
+      </div>
+    </div>
+
+    <div class="goal-next">
+      ${canFinish ? "Все задачи закрыты. Можно завершить цель и отправить её в реализованные." : nextTask ? makeNextTaskHtml(nextTask) : "Следующая задача пока не задана."}
+    </div>
+
+    <div class="goal-task-form">
+      <input class="goal-task-title-input" placeholder="Задача: написать параграф, отправить резюме, выпустить статью" />
+      <input class="goal-task-deadline-input" type="date" />
+      <button class="success add-goal-task-btn" type="button">+ Задача</button>
+    </div>
+
+    <div class="goal-task-list"></div>
+  `;
+
+  card.querySelector(".goal-edit").onclick = () => openGoalModal(goal.id);
+  card.querySelector(".goal-result").onclick = () => openGoalResultModal(goal.id);
+  card.querySelector(".goal-delete").onclick = () => deleteGoal(goal);
+  card.querySelector(".add-goal-task-btn").onclick = () => addGoalTask(goal.id, card);
+
+  const taskList = card.querySelector(".goal-task-list");
+  if (sortedTasks.length === 0) {
+    taskList.innerHTML = `<div class="empty goal-task-empty">Задач с дедлайнами пока нет.</div>`;
+  } else {
+    sortedTasks.forEach(task => {
+      taskList.appendChild(makeGoalTaskItem(goal, task));
+    });
+  }
+
+  return card;
+}
+
+function makeNextTaskHtml(task) {
+  return `
+    <span>Следующий дедлайн</span>
+    <strong>${escapeHtml(task.title || "Задача")}</strong>
+    <small>${escapeHtml(formatDeadlineLong(task.deadline))}</small>
+  `;
+}
+
+function makeGoalTaskItem(goal, task) {
+  const item = document.createElement("div");
+  item.className = "goal-task-item" + (task.done ? " done" : "");
+  const deadlineState = getTaskDeadlineState(task);
+
+  item.innerHTML = `
+    <button class="quest-check ${task.done ? "quest-check-done" : ""}" type="button">✓</button>
+    <div class="goal-task-main">
+      <div class="goal-task-title">${escapeHtml(task.title || "Задача")}</div>
+      <div class="goal-task-meta">${escapeHtml(formatDeadlineLong(task.deadline))}</div>
+    </div>
+    <div class="deadline-pill ${deadlineState.className}">${escapeHtml(deadlineState.text)}</div>
+    <button class="primary goal-task-work" type="button">Работать</button>
+    <button class="secondary goal-task-edit" type="button">Изменить</button>
+    <button class="danger goal-task-delete" type="button">Удалить</button>
+  `;
+
+  item.querySelector(".quest-check").onclick = () => toggleGoalTask(goal.id, task.id);
+  item.querySelector(".goal-task-work").onclick = () => openGoalWorkspaceTab(goal.id, task.id);
+  item.querySelector(".goal-task-edit").onclick = () => editGoalTask(goal.id, task.id);
+  item.querySelector(".goal-task-delete").onclick = () => deleteGoalTask(goal.id, task.id);
+
+  return item;
+}
+
+function addGoalTask(goalId, card) {
+  const goal = data.goals.find(item => item.id === goalId);
+  if (!goal) return;
+
+  const titleInput = card.querySelector(".goal-task-title-input");
+  const deadlineInput = card.querySelector(".goal-task-deadline-input");
+  const title = titleInput.value.trim();
+  const deadline = deadlineInput.value;
+
+  if (!title) {
+    alert("Назови задачу.");
+    return;
+  }
+
+  if (!deadline) {
+    alert("Укажи дедлайн для задачи.");
+    return;
+  }
+
+  goal.tasks.push({
+    id: crypto.randomUUID(),
+    title,
+    deadline,
+    done: false,
+    completedAt: "",
+    workspace: {
+      notes: "",
+      miniGoals: []
+    }
+  });
+
+  hasManualGoalDateSelection = false;
+  titleInput.value = "";
+  deadlineInput.value = "";
+  markDirty();
+  renderGoals();
+}
+
+function editGoalTask(goalId, taskId) {
+  const task = findGoalTask(goalId, taskId);
+  if (!task) return;
+
+  const title = prompt("Задача", task.title || "");
+  if (!title || !title.trim()) return;
+
+  const deadline = prompt("Дедлайн в формате YYYY-MM-DD", task.deadline || toDateInputValue(new Date()));
+  if (!deadline || !/^\d{4}-\d{2}-\d{2}$/.test(deadline)) {
+    alert("Дедлайн должен быть в формате YYYY-MM-DD.");
+    return;
+  }
+
+  task.title = title.trim();
+  task.deadline = deadline;
+  selectedGoalDate = deadline;
+  goalsVisibleDate = parseDateKey(deadline);
+  hasManualGoalDateSelection = true;
+  markDirty();
+  renderGoals();
+}
+
+function toggleGoalTask(goalId, taskId) {
+  const task = findGoalTask(goalId, taskId);
+  if (!task) return;
+
+  task.done = !task.done;
+  task.completedAt = task.done ? toDateInputValue(new Date()) : "";
+  markDirty();
+  renderGoals();
+}
+
+function deleteGoalTask(goalId, taskId) {
+  const goal = data.goals.find(item => item.id === goalId);
+  if (!goal) return;
+  const task = goal.tasks.find(item => item.id === taskId);
+  if (!task) return;
+  if (!confirm(`Удалить задачу «${task.title}»?`)) return;
+  goal.tasks = goal.tasks.filter(item => item.id !== taskId);
+  hasManualGoalDateSelection = false;
+  markDirty();
+  renderGoals();
+}
+
+function deleteGoal(goal) {
+  if (!confirm(`Удалить цель «${goal.name}»?`)) return;
+  data.goals = data.goals.filter(item => item.id !== goal.id);
+  hasManualGoalDateSelection = false;
+  markDirty();
+  renderGoals();
+}
+
+function openGoalResultModal(goalId) {
+  const goal = data.goals.find(item => item.id === goalId);
+  if (!goal) return;
+  const progress = getGoalProgress(goal);
+
+  resolvingGoalId = goal.id;
+  isGoalResultModalOpen = true;
+  goalResultName.textContent = goal.name || "Цель";
+  goalResultMeta.textContent = `${progress.doneCount}/${progress.totalCount} задач закрыто · выбери итог маршрута`;
+  goalResultModal.hidden = false;
+  document.body.classList.add("modal-open");
+  goalResultCompletedBtn.focus();
+}
+
+function closeGoalResultModal() {
+  isGoalResultModalOpen = false;
+  resolvingGoalId = null;
+  goalResultModal.hidden = true;
+  if (!isCompletedModalOpen && !isGoalModalOpen) document.body.classList.remove("modal-open");
+}
+
+function resolveGoalResult(status) {
+  const goal = data.goals.find(item => item.id === resolvingGoalId);
+  if (!goal) return;
+
+  const isCompleted = status === "completed";
+  const statusText = isCompleted ? "завершенную" : "проваленную";
+  const confirmed = confirm(`Ты точно хочешь отметить цель «${goal.name}» как ${statusText}?`);
+
+  if (!confirmed) {
+    closeGoalResultModal();
+    showGoalToast(isCompleted
+      ? "Окей, не торопимся. Цель остаётся в работе, можно довести её спокойно."
+      : "Хорошо, продолжаем бороться. Один сложный день ещё не обязан быть финалом.");
+    return;
+  }
+
+  if (isCompleted) completeGoal(goal);
+  else failGoal(goal);
+
+  closeGoalResultModal();
+  launchGoalConfetti(status);
+  showGoalToast(isCompleted
+    ? "Цель завершена и отправлена в реализованные."
+    : "Цель перенесена в проваленные. Это тоже данные для следующей попытки.");
+}
+
+function completeGoal(goal) {
+  goal.status = "completed";
+  goal.completedAt = toDateInputValue(new Date());
+  goal.failedAt = "";
+  hasManualGoalDateSelection = false;
+  goalArchiveMode = "completed";
+  markDirty();
+  renderGoals();
+}
+
+function failGoal(goal) {
+  goal.status = "failed";
+  goal.failedAt = toDateInputValue(new Date());
+  goal.completedAt = "";
+  hasManualGoalDateSelection = false;
+  goalArchiveMode = "failed";
+  markDirty();
+  renderGoals();
+}
+
+function restoreGoal(goal) {
+  goal.status = "active";
+  goal.completedAt = "";
+  goal.failedAt = "";
+  hasManualGoalDateSelection = false;
+  markDirty();
+  renderGoals();
+}
+
+function showGoalToast(message) {
+  clearTimeout(goalToastTimer);
+  goalToast.textContent = message;
+  goalToast.hidden = false;
+  goalToast.classList.add("show");
+  goalToastTimer = setTimeout(() => {
+    goalToast.classList.remove("show");
+    goalToast.hidden = true;
+  }, 4200);
+}
+
+function launchGoalConfetti(status) {
+  const colors = status === "completed"
+    ? ["#2f6f3e", "#f0c85a", "#111111", "#ffffff"]
+    : ["#9f2a2a", "#c97918", "#111111", "#ffffff"];
+
+  goalConfettiLayer.innerHTML = "";
+  goalConfettiLayer.classList.add("active");
+
+  for (let i = 0; i < 70; i++) {
+    const piece = document.createElement("span");
+    const size = 6 + Math.random() * 8;
+    piece.style.left = `${Math.random() * 100}%`;
+    piece.style.width = `${size}px`;
+    piece.style.height = `${size * (0.45 + Math.random() * 0.9)}px`;
+    piece.style.background = colors[i % colors.length];
+    piece.style.animationDelay = `${Math.random() * 0.25}s`;
+    piece.style.animationDuration = `${1.7 + Math.random() * 1.2}s`;
+    piece.style.setProperty("--confetti-x", `${-70 + Math.random() * 140}px`);
+    piece.style.setProperty("--confetti-rotation", `${180 + Math.random() * 720}deg`);
+    goalConfettiLayer.appendChild(piece);
+  }
+
+  setTimeout(() => {
+    goalConfettiLayer.classList.remove("active");
+    goalConfettiLayer.innerHTML = "";
+  }, 3200);
+}
+
+function openGoalWorkspaceTab(goalId, taskId) {
+  const url = new URL(window.location.href);
+  url.hash = `workspace=${encodeURIComponent(goalId)}:${encodeURIComponent(taskId)}`;
+  window.open(url.toString(), "_blank", "noopener");
+}
+
+function renderGoalWorkspacePage() {
+  if (activeView !== "workspace") return;
+  const route = getWorkspaceRoute();
+
+  if (!currentUser) {
+    renderWorkspaceEmpty("Войди через Google в этой вкладке, чтобы открыть рабочее пространство.");
+    return;
+  }
+
+  if (!route) {
+    renderWorkspaceEmpty("Задача для работы не выбрана.");
+    return;
+  }
+
+  workspaceGoalId = route.goalId;
+  workspaceTaskId = route.taskId;
+  const context = findGoalTaskContext(workspaceGoalId, workspaceTaskId);
+
+  if (!context) {
+    renderWorkspaceEmpty("Эта задача больше не найдена. Возможно, её удалили или цель ушла в архив.");
+    return;
+  }
+
+  const { goal, task } = context;
+  const workspace = ensureTaskWorkspace(task);
+
+  goalWorkspaceNotes.disabled = false;
+  goalMiniGoalInput.disabled = false;
+  goalMiniGoalAddBtn.disabled = false;
+  goalWorkspaceGoalName.textContent = goal.name || "Цель";
+  goalWorkspaceTaskName.textContent = task.title || "Задача";
+  if (document.activeElement !== goalWorkspaceNotes) {
+    goalWorkspaceNotes.value = workspace.notes || "";
+    resizeWorkspaceNotesEditor();
+  }
+  renderWorkspaceMiniGoals(workspace);
+}
+
+function renderWorkspaceEmpty(message) {
+  goalWorkspaceGoalName.textContent = "Workspace";
+  goalWorkspaceTaskName.textContent = message;
+  goalWorkspaceNotes.value = "";
+  resizeWorkspaceNotesEditor();
+  goalWorkspaceNotes.disabled = true;
+  goalMiniGoalInput.disabled = true;
+  goalMiniGoalAddBtn.disabled = true;
+  goalMiniGoalList.innerHTML = `<div class="empty goal-mini-empty">${escapeHtml(message)}</div>`;
+}
+
+function getWorkspaceRoute() {
+  const match = window.location.hash.match(/^#workspace=([^:]+):(.+)$/);
+  if (!match) return null;
+
+  return {
+    goalId: decodeURIComponent(match[1]),
+    taskId: decodeURIComponent(match[2])
+  };
+}
+
+function renderWorkspaceMiniGoals(workspace) {
+  goalMiniGoalList.innerHTML = "";
+
+  if (workspace.miniGoals.length === 0) {
+    goalMiniGoalList.innerHTML = `<div class="empty goal-mini-empty">Мини-целей пока нет.</div>`;
+    return;
+  }
+
+  workspace.miniGoals.forEach(miniGoal => {
+    const item = document.createElement("div");
+    item.className = "goal-mini-item" + (miniGoal.done ? " done" : "");
+    item.innerHTML = `
+      <button class="quest-check ${miniGoal.done ? "quest-check-done" : ""}" type="button">✓</button>
+      <div class="goal-mini-title">${escapeHtml(miniGoal.title)}</div>
+      <button class="danger goal-mini-delete" type="button">Удалить</button>
+    `;
+
+    item.querySelector(".quest-check").onclick = () => toggleWorkspaceMiniGoal(miniGoal.id);
+    item.querySelector(".goal-mini-delete").onclick = () => deleteWorkspaceMiniGoal(miniGoal.id);
+    goalMiniGoalList.appendChild(item);
+  });
+}
+
+function updateWorkspaceNotes() {
+  const context = findGoalTaskContext(workspaceGoalId, workspaceTaskId);
+  if (!context) return;
+
+  const workspace = ensureTaskWorkspace(context.task);
+  workspace.notes = goalWorkspaceNotes.value;
+  resizeWorkspaceNotesEditor();
+  markDirty();
+}
+
+function resizeWorkspaceNotesEditor() {
+  goalWorkspaceNotes.style.height = "auto";
+  goalWorkspaceNotes.style.height = `${goalWorkspaceNotes.scrollHeight}px`;
+}
+
+function addWorkspaceMiniGoal() {
+  const context = findGoalTaskContext(workspaceGoalId, workspaceTaskId);
+  if (!context) return;
+
+  const title = goalMiniGoalInput.value.trim();
+  if (!title) return;
+
+  const workspace = ensureTaskWorkspace(context.task);
+  workspace.miniGoals.push({
+    id: crypto.randomUUID(),
+    title,
+    done: false,
+    completedAt: ""
+  });
+
+  goalMiniGoalInput.value = "";
+  markDirty();
+  renderWorkspaceMiniGoals(workspace);
+  renderGoals();
+}
+
+function toggleWorkspaceMiniGoal(miniGoalId) {
+  const context = findGoalTaskContext(workspaceGoalId, workspaceTaskId);
+  if (!context) return;
+
+  const workspace = ensureTaskWorkspace(context.task);
+  const miniGoal = workspace.miniGoals.find(item => item.id === miniGoalId);
+  if (!miniGoal) return;
+
+  miniGoal.done = !miniGoal.done;
+  miniGoal.completedAt = miniGoal.done ? toDateInputValue(new Date()) : "";
+  markDirty();
+  renderWorkspaceMiniGoals(workspace);
+  renderGoals();
+}
+
+function deleteWorkspaceMiniGoal(miniGoalId) {
+  const context = findGoalTaskContext(workspaceGoalId, workspaceTaskId);
+  if (!context) return;
+
+  const workspace = ensureTaskWorkspace(context.task);
+  workspace.miniGoals = workspace.miniGoals.filter(item => item.id !== miniGoalId);
+  markDirty();
+  renderWorkspaceMiniGoals(workspace);
+  renderGoals();
+}
+
+function ensureTaskWorkspace(task) {
+  if (!task.workspace) task.workspace = normalizeTaskWorkspace();
+  if (!Array.isArray(task.workspace.miniGoals)) task.workspace.miniGoals = [];
+  if (typeof task.workspace.notes !== "string") task.workspace.notes = "";
+  return task.workspace;
+}
+
+function findGoalTaskContext(goalId, taskId) {
+  const goal = data.goals.find(item => item.id === goalId);
+  if (!goal) return null;
+
+  const task = goal.tasks.find(item => item.id === taskId);
+  if (!task) return null;
+
+  return { goal, task };
+}
+
+function findGoalTask(goalId, taskId) {
+  const goal = data.goals.find(item => item.id === goalId);
+  return goal?.tasks.find(task => task.id === taskId) || null;
+}
+
+function getSortedGoalTasks(goal) {
+  return [...(goal.tasks || [])].sort((a, b) => {
+    if (a.done !== b.done) return Number(a.done) - Number(b.done);
+    if (a.deadline !== b.deadline) return String(a.deadline).localeCompare(String(b.deadline));
+    return String(a.title || "").localeCompare(String(b.title || ""));
+  });
+}
+
+function getNextGoalTask(goal) {
+  return getSortedGoalTasks(goal).find(task => !task.done) || null;
+}
+
+function getGoalProgress(goal) {
+  const tasks = goal.tasks || [];
+  const totalCount = tasks.length;
+  const doneCount = tasks.filter(task => task.done).length;
+
+  return {
+    percent: totalCount === 0 ? 0 : (doneCount / totalCount) * 100,
+    doneCount,
+    totalCount
+  };
+}
+
+function isGoalComplete(goal) {
+  return goal?.status === "completed";
+}
+
+function isGoalFailed(goal) {
+  return goal?.status === "failed";
+}
+
+function isGoalArchived(goal) {
+  return isGoalComplete(goal) || isGoalFailed(goal);
+}
+
+function isGoalActive(goal) {
+  return !isGoalArchived(goal);
+}
+
+function getActiveGoals() {
+  return (data.goals || []).filter(isGoalActive);
+}
+
+function getGoalTypeLabel(type) {
+  const labels = {
+    strength: "Сила",
+    skill: "Навык",
+    project: "Проект",
+    career: "Карьера",
+    health: "Здоровье",
+    other: "Другое"
+  };
+  return labels[type] || labels.other;
+}
+
+function renderDeadlineCalendar() {
+  goalsCalendarGrid.innerHTML = "";
+  goalsCalendarGrid.className = `deadline-calendar-grid ${goalsCalendarMode}`;
+  goalModeMonthBtn.classList.toggle("active", goalsCalendarMode === "month");
+  goalModeWeekBtn.classList.toggle("active", goalsCalendarMode === "week");
+  goalModeDayBtn.classList.toggle("active", goalsCalendarMode === "day");
+  goalsCalendarTitle.textContent = getGoalCalendarTitle();
+
+  if (goalsCalendarMode !== "day") {
+    ["Пн", "Вт", "Ср", "Чт", "Пт", "Сб", "Вс"].forEach(label => {
+      const item = document.createElement("div");
+      item.className = "deadline-weekday";
+      item.textContent = label;
+      goalsCalendarGrid.appendChild(item);
+    });
+  }
+
+  getGoalCalendarDays().forEach(day => {
+    const dateKey = toDateInputValue(day);
+    const items = getDeadlineItemsForDate(dateKey);
+    const dayButton = document.createElement("button");
+    dayButton.className = "deadline-day";
+    dayButton.type = "button";
+    if (dateKey === selectedGoalDate) dayButton.classList.add("selected");
+    if (dateKey === toDateInputValue(new Date())) dayButton.classList.add("today");
+    if (goalsCalendarMode === "month" && day.getMonth() !== goalsVisibleDate.getMonth()) {
+      dayButton.classList.add("outside");
+    }
+
+    dayButton.innerHTML = `
+      <div class="deadline-day-top">
+        <span>${day.getDate()}</span>
+        <small>${day.toLocaleDateString("ru-RU", { weekday: "short" })}</small>
+      </div>
+      <div class="deadline-day-items">
+        ${items.slice(0, goalsCalendarMode === "day" ? 12 : 3).map(item => `
+          <div class="deadline-chip ${item.task.done ? "done" : ""}">${escapeHtml(item.task.title)}</div>
+        `).join("")}
+        ${items.length > (goalsCalendarMode === "day" ? 12 : 3) ? `<div class="deadline-more">+${items.length - (goalsCalendarMode === "day" ? 12 : 3)}</div>` : ""}
+      </div>
+    `;
+
+    dayButton.onclick = () => {
+      selectedGoalDate = dateKey;
+      goalsVisibleDate = parseDateKey(dateKey);
+      hasManualGoalDateSelection = true;
+      renderGoals();
+    };
+
+    goalsCalendarGrid.appendChild(dayButton);
+  });
+}
+
+function renderDeadlineFocus() {
+  const items = getDeadlineItemsForDate(selectedGoalDate);
+  selectedDeadlineTitle.textContent = selectedGoalDate
+    ? formatDeadlineFocusTitle(selectedGoalDate)
+    : "Дедлайн";
+  deadlineFocusMeta.textContent = items.length > 0
+    ? `${items.length} ${pluralizeRu(items.length, "задача", "задачи", "задач")} на дату`
+    : "Нет дедлайнов на дату";
+
+  const deadlineDates = getDeadlineDates();
+  prevDeadlineBtn.disabled = deadlineDates.length === 0 || selectedGoalDate <= deadlineDates[0];
+  nextDeadlineBtn.disabled = deadlineDates.length === 0 || selectedGoalDate >= deadlineDates[deadlineDates.length - 1];
+
+  selectedDeadlineList.innerHTML = "";
+
+  if (!currentUser) {
+    selectedDeadlineList.innerHTML = `<div class="empty">Войди через Google, чтобы видеть дедлайны.</div>`;
+    return;
+  }
+
+  if (items.length === 0) {
+    selectedDeadlineList.innerHTML = `<div class="empty">На этот день задач нет.</div>`;
+    return;
+  }
+
+  items.forEach(item => selectedDeadlineList.appendChild(makeDeadlineFocusItem(item)));
+}
+
+function makeDeadlineFocusItem(item) {
+  const el = document.createElement("div");
+  el.className = "deadline-focus-item" + (item.task.done ? " done" : "");
+  const state = getTaskDeadlineState(item.task);
+
+  el.innerHTML = `
+    <button class="quest-check ${item.task.done ? "quest-check-done" : ""}" type="button">✓</button>
+    <div>
+      <div class="deadline-focus-task">${escapeHtml(item.task.title)}</div>
+      <div class="deadline-focus-goal">${escapeHtml(item.goal.name)}</div>
+    </div>
+    <div class="deadline-pill ${state.className}">${escapeHtml(state.text)}</div>
+  `;
+
+  el.querySelector(".quest-check").onclick = () => toggleGoalTask(item.goal.id, item.task.id);
+  return el;
+}
+
+function ensureSelectedGoalDate() {
+  const deadlines = getAllDeadlineItems();
+
+  if (deadlines.length === 0) {
+    if (!selectedGoalDate) selectedGoalDate = toDateInputValue(new Date());
+    return;
+  }
+
+  if (!selectedGoalDate || !hasManualGoalDateSelection) {
+    selectedGoalDate = findNearestDeadlineDate(deadlines);
+    goalsVisibleDate = parseDateKey(selectedGoalDate);
+  }
+}
+
+function getAllDeadlineItems() {
+  return getActiveGoals().flatMap(goal => {
+    return (goal.tasks || [])
+      .filter(task => task.deadline)
+      .map(task => ({ goal, task }));
+  }).sort((a, b) => {
+    if (a.task.deadline !== b.task.deadline) return a.task.deadline.localeCompare(b.task.deadline);
+    if (a.task.done !== b.task.done) return Number(a.task.done) - Number(b.task.done);
+    return a.task.title.localeCompare(b.task.title);
+  });
+}
+
+function getDeadlineItemsForDate(dateKey) {
+  return getAllDeadlineItems().filter(item => item.task.deadline === dateKey);
+}
+
+function getDeadlineDates() {
+  return [...new Set(getAllDeadlineItems().map(item => item.task.deadline))].sort();
+}
+
+function findNearestDeadlineDate(deadlines) {
+  const todayKey = toDateInputValue(new Date());
+  const future = deadlines.find(item => item.task.deadline >= todayKey);
+  return future?.task.deadline || deadlines[deadlines.length - 1].task.deadline;
+}
+
+function setGoalsCalendarMode(mode) {
+  goalsCalendarMode = mode;
+  renderDeadlineCalendar();
+  renderDeadlineFocus();
+}
+
+function changeGoalCalendarPeriod(delta) {
+  const nextDate = new Date(goalsVisibleDate);
+  if (goalsCalendarMode === "month") {
+    nextDate.setMonth(nextDate.getMonth() + delta);
+  } else if (goalsCalendarMode === "week") {
+    nextDate.setDate(nextDate.getDate() + delta * 7);
+  } else {
+    nextDate.setDate(nextDate.getDate() + delta);
+  }
+
+  goalsVisibleDate = nextDate;
+  selectedGoalDate = toDateInputValue(nextDate);
+  hasManualGoalDateSelection = true;
+  renderGoals();
+}
+
+function goToTodayGoalDate() {
+  goalsVisibleDate = new Date();
+  selectedGoalDate = toDateInputValue(new Date());
+  hasManualGoalDateSelection = true;
+  renderGoals();
+}
+
+function stepSelectedDeadline(delta) {
+  const dates = getDeadlineDates();
+  if (dates.length === 0) return;
+
+  let index = dates.indexOf(selectedGoalDate);
+  if (index === -1) {
+    index = delta > 0
+      ? dates.findIndex(dateKey => dateKey > selectedGoalDate)
+      : [...dates].reverse().findIndex(dateKey => dateKey < selectedGoalDate);
+    if (delta < 0 && index !== -1) index = dates.length - 1 - index;
+  } else {
+    index += delta;
+  }
+
+  index = Math.max(0, Math.min(dates.length - 1, index));
+  selectedGoalDate = dates[index];
+  goalsVisibleDate = parseDateKey(selectedGoalDate);
+  hasManualGoalDateSelection = true;
+  renderGoals();
+}
+
+function getGoalCalendarDays() {
+  if (goalsCalendarMode === "day") {
+    return [parseDateKey(toDateInputValue(goalsVisibleDate))];
+  }
+
+  if (goalsCalendarMode === "week") {
+    return getWeekDaysFromStart(getWeekStart(goalsVisibleDate));
+  }
+
+  const firstOfMonth = new Date(goalsVisibleDate.getFullYear(), goalsVisibleDate.getMonth(), 1);
+  const start = getWeekStart(firstOfMonth);
+  const days = [];
+
+  for (let i = 0; i < 42; i++) {
+    const day = new Date(start);
+    day.setDate(start.getDate() + i);
+    days.push(day);
+  }
+
+  return days;
+}
+
+function getGoalCalendarTitle() {
+  if (goalsCalendarMode === "day") {
+    return goalsVisibleDate.toLocaleDateString("ru-RU", {
+      weekday: "long",
+      day: "numeric",
+      month: "long",
+      year: "numeric"
+    });
+  }
+
+  if (goalsCalendarMode === "week") {
+    const week = getWeekDaysFromStart(getWeekStart(goalsVisibleDate));
+    return `${formatFullDate(week[0])} — ${formatFullDate(week[6])}`;
+  }
+
+  return goalsVisibleDate.toLocaleDateString("ru-RU", {
+    month: "long",
+    year: "numeric"
+  });
+}
+
+function getTaskDeadlineState(task) {
+  if (task.done) return { text: "готово", className: "done" };
+  if (!task.deadline) return { text: "без срока", className: "" };
+
+  const todayKey = toDateInputValue(new Date());
+  if (task.deadline < todayKey) return { text: "просрочено", className: "danger" };
+  if (task.deadline === todayKey) return { text: "сегодня", className: "warning" };
+
+  const daysLeft = Math.ceil((parseDateKey(task.deadline) - parseDateKey(todayKey)) / 86400000);
+  if (daysLeft <= 7) return { text: `${formatDayCount(daysLeft)}`, className: "warning" };
+  return { text: `${formatDayCount(daysLeft)}`, className: "" };
+}
+
+function isTaskUrgent(task) {
+  if (!task || task.done || !task.deadline) return false;
+  const todayKey = toDateInputValue(new Date());
+  const daysLeft = Math.ceil((parseDateKey(task.deadline) - parseDateKey(todayKey)) / 86400000);
+  return daysLeft <= 7;
+}
+
+function formatDeadlineShort(deadline) {
+  if (!deadline) return "—";
+  return formatShortDate(deadline);
+}
+
+function formatDeadlineLong(deadline) {
+  if (!deadline) return "без дедлайна";
+  return parseDateKey(deadline).toLocaleDateString("ru-RU", {
+    day: "numeric",
+    month: "long",
+    year: "numeric"
+  });
+}
+
+function formatDeadlineFocusTitle(deadline) {
+  return parseDateKey(deadline).toLocaleDateString("ru-RU", {
+    weekday: "long",
+    day: "numeric",
+    month: "long"
+  });
+}
+
+function formatGoalMetric(value, unit = "") {
+  if (value === "" || value === null || value === undefined) return "";
+  const suffix = unit ? ` ${unit}` : "";
+  return `${Number(value)}${suffix}`;
+}
+
 function renameHabit(habit) {
   const newName = prompt("Название привычки", habit.name);
   if (!newName || !newName.trim()) return;
@@ -1286,6 +2533,62 @@ function calculateStreak(habitId) {
   return streak;
 }
 
+function getPreviousDateKey(dateKey) {
+  const date = parseDateKey(dateKey);
+  date.setDate(date.getDate() - 1);
+  return toDateInputValue(date);
+}
+
+function isHabitDoneToday(habitId) {
+  const todayKey = toDateInputValue(new Date());
+  return Boolean(data.records[todayKey]?.[habitId]?.done);
+}
+
+function isTodayComplete() {
+  if (data.habits.length === 0) return false;
+  const todayKey = toDateInputValue(new Date());
+  return countDoneRecordsForDate(todayKey) === data.habits.length;
+}
+
+function calculateMotivationalHabitStreak(habitId) {
+  if (isHabitDoneToday(habitId)) return calculateStreak(habitId);
+
+  const todayKey = toDateInputValue(new Date());
+  const yesterdayKey = getPreviousDateKey(todayKey);
+  return calculateStreakAtDate(habitId, yesterdayKey) + 1;
+}
+
+function getMotivationalHabitStreakStartDate(habitId) {
+  const todayKey = toDateInputValue(new Date());
+
+  if (isHabitDoneToday(habitId)) {
+    return getHabitStreakStartDate(habitId, todayKey);
+  }
+
+  const yesterdayKey = getPreviousDateKey(todayKey);
+  return getHabitStreakStartDate(habitId, yesterdayKey) || todayKey;
+}
+
+function getProjectedTodayValue(habit) {
+  const todayKey = toDateInputValue(new Date());
+  const record = data.records[todayKey]?.[habit.id];
+  const existingValue = Number(record?.value || 0);
+  const target = Number(habit.target || 0);
+
+  return existingValue > 0 ? existingValue : target;
+}
+
+function calculateMotivationalTotalBetweenDates(habit, startDateKey, endDateKey) {
+  const todayKey = toDateInputValue(new Date());
+  let total = calculateTotalBetweenDates(habit.id, startDateKey, endDateKey);
+
+  if (startDateKey <= todayKey && endDateKey >= todayKey && !isHabitDoneToday(habit.id)) {
+    total += getProjectedTodayValue(habit);
+  }
+
+  return total;
+}
+
 function getHabitStreakStartDate(habitId, endDateKey) {
   const cursor = parseDateKey(endDateKey);
   let start = null;
@@ -1339,6 +2642,15 @@ function calculateGlobalStreak() {
   return calculateGlobalStreakAtDate(toDateInputValue(new Date()));
 }
 
+function calculateMotivationalGlobalStreak() {
+  if (data.habits.length === 0) return 0;
+  if (isTodayComplete()) return calculateGlobalStreak();
+
+  const todayKey = toDateInputValue(new Date());
+  const yesterdayKey = getPreviousDateKey(todayKey);
+  return calculateGlobalStreakAtDate(yesterdayKey) + 1;
+}
+
 function getOldestHabit() {
   if (data.habits.length === 0) return null;
 
@@ -1377,7 +2689,7 @@ function calculateStreakAtDate(habitId, dateKey) {
 
 function calculateProjectedGlobalStreakAtDate(futureDateKey) {
   const todayKey = toDateInputValue(new Date());
-  const todayStreak = calculateGlobalStreakAtDate(todayKey);
+  const todayStreak = calculateMotivationalGlobalStreak();
   const futureDate = parseDateKey(futureDateKey);
   const todayDate = parseDateKey(todayKey);
   const daysAhead = Math.ceil((futureDate - todayDate) / 86400000);

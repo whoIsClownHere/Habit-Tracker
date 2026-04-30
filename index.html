@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Трекер привычек</title>
+  <title>Habitline</title>
   <link rel="stylesheet" href="./src/styles/main.css" />
 </head>
 <body>
@@ -11,8 +11,15 @@
     <header>
       <div>
         <div class="brand">
-          <div class="logo">✓</div>
-          <h1>Трекер привычек</h1>
+          <div class="logo" aria-hidden="true">
+            <svg class="logo-mark" viewBox="0 0 64 64" role="img" focusable="false">
+              <rect class="logo-frame" x="7" y="7" width="50" height="50" rx="0" />
+              <path class="logo-route" d="M18 42H30L38 25L46 34" />
+              <path class="logo-check" d="M18 26L24 32L35 20" />
+              <circle class="logo-dot" cx="46" cy="34" r="3.5" />
+            </svg>
+          </div>
+          <h1>Habitline</h1>
         </div>
         <div class="subtitle">Отмечай привычки на день, фиксируй количество и следи за серией.</div>
         <div class="status">
@@ -28,7 +35,13 @@
       </div>
     </header>
 
-    <main class="layout">
+    <nav class="app-tabs" aria-label="Разделы приложения">
+      <button id="habitsTabBtn" class="app-tab active" type="button" aria-selected="true">Привычки</button>
+      <button id="goalsTabBtn" class="app-tab" type="button" aria-selected="false">Цели</button>
+    </nav>
+
+    <main>
+      <div id="habitsView" class="layout app-view">
       <section class="hero-grid">
         <div class="card today-card">
           <div class="section-top">
@@ -115,6 +128,7 @@
           <div id="habitManagerList" class="habit-manager-list"></div>
         </div>
       </section>
+
       <section class="progress-grid">
         <div class="card period-card">
           <div class="period-head">
@@ -232,6 +246,132 @@
           <canvas id="progressChart"></canvas>
         </div>
       </section>
+      </div>
+
+      <div id="goalsView" class="layout app-view" hidden>
+        <section class="deadline-planner">
+          <div class="card deadline-calendar-card">
+            <div class="calendar-head">
+              <div>
+                <div class="section-kicker">Календарь дедлайнов</div>
+                <h2 id="goalsCalendarTitle">Месяц</h2>
+              </div>
+              <div class="calendar-actions">
+                <div class="calendar-mode" role="group" aria-label="Формат календаря">
+                  <button id="goalModeMonthBtn" class="active" type="button">Месяц</button>
+                  <button id="goalModeWeekBtn" type="button">Неделя</button>
+                  <button id="goalModeDayBtn" type="button">День</button>
+                </div>
+                <div class="period-nav goal-period-nav">
+                  <button id="prevGoalPeriodBtn" type="button">←</button>
+                  <button id="todayGoalPeriodBtn" type="button">Сегодня</button>
+                  <button id="nextGoalPeriodBtn" type="button">→</button>
+                </div>
+              </div>
+            </div>
+            <div id="goalsCalendarGrid" class="deadline-calendar-grid month"></div>
+          </div>
+
+          <aside class="card deadline-focus-card">
+            <div class="section-top">
+              <div>
+                <div class="section-kicker" id="deadlineFocusMeta">Ближайший дедлайн</div>
+                <h2 id="selectedDeadlineTitle">Дедлайн</h2>
+              </div>
+              <div class="deadline-focus-nav">
+                <button id="prevDeadlineBtn" type="button">←</button>
+                <button id="nextDeadlineBtn" type="button">→</button>
+              </div>
+            </div>
+            <div id="selectedDeadlineList" class="selected-deadline-list"></div>
+          </aside>
+        </section>
+
+        <section class="goals-hero">
+          <div class="goals-title-row">
+            <div>
+              <div class="section-kicker">Долгий маршрут</div>
+              <h2>Цели</h2>
+            </div>
+          </div>
+          <div class="goals-overview">
+            <div class="goal-overview-item">
+              <span id="goalsTotalCount">0</span>
+              <span>целей</span>
+            </div>
+            <div class="goal-overview-item">
+              <span id="goalsActiveCount">0</span>
+              <span>в работе</span>
+            </div>
+            <div class="goal-overview-item">
+              <span id="goalsDueCount">0</span>
+              <span>срочно</span>
+            </div>
+            <div class="goal-overview-item">
+              <span id="goalsArchivedCount">0</span>
+              <span>в архиве</span>
+            </div>
+            <button id="addGoalOpenBtn" class="goal-create-cell" type="button">
+              <span>+</span>
+              <strong>Новая цель</strong>
+            </button>
+          </div>
+        </section>
+
+        <section class="goals-list-section">
+          <div id="goalsList" class="goals-list"></div>
+        </section>
+
+        <section class="goals-archive-section">
+          <div class="section-top">
+            <div>
+              <div class="section-kicker">Архив</div>
+              <h2>Архив целей</h2>
+            </div>
+            <div class="goal-archive-tabs" role="group" aria-label="Раздел архива целей">
+              <button id="goalArchiveCompletedBtn" class="active" type="button">
+                Реализованы <span id="goalArchiveCompletedCount">0</span>
+              </button>
+              <button id="goalArchiveFailedBtn" type="button">
+                Провалены <span id="goalArchiveFailedCount">0</span>
+              </button>
+            </div>
+          </div>
+          <div id="goalArchiveList" class="goal-archive-list"></div>
+        </section>
+      </div>
+
+      <div id="goalWorkspaceView" class="app-view goal-workspace-page" hidden>
+        <div class="workspace-page-top">
+          <button id="goalWorkspaceBackBtn" class="secondary" type="button">← К целям</button>
+          <div class="status">
+            <span class="status-dot ready"></span>
+            <span>Рабочая вкладка задачи</span>
+          </div>
+        </div>
+
+        <section class="workspace-document">
+          <div class="section-kicker">Цель</div>
+          <div class="workspace-goal-name" id="goalWorkspaceGoalName">Цель</div>
+          <h2 id="goalWorkspaceTaskName">Задача</h2>
+
+          <div class="workspace-mini-section">
+            <div class="section-top">
+              <div>
+                <div class="section-kicker">Мини-цели</div>
+                <h2>Шаги</h2>
+              </div>
+            </div>
+            <div class="goal-mini-form">
+              <input id="goalMiniGoalInput" placeholder="Мини-цель: прочитать первую статью" />
+              <button id="goalMiniGoalAddBtn" class="primary" type="button">Добавить</button>
+            </div>
+            <div id="goalMiniGoalList" class="goal-mini-list"></div>
+          </div>
+
+          <textarea id="goalWorkspaceNotes" class="workspace-notes-editor" rows="12" placeholder="Пиши мысли, конспект, ссылки, план, куски решения..."></textarea>
+        </section>
+      </div>
     </main>
   </div>
 
@@ -251,6 +391,56 @@
       <div class="completed-modal-list" id="completedModalList"></div>
     </div>
   </div>
+
+  <div class="modal-backdrop" id="goalModal" hidden>
+    <div class="modal-panel goal-modal-panel" role="dialog" aria-modal="true" aria-labelledby="goalModalTitle">
+      <div class="modal-head">
+        <div>
+          <div class="section-kicker">Точка A → точка B</div>
+          <h2 id="goalModalTitle">Новая цель</h2>
+        </div>
+        <button id="goalModalCloseBtn" type="button">Закрыть</button>
+      </div>
+
+      <div class="goal-form">
+        <input id="goalName" class="goal-title-field" placeholder="Цель: найти работу, написать исследование, поднять жим" />
+        <select id="goalType">
+          <option value="other">Другое</option>
+          <option value="project">Проект</option>
+          <option value="skill">Навык</option>
+          <option value="strength">Сила</option>
+          <option value="career">Карьера</option>
+          <option value="health">Здоровье</option>
+        </select>
+        <textarea id="goalPointA" class="goal-point-field" rows="4" placeholder="Точка A: что есть сейчас"></textarea>
+        <textarea id="goalPointB" class="goal-point-field" rows="4" placeholder="Точка B: желаемый результат"></textarea>
+        <button id="goalSaveBtn" class="primary" type="button">Сохранить цель</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal-backdrop" id="goalResultModal" hidden>
+    <div class="modal-panel goal-result-panel" role="dialog" aria-modal="true" aria-labelledby="goalResultTitle">
+      <div class="modal-head">
+        <div>
+          <div class="section-kicker">Итог цели</div>
+          <h2 id="goalResultTitle">Завершить цель</h2>
+        </div>
+        <button id="goalResultCloseBtn" type="button">Закрыть</button>
+      </div>
+      <div class="goal-result-body">
+        <div class="goal-result-name" id="goalResultName">Цель</div>
+        <div class="goal-result-meta" id="goalResultMeta"></div>
+        <div class="goal-result-actions">
+          <button id="goalResultCompletedBtn" class="success" type="button">Завершил</button>
+          <button id="goalResultFailedBtn" class="danger" type="button">Провалил</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div id="goalConfettiLayer" class="goal-confetti-layer" aria-hidden="true"></div>
+  <div id="goalToast" class="goal-toast" role="status" aria-live="polite" hidden></div>
 
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.5.0/dist/chart.umd.min.js"></script>
   <script type="module" src="./src/app/main.js"></script>
