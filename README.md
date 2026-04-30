@@ -37,7 +37,8 @@ The current app is intentionally lightweight and does not require a frontend fra
 ├── package.json
 ├── README.md
 ├── docs
-│   └── ARCHITECTURE.md
+│   ├── ARCHITECTURE.md
+│   └── DESIGN_SYSTEM.md
 └── src
     ├── app
     │   ├── config
@@ -208,6 +209,7 @@ Goals contain their own milestone list:
 - `src/app/utils/dates.js` contains reusable date helpers for local date keys, weeks, months, and ranges.
 - `src/app/utils/html.js` contains escaping helpers for safe HTML string rendering.
 - `docs/ARCHITECTURE.md` describes the current architecture and likely refactor targets.
+- `docs/DESIGN_SYSTEM.md` captures the visual language, design tokens, spacing, typography, layout rules, and templates for future UI.
 
 ## Roadmap Ideas
 

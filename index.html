@@ -30,7 +30,7 @@
 
       <div class="top-actions">
         <button id="signInBtn" class="google-btn"><span>G</span> Войти через Google</button>
-        <button id="signOutBtn" class="secondary">Выйти</button>
+        <button id="signOutBtn" class="secondary" hidden>Выйти</button>
         <button id="themeToggle" class="secondary">Тёмная тема</button>
       </div>
     </header>
@@ -212,7 +212,7 @@
               </div>
               <div class="review-streak-text" id="reviewStreakText">Серия на выбранную дату.</div>
             </div>
-            <div class="future-projection-box" id="futureProjectionBox">
+            <div class="future-projection-box" id="futureProjectionBox" hidden>
               <div class="section-kicker">Прогноз</div>
               <div class="future-projection-title" id="futureProjectionTitle">Прогноз</div>
               <div class="future-projection-text" id="futureProjectionText"></div>
@@ -223,9 +223,9 @@
         </div>
       </section>
 
-      <section class="card chart-wrap">
+      <section class="card">
         <div class="chart-top">
-          <h2 style="margin:0;">Прогресс</h2>
+          <h2>Прогресс</h2>
           <select id="progressHabit"></select>
         </div>
         <div class="chart-metrics three-cols" id="chartMetrics">
@@ -318,7 +318,7 @@
           </div>
         </section>
 
-        <section class="goals-list-section">
+        <section>
           <div id="goalsList" class="goals-list"></div>
         </section>
 
@@ -417,7 +417,7 @@
       </div>
 
       <div class="goal-form">
-        <input id="goalName" class="goal-title-field" placeholder="Цель: найти работу, написать исследование, поднять жим" />
+        <input id="goalName" placeholder="Цель: найти работу, написать исследование, поднять жим" />
         <select id="goalType">
           <option value="other">Другое</option>
           <option value="project">Проект</option>
@@ -426,8 +426,8 @@
           <option value="career">Карьера</option>
           <option value="health">Здоровье</option>
         </select>
-        <textarea id="goalPointA" class="goal-point-field" rows="4" placeholder="Точка A: что есть сейчас"></textarea>
-        <textarea id="goalPointB" class="goal-point-field" rows="4" placeholder="Точка B: желаемый результат"></textarea>
+        <textarea id="goalPointA" rows="4" placeholder="Точка A: что есть сейчас"></textarea>
+        <textarea id="goalPointB" rows="4" placeholder="Точка B: желаемый результат"></textarea>
         <button id="goalSaveBtn" class="primary" type="button">Сохранить цель</button>
       </div>
     </div>

@@ -10,8 +10,13 @@ This project is currently a lightweight vanilla web app served as static files.
 - `src/app/config/firebaseConfig.js` contains the Firebase project configuration.
 - `src/app/utils/dates.js` contains reusable date formatting and range helpers.
 - `src/app/utils/html.js` contains HTML escaping helpers for safe DOM strings.
+- `docs/DESIGN_SYSTEM.md` defines the design language, tokens, layout rules, and component templates for new UI.
 - `README.md` contains the user-facing project summary.
 - `package.json` keeps local dev/build commands for future Vite migration.
+
+## Visual System
+
+The app style is intentionally strict and editorial: thin borders, square surfaces, Georgia display type for important objects and metrics, system sans-serif for controls, and restrained semantic color. The source of truth is the token block at the top of `src/styles/main.css`, with practical usage rules in `docs/DESIGN_SYSTEM.md`.
 
 ## Current Data Model
 

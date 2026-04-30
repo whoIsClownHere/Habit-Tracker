@@ -1,4 +1,7 @@
 :root {
+  --font-ui: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  --font-display: Georgia, "Times New Roman", serif;
+
   --bg: #fbfaf7;
   --card: #ffffff;
   --card-2: #f4f1eb;
@@ -7,11 +10,46 @@
   --line: #d8d2c8;
   --accent: #111111;
   --accent-soft: #eee9df;
+  --overlay: rgba(17, 17, 17, 0.42);
   --success: #2f6f3e;
   --success-soft: #e8f2eb;
   --danger: #9f2a2a;
   --warning: #c97918;
   --warning-soft: #fff4df;
+  --info: #2563eb;
+  --info-soft: color-mix(in srgb, var(--info), transparent 88%);
+
+  --space-1: 4px;
+  --space-2: 6px;
+  --space-3: 8px;
+  --space-4: 10px;
+  --space-5: 12px;
+  --space-6: 14px;
+  --space-7: 16px;
+  --space-8: 18px;
+  --space-9: 20px;
+  --space-10: 22px;
+  --space-11: 24px;
+  --space-12: 28px;
+  --space-13: 30px;
+  --space-14: 34px;
+  --space-15: 38px;
+
+  --content-max: 1120px;
+  --page-pad-y: var(--space-15);
+  --page-pad-x: var(--space-14);
+  --page-pad-y-mobile: var(--space-10);
+  --page-pad-x-mobile: var(--space-7);
+  --layout-gap: var(--space-11);
+  --card-pad: var(--space-9);
+  --section-gap: var(--space-7);
+  --rule-width: 1px;
+  --rule: var(--rule-width) solid var(--line);
+  --control-height: 44px;
+  --control-height-sm: 36px;
+  --motion-fast: 0.15s ease;
+  --motion-base: 0.2s ease;
+
   --radius: 2px;
   --shadow: none;
 }
@@ -25,6 +63,8 @@ body.dark {
   --line: #383838;
   --accent: #f5f1e8;
   --accent-soft: #252525;
+  --overlay: rgba(0, 0, 0, 0.62);
+  --rule: var(--rule-width) solid var(--line);
   --success: #7ccf8a;
   --success-soft: rgba(124, 207, 138, 0.12);
   --danger: #ff8a8a;
@@ -38,8 +78,8 @@ body {
   margin: 0;
   background: var(--bg);
   color: var(--text);
-  font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-  transition: background 0.2s ease, color 0.2s ease;
+  font-family: var(--font-ui);
+  transition: background var(--motion-base), color var(--motion-base);
 }
 
 body.modal-open {
@@ -47,15 +87,15 @@ body.modal-open {
 }
 
 .app {
-  max-width: 1120px;
+  max-width: var(--content-max);
   margin: 0 auto;
-  padding: 38px 34px;
+  padding: var(--page-pad-y) var(--page-pad-x);
 }
 
 .layout {
   display: flex;
   flex-direction: column;
-  gap: 24px;
+  gap: var(--layout-gap);
 }
 
 .app-view[hidden] {
@@ -66,9 +106,9 @@ header {
   display: flex;
   justify-content: space-between;
   align-items: flex-start;
-  gap: 28px;
-  padding-bottom: 24px;
-  border-bottom: 1px solid var(--line);
+  gap: var(--space-12);
+  padding-bottom: var(--space-11);
+  border-bottom: var(--rule);
   margin-bottom: 30px;
 }
 
@@ -126,7 +166,7 @@ header {
 
 h1 {
   margin: 0;
-  font-family: Georgia, "Times New Roman", serif;
+  font-family: var(--font-display);
   font-size: 50px;
   line-height: 0.95;
   font-weight: 400;
@@ -134,7 +174,7 @@ h1 {
 }
 
 h2, h3 {
-  font-family: Georgia, "Times New Roman", serif;
+  font-family: var(--font-display);
   font-weight: 400;
   letter-spacing: -0.035em;
   margin: 0;
@@ -150,14 +190,14 @@ h2, h3 {
 button, input, select, textarea { font: inherit; }
 
 button {
-  border: 1px solid var(--line);
+  border: var(--rule);
   border-radius: var(--radius);
   padding: 10px 14px;
   cursor: pointer;
   background: transparent;
   color: var(--text);
   font-weight: 500;
-  transition: 0.15s ease;
+  transition: var(--motion-fast);
 }
 
 button:hover { background: var(--accent-soft); }
@@ -232,7 +272,7 @@ button.danger {
 }
 
 .app-tab {
-  min-height: 44px;
+  min-height: var(--control-height);
   color: var(--muted);
   background: var(--card);
 }
@@ -252,9 +292,9 @@ button.danger {
 
 .card {
   background: var(--card);
-  border: 1px solid var(--line);
+  border: var(--rule);
   border-radius: var(--radius);
-  padding: 20px;
+  padding: var(--card-pad);
   box-shadow: var(--shadow);
 }
 
@@ -270,7 +310,7 @@ button.danger {
   align-items: flex-start;
   gap: 16px;
   padding-bottom: 16px;
-  border-bottom: 1px solid var(--line);
+  border-bottom: var(--rule);
   margin-bottom: 16px;
 }
 
@@ -309,20 +349,20 @@ button.danger {
 .today-summary {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
-  border-top: 1px solid var(--line);
-  border-left: 1px solid var(--line);
+  border-top: var(--rule);
+  border-left: var(--rule);
   margin-bottom: 14px;
 }
 
 .today-summary-item {
-  border-right: 1px solid var(--line);
-  border-bottom: 1px solid var(--line);
+  border-right: var(--rule);
+  border-bottom: var(--rule);
   padding: 10px 12px;
 }
 
 .today-summary-item span:first-child {
   display: block;
-  font-family: Georgia, "Times New Roman", serif;
+  font-family: var(--font-display);
   font-size: 28px;
   line-height: 1;
   letter-spacing: -0.04em;
@@ -348,7 +388,7 @@ button.danger {
   grid-template-columns: 42px minmax(0, 1fr) 120px;
   gap: 12px;
   align-items: center;
-  border: 1px solid var(--line);
+  border: var(--rule);
   background: var(--card);
   padding: 12px;
 }
@@ -388,7 +428,7 @@ button.danger {
 }
 
 .quest-name {
-  font-family: Georgia, "Times New Roman", serif;
+  font-family: var(--font-display);
   font-size: 22px;
   letter-spacing: -0.035em;
   overflow-wrap: anywhere;
@@ -402,7 +442,7 @@ button.danger {
 
 input, select, textarea {
   width: 100%;
-  border: 1px solid var(--line);
+  border: var(--rule);
   background: var(--card);
   border-radius: var(--radius);
   padding: 10px 11px;
@@ -492,7 +532,7 @@ input:focus, select:focus, textarea:focus { border-color: var(--text); }
   display: grid;
   place-items: center;
   padding: 24px;
-  background: rgba(17, 17, 17, 0.42);
+  background: var(--overlay);
 }
 
 .modal-backdrop[hidden] {
@@ -524,7 +564,7 @@ input:focus, select:focus, textarea:focus { border-color: var(--text); }
   align-items: flex-start;
   gap: 16px;
   padding-bottom: 16px;
-  border-bottom: 1px solid var(--line);
+  border-bottom: var(--rule);
 }
 
 .modal-tools {
@@ -550,7 +590,7 @@ input:focus, select:focus, textarea:focus { border-color: var(--text); }
 }
 
 .goal-result-name {
-  font-family: Georgia, "Times New Roman", serif;
+  font-family: var(--font-display);
   font-size: 32px;
   line-height: 1.08;
   letter-spacing: -0.04em;
@@ -600,7 +640,7 @@ input:focus, select:focus, textarea:focus { border-color: var(--text); }
   grid-template-columns: 32px minmax(0, 1fr) 96px;
   align-items: center;
   gap: 10px;
-  border: 1px solid var(--line);
+  border: var(--rule);
   background: var(--card);
   padding: 8px 10px;
   min-height: 48px;
@@ -637,7 +677,7 @@ input:focus, select:focus, textarea:focus { border-color: var(--text); }
 }
 
 .goal-workspace-page {
-  max-width: 1120px;
+  max-width: var(--content-max);
   margin: 0 auto;
 }
 
@@ -647,7 +687,7 @@ input:focus, select:focus, textarea:focus { border-color: var(--text); }
   align-items: center;
   gap: 16px;
   padding-bottom: 16px;
-  border-bottom: 1px solid var(--line);
+  border-bottom: var(--rule);
   margin-bottom: 24px;
 }
 
@@ -663,7 +703,7 @@ input:focus, select:focus, textarea:focus { border-color: var(--text); }
   gap: 28px;
   align-items: end;
   padding-bottom: 22px;
-  border-bottom: 1px solid var(--line);
+  border-bottom: var(--rule);
 }
 
 .workspace-goal-name {
@@ -691,7 +731,7 @@ input:focus, select:focus, textarea:focus { border-color: var(--text); }
 
 .workspace-mini-section,
 .workspace-notes-section {
-  border: 1px solid var(--line);
+  border: var(--rule);
   background: var(--card);
   padding: 14px;
   min-width: 0;
@@ -703,7 +743,7 @@ input:focus, select:focus, textarea:focus { border-color: var(--text); }
   align-items: flex-end;
   gap: 12px;
   padding-bottom: 10px;
-  border-bottom: 1px solid var(--line);
+  border-bottom: var(--rule);
   margin-bottom: 12px;
 }
 
@@ -716,7 +756,7 @@ input:focus, select:focus, textarea:focus { border-color: var(--text); }
 
 .workspace-notes-editor {
   min-height: 420px;
-  border: 1px solid var(--line);
+  border: var(--rule);
   border-radius: 0;
   padding: 14px;
   background: var(--bg);
@@ -763,7 +803,7 @@ input:focus, select:focus, textarea:focus { border-color: var(--text); }
   background: var(--card);
   color: var(--text);
   padding: 14px 16px;
-  box-shadow: 0 12px 30px rgba(17, 17, 17, 0.16);
+  box-shadow: var(--shadow);
   line-height: 1.45;
   transform: translateY(16px);
   opacity: 0;
@@ -811,7 +851,7 @@ input:focus, select:focus, textarea:focus { border-color: var(--text); }
 
 .streak-compact {
   min-width: 78px;
-  border: 1px solid var(--line);
+  border: var(--rule);
   background: var(--card);
   padding: 8px 10px;
   text-align: center;
@@ -819,7 +859,7 @@ input:focus, select:focus, textarea:focus { border-color: var(--text); }
 
 .streak-compact span:first-child {
   display: block;
-  font-family: Georgia, "Times New Roman", serif;
+  font-family: var(--font-display);
   font-size: 34px;
   line-height: 0.95;
   letter-spacing: -0.05em;
@@ -842,11 +882,11 @@ input:focus, select:focus, textarea:focus { border-color: var(--text); }
   justify-content: flex-end;
   min-height: 150px;
   padding: 20px 0 18px;
-  border-bottom: 1px solid var(--line);
+  border-bottom: var(--rule);
 }
 
 .streak-main-title {
-  font-family: Georgia, "Times New Roman", serif;
+  font-family: var(--font-display);
   font-size: 28px;
   line-height: 1.05;
   letter-spacing: -0.04em;
@@ -876,7 +916,7 @@ input:focus, select:focus, textarea:focus { border-color: var(--text); }
 .streak-warning {
   margin-top: 14px;
   padding: 12px;
-  border: 1px solid var(--line);
+  border: var(--rule);
   color: var(--muted);
   font-size: 14px;
   line-height: 1.45;
@@ -885,7 +925,7 @@ input:focus, select:focus, textarea:focus { border-color: var(--text); }
 
 .daily-ring {
   height: 10px;
-  border: 1px solid var(--line);
+  border: var(--rule);
   background: var(--card);
   position: relative;
 }
@@ -909,7 +949,7 @@ input:focus, select:focus, textarea:focus { border-color: var(--text); }
   display: none;
   margin-top: 16px;
   padding-top: 16px;
-  border-top: 1px solid var(--line);
+  border-top: var(--rule);
 }
 
 .habit-manager-panel.open {
@@ -931,7 +971,7 @@ input:focus, select:focus, textarea:focus { border-color: var(--text); }
   grid-template-columns: minmax(180px, 1.3fr) minmax(110px, 0.7fr) minmax(96px, 0.6fr) auto auto;
   gap: 10px;
   align-items: center;
-  border: 1px solid var(--line);
+  border: var(--rule);
   background: var(--card);
   padding: 12px;
 }
@@ -962,7 +1002,7 @@ input:focus, select:focus, textarea:focus { border-color: var(--text); }
   align-items: flex-start;
   gap: 16px;
   padding-bottom: 16px;
-  border-bottom: 1px solid var(--line);
+  border-bottom: var(--rule);
   margin-bottom: 14px;
 }
 
@@ -1028,7 +1068,7 @@ input:focus, select:focus, textarea:focus { border-color: var(--text); }
   display: flex;
   flex-direction: column;
   gap: 8px;
-  border: 1px solid var(--line);
+  border: var(--rule);
   background: var(--card);
   padding: 9px;
   text-align: left;
@@ -1069,7 +1109,7 @@ input:focus, select:focus, textarea:focus { border-color: var(--text); }
 }
 
 .deadline-day-top span {
-  font-family: Georgia, "Times New Roman", serif;
+  font-family: var(--font-display);
   font-size: 24px;
   line-height: 1;
   letter-spacing: -0.04em;
@@ -1132,7 +1172,7 @@ input:focus, select:focus, textarea:focus { border-color: var(--text); }
   grid-template-columns: 42px minmax(0, 1fr) auto;
   gap: 10px;
   align-items: center;
-  border: 1px solid var(--line);
+  border: var(--rule);
   background: var(--card);
   padding: 10px;
 }
@@ -1143,7 +1183,7 @@ input:focus, select:focus, textarea:focus { border-color: var(--text); }
 }
 
 .deadline-focus-task {
-  font-family: Georgia, "Times New Roman", serif;
+  font-family: var(--font-display);
   font-size: 20px;
   letter-spacing: -0.035em;
   overflow-wrap: anywhere;
@@ -1160,7 +1200,7 @@ input:focus, select:focus, textarea:focus { border-color: var(--text); }
   grid-template-columns: max-content minmax(0, 1fr);
   gap: 22px;
   align-items: end;
-  border-bottom: 1px solid var(--line);
+  border-bottom: var(--rule);
   padding-bottom: 20px;
 }
 
@@ -1181,8 +1221,8 @@ input:focus, select:focus, textarea:focus { border-color: var(--text); }
   justify-self: end;
   width: max-content;
   max-width: 100%;
-  border-top: 1px solid var(--line);
-  border-left: 1px solid var(--line);
+  border-top: var(--rule);
+  border-left: var(--rule);
   align-items: stretch;
 }
 
@@ -1194,8 +1234,8 @@ input:focus, select:focus, textarea:focus { border-color: var(--text); }
   gap: 12px;
   border-top: 0;
   border-left: 0;
-  border-right: 1px solid var(--line);
-  border-bottom: 1px solid var(--line);
+  border-right: var(--rule);
+  border-bottom: var(--rule);
   background: var(--text);
   color: var(--bg);
   padding: 14px 18px;
@@ -1213,7 +1253,7 @@ input:focus, select:focus, textarea:focus { border-color: var(--text); }
   height: 34px;
   place-items: center;
   border: 1px solid currentColor;
-  font-family: Georgia, "Times New Roman", serif;
+  font-family: var(--font-display);
   font-size: 25px;
   line-height: 1;
   letter-spacing: 0;
@@ -1234,15 +1274,15 @@ input:focus, select:focus, textarea:focus { border-color: var(--text); }
   flex-direction: column;
   justify-content: center;
   gap: 7px;
-  border-right: 1px solid var(--line);
-  border-bottom: 1px solid var(--line);
+  border-right: var(--rule);
+  border-bottom: var(--rule);
   background: var(--card);
   padding: 14px 16px;
 }
 
 .goal-overview-item span:first-child {
   display: block;
-  font-family: Georgia, "Times New Roman", serif;
+  font-family: var(--font-display);
   font-size: 34px;
   line-height: 1;
   letter-spacing: 0;
@@ -1298,7 +1338,7 @@ input:focus, select:focus, textarea:focus { border-color: var(--text); }
 }
 
 .goals-archive-section {
-  border-top: 1px solid var(--line);
+  border-top: var(--rule);
   padding-top: 20px;
 }
 
@@ -1336,7 +1376,7 @@ input:focus, select:focus, textarea:focus { border-color: var(--text); }
 }
 
 .goal-archive-card {
-  border: 1px solid var(--line);
+  border: var(--rule);
   background: var(--card);
   padding: 16px;
 }
@@ -1359,7 +1399,7 @@ input:focus, select:focus, textarea:focus { border-color: var(--text); }
 
 .goal-archive-status {
   min-width: 140px;
-  border: 1px solid var(--line);
+  border: var(--rule);
   padding: 10px;
   text-align: right;
 }
@@ -1388,7 +1428,7 @@ input:focus, select:focus, textarea:focus { border-color: var(--text); }
 }
 
 .goal-item {
-  border: 1px solid var(--line);
+  border: var(--rule);
   background: var(--card);
   padding: 16px;
 }
@@ -1411,7 +1451,7 @@ input:focus, select:focus, textarea:focus { border-color: var(--text); }
 
 .goal-type {
   display: inline-flex;
-  border: 1px solid var(--line);
+  border: var(--rule);
   color: var(--muted);
   padding: 5px 8px;
   font-size: 11px;
@@ -1421,7 +1461,7 @@ input:focus, select:focus, textarea:focus { border-color: var(--text); }
 }
 
 .goal-name {
-  font-family: Georgia, "Times New Roman", serif;
+  font-family: var(--font-display);
   font-size: 30px;
   line-height: 1.05;
   letter-spacing: -0.04em;
@@ -1437,7 +1477,7 @@ input:focus, select:focus, textarea:focus { border-color: var(--text); }
 
 .goal-route-box {
   min-width: 0;
-  border: 1px solid var(--line);
+  border: var(--rule);
   background: var(--card-2);
   padding: 12px;
 }
@@ -1460,7 +1500,7 @@ input:focus, select:focus, textarea:focus { border-color: var(--text); }
 
 .goal-progress-line {
   height: 12px;
-  border: 1px solid var(--line);
+  border: var(--rule);
   background: var(--card-2);
   margin-bottom: 14px;
 }
@@ -1475,21 +1515,21 @@ input:focus, select:focus, textarea:focus { border-color: var(--text); }
 .goal-stats {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
-  border-top: 1px solid var(--line);
-  border-left: 1px solid var(--line);
+  border-top: var(--rule);
+  border-left: var(--rule);
   margin-bottom: 14px;
 }
 
 .goal-stat {
   min-width: 0;
-  border-right: 1px solid var(--line);
-  border-bottom: 1px solid var(--line);
+  border-right: var(--rule);
+  border-bottom: var(--rule);
   padding: 12px;
 }
 
 .goal-stat span:first-child {
   display: block;
-  font-family: Georgia, "Times New Roman", serif;
+  font-family: var(--font-display);
   font-size: 28px;
   line-height: 1;
   letter-spacing: -0.04em;
@@ -1506,7 +1546,7 @@ input:focus, select:focus, textarea:focus { border-color: var(--text); }
 }
 
 .goal-next {
-  border: 1px solid var(--line);
+  border: var(--rule);
   background: var(--warning-soft);
   padding: 12px;
   color: var(--muted);
@@ -1527,7 +1567,7 @@ input:focus, select:focus, textarea:focus { border-color: var(--text); }
 .goal-next strong {
   display: block;
   color: var(--text);
-  font-family: Georgia, "Times New Roman", serif;
+  font-family: var(--font-display);
   font-size: 22px;
   line-height: 1.1;
   letter-spacing: -0.035em;
@@ -1554,7 +1594,7 @@ input:focus, select:focus, textarea:focus { border-color: var(--text); }
   grid-template-columns: 42px minmax(0, 1fr) auto auto auto auto;
   gap: 10px;
   align-items: center;
-  border: 1px solid var(--line);
+  border: var(--rule);
   padding: 10px;
   background: var(--card);
 }
@@ -1565,7 +1605,7 @@ input:focus, select:focus, textarea:focus { border-color: var(--text); }
 }
 
 .goal-task-title {
-  font-family: Georgia, "Times New Roman", serif;
+  font-family: var(--font-display);
   font-size: 20px;
   letter-spacing: -0.035em;
   overflow-wrap: anywhere;
@@ -1583,7 +1623,7 @@ input:focus, select:focus, textarea:focus { border-color: var(--text); }
 
 .deadline-pill {
   min-width: 88px;
-  border: 1px solid var(--line);
+  border: var(--rule);
   padding: 7px 9px;
   text-align: center;
   color: var(--muted);
@@ -1622,12 +1662,12 @@ input:focus, select:focus, textarea:focus { border-color: var(--text); }
 }
 
 .day-picker-panel {
-  border-right: 1px solid var(--line);
+  border-right: var(--rule);
   padding-right: 18px;
 }
 
 .day-review-title {
-  font-family: Georgia, "Times New Roman", serif;
+  font-family: var(--font-display);
   font-size: 30px;
   letter-spacing: -0.04em;
   margin-bottom: 8px;
@@ -1656,14 +1696,14 @@ input:focus, select:focus, textarea:focus { border-color: var(--text); }
   justify-content: space-between;
   align-items: center;
   gap: 18px;
-  border: 1px solid var(--line);
+  border: var(--rule);
   background: var(--warning-soft);
   padding: 14px;
   margin-bottom: 14px;
 }
 
 .review-streak-number {
-  font-family: Georgia, "Times New Roman", serif;
+  font-family: var(--font-display);
   font-size: 46px;
   line-height: 1;
   letter-spacing: -0.06em;
@@ -1678,11 +1718,10 @@ input:focus, select:focus, textarea:focus { border-color: var(--text); }
 }
 
 .future-projection-box {
-  border: 1px solid var(--line);
+  border: var(--rule);
   background: var(--card-2);
   padding: 14px;
   margin-bottom: 14px;
-  display: none;
 }
 
 .review-streak-box.danger {
@@ -1695,20 +1734,20 @@ input:focus, select:focus, textarea:focus { border-color: var(--text); }
 }
 
 .review-streak-box.future {
-  background: color-mix(in srgb, #2563eb, transparent 88%);
-  border-color: color-mix(in srgb, #2563eb, transparent 50%);
+  background: var(--info-soft);
+  border-color: color-mix(in srgb, var(--info), transparent 50%);
 }
 
 .review-streak-box.future .review-streak-number {
-  color: #2563eb;
+  color: var(--info);
 }
 
 .projection-table {
   display: flex;
   flex-direction: column;
   gap: 0;
-  border-top: 1px solid var(--line);
-  border-left: 1px solid var(--line);
+  border-top: var(--rule);
+  border-left: var(--rule);
   margin-top: 12px;
   max-height: 320px;
   overflow: auto;
@@ -1718,12 +1757,12 @@ input:focus, select:focus, textarea:focus { border-color: var(--text); }
 .projection-row {
   display: grid;
   grid-template-columns: minmax(160px, 1fr) 90px 90px 110px;
-  border-bottom: 1px solid var(--line);
+  border-bottom: var(--rule);
   min-width: 520px;
 }
 
 .projection-cell {
-  border-right: 1px solid var(--line);
+  border-right: var(--rule);
   padding: 10px;
   font-size: 13px;
 }
@@ -1753,7 +1792,7 @@ input:focus, select:focus, textarea:focus { border-color: var(--text); }
 }
 
 .future-projection-title {
-  font-family: Georgia, "Times New Roman", serif;
+  font-family: var(--font-display);
   font-size: 24px;
   letter-spacing: -0.04em;
   margin-bottom: 6px;
@@ -1769,21 +1808,21 @@ input:focus, select:focus, textarea:focus { border-color: var(--text); }
   display: grid;
   grid-template-columns: repeat(3, 1fr);
   gap: 0;
-  border-top: 1px solid var(--line);
-  border-left: 1px solid var(--line);
+  border-top: var(--rule);
+  border-left: var(--rule);
   margin-bottom: 16px;
 }
 
 .chart-metric {
-  border-right: 1px solid var(--line);
-  border-bottom: 1px solid var(--line);
+  border-right: var(--rule);
+  border-bottom: var(--rule);
   padding: 14px;
   background: var(--card);
   min-width: 0;
 }
 
 .chart-metric-value {
-  font-family: Georgia, "Times New Roman", serif;
+  font-family: var(--font-display);
   font-size: 34px;
   letter-spacing: -0.045em;
   overflow-wrap: anywhere;
@@ -1802,7 +1841,7 @@ input:focus, select:focus, textarea:focus { border-color: var(--text); }
   grid-template-columns: minmax(0, 1fr) auto;
   gap: 12px;
   align-items: center;
-  border: 1px solid var(--line);
+  border: var(--rule);
   padding: 12px;
   background: var(--card);
 }
@@ -1813,7 +1852,7 @@ input:focus, select:focus, textarea:focus { border-color: var(--text); }
 }
 
 .day-summary-name {
-  font-family: Georgia, "Times New Roman", serif;
+  font-family: var(--font-display);
   font-size: 20px;
   letter-spacing: -0.035em;
   overflow-wrap: anywhere;
@@ -1858,7 +1897,7 @@ input:focus, select:focus, textarea:focus { border-color: var(--text); }
   align-items: flex-start;
   gap: 12px;
   padding-bottom: 14px;
-  border-bottom: 1px solid var(--line);
+  border-bottom: var(--rule);
   margin-bottom: 14px;
 }
 
@@ -1885,19 +1924,19 @@ input:focus, select:focus, textarea:focus { border-color: var(--text); }
 .period-stats {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
-  border-top: 1px solid var(--line);
-  border-left: 1px solid var(--line);
+  border-top: var(--rule);
+  border-left: var(--rule);
   margin-bottom: 18px;
 }
 
 .period-stat {
-  border-right: 1px solid var(--line);
-  border-bottom: 1px solid var(--line);
+  border-right: var(--rule);
+  border-bottom: var(--rule);
   padding: 14px;
 }
 
 .period-value {
-  font-family: Georgia, "Times New Roman", serif;
+  font-family: var(--font-display);
   font-size: 34px;
   letter-spacing: -0.04em;
 }
@@ -1918,7 +1957,7 @@ input:focus, select:focus, textarea:focus { border-color: var(--text); }
 
 .mini-day {
   min-height: 38px;
-  border: 1px solid var(--line);
+  border: var(--rule);
   display: grid;
   place-items: center;
   color: var(--muted);
@@ -1958,7 +1997,7 @@ input:focus, select:focus, textarea:focus { border-color: var(--text); }
   gap: 12px;
   margin-bottom: 12px;
   padding-bottom: 14px;
-  border-bottom: 1px solid var(--line);
+  border-bottom: var(--rule);
 }
 
 .chart-top select {
@@ -1969,7 +2008,7 @@ input:focus, select:focus, textarea:focus { border-color: var(--text); }
   position: relative;
   width: 100%;
   height: 340px;
-  border: 1px solid var(--line);
+  border: var(--rule);
   background: var(--card);
   padding: 12px;
 }
@@ -1993,7 +2032,7 @@ canvas {
     grid-template-columns: 1fr;
   }
   .today-card, .streak-card { min-height: auto; }
-  .day-picker-panel { border-right: 0; border-bottom: 1px solid var(--line); padding-right: 0; padding-bottom: 18px; }
+  .day-picker-panel { border-right: 0; border-bottom: var(--rule); padding-right: 0; padding-bottom: 18px; }
   .habit-form,
   .goal-form,
   .goal-task-form { grid-template-columns: 1fr; }
@@ -2030,7 +2069,7 @@ canvas {
 }
 
 @media (max-width: 760px) {
-  .app { padding: 22px 16px; }
+  .app { padding: var(--page-pad-y-mobile) var(--page-pad-x-mobile); }
   header { flex-direction: column; align-items: flex-start; }
   .top-actions {
     justify-content: flex-start;

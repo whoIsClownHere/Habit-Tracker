@@ -167,7 +167,7 @@ let progressChartInstance = null;
 const statusDot = document.getElementById("statusDot");
 const statusText = document.getElementById("statusText");
 
-signOutBtn.style.display = "none";
+signOutBtn.hidden = true;
 
 habitsTabBtn.addEventListener("click", () => switchView("habits"));
 goalsTabBtn.addEventListener("click", () => switchView("goals"));
@@ -264,8 +264,8 @@ onAuthStateChanged(auth, async (user) => {
   currentUser = user;
 
   if (!user) {
-    signInBtn.style.display = "inline-flex";
-    signOutBtn.style.display = "none";
+    signInBtn.hidden = false;
+    signOutBtn.hidden = true;
     data = { habits: [], records: {}, goals: [] };
     isDirty = false;
     updateStatus("Вход не выполнен", "off");
@@ -273,8 +273,8 @@ onAuthStateChanged(auth, async (user) => {
     return;
   }
 
-  signInBtn.style.display = "none";
-  signOutBtn.style.display = "inline-block";
+  signInBtn.hidden = true;
+  signOutBtn.hidden = false;
   updateStatus(`Аккаунт: ${user.email || user.displayName || "Google"}`, "ready");
   await loadFromFirebase();
   render();
@@ -1014,12 +1014,12 @@ function renderFutureProjection(dateKey) {
   const daysAhead = Math.ceil((selectedDateObj - todayObj) / 86400000);
 
   if (daysAhead <= 0 || data.habits.length === 0) {
-    futureProjectionBox.style.display = "none";
+    futureProjectionBox.hidden = true;
     futureProjectionTable.innerHTML = "";
     return;
   }
 
-  futureProjectionBox.style.display = "block";
+  futureProjectionBox.hidden = false;
   futureProjectionTitle.textContent = `Прогноз на ${formatDayCount(daysAhead)}`;
   futureProjectionText.textContent = "Расчёт показывает итог к выбранной дате, если каждый день выполнять дневную цель.";
 
@@ -1281,6 +1281,7 @@ function drawChart(chartData, habit) {
   const mutedColor = getCssColor("--muted");
   const lineColor = getCssColor("--line");
   const successColor = getCssColor("--success");
+  const warningColor = getCssColor("--warning");
   const cardColor = getCssColor("--card");
 
   const datasets = [
@@ -1306,7 +1307,7 @@ function drawChart(chartData, habit) {
     datasets.push({
       label: `Цель: ${target}`,
       data: values.map(() => target),
-      borderColor: "rgba(184, 135, 34, 0.7)",
+      borderColor: toRgba(warningColor, 0.7),
       borderDash: [7, 7],
       pointRadius: 0,
       borderWidth: 1.5,
@@ -1382,9 +1383,32 @@ function drawChart(chartData, habit) {
 function createChartGradient(successColor) {
   const ctx = chart.getContext("2d");
   const gradient = ctx.createLinearGradient(0, 0, 0, 320);
-  gradient.addColorStop(0, "rgba(47, 111, 62, 0.16)");
-  gradient.addColorStop(1, "rgba(47, 111, 62, 0.00)");
+  gradient.addColorStop(0, toRgba(successColor, 0.16));
+  gradient.addColorStop(1, toRgba(successColor, 0));
   return gradient;
+}
+
+function toRgba(color, alpha) {
+  const value = color.trim();
+  const hex = value.match(/^#([0-9a-f]{3}|[0-9a-f]{6})$/i);
+  if (hex) {
+    const raw = hex[1].length === 3
+      ? hex[1].split("").map(char => char + char).join("")
+      : hex[1];
+    const number = Number.parseInt(raw, 16);
+    const red = (number >> 16) & 255;
+    const green = (number >> 8) & 255;
+    const blue = number & 255;
+    return `rgba(${red}, ${green}, ${blue}, ${alpha})`;
+  }
+
+  const rgb = value.match(/^rgba?\(([^)]+)\)$/i);
+  if (rgb) {
+    const [red, green, blue] = rgb[1].split(",").map(part => part.trim());
+    return `rgba(${red}, ${green}, ${blue}, ${alpha})`;
+  }
+
+  return value;
 }
 
 function clearChart() {
@@ -1680,7 +1704,7 @@ function makeGoalCard(goal) {
     </div>
 
     <div class="goal-progress-line">
-      <div class="goal-progress-fill" style="width: ${progress.percent}%"></div>
+      <div class="goal-progress-fill"></div>
     </div>
 
     <div class="goal-stats">
@@ -1715,6 +1739,7 @@ function makeGoalCard(goal) {
   card.querySelector(".goal-result").onclick = () => openGoalResultModal(goal.id);
   card.querySelector(".goal-delete").onclick = () => deleteGoal(goal);
   card.querySelector(".add-goal-task-btn").onclick = () => addGoalTask(goal.id, card);
+  card.querySelector(".goal-progress-fill").style.width = `${progress.percent}%`;
 
   const taskList = card.querySelector(".goal-task-list");
   if (sortedTasks.length === 0) {
@@ -1940,8 +1965,8 @@ function showGoalToast(message) {
 
 function launchGoalConfetti(status) {
   const colors = status === "completed"
-    ? ["#2f6f3e", "#f0c85a", "#111111", "#ffffff"]
-    : ["#9f2a2a", "#c97918", "#111111", "#ffffff"];
+    ? [getCssColor("--success"), getCssColor("--warning"), getCssColor("--text"), getCssColor("--card")]
+    : [getCssColor("--danger"), getCssColor("--warning"), getCssColor("--text"), getCssColor("--card")];
 
   goalConfettiLayer.innerHTML = "";
   goalConfettiLayer.classList.add("active");
