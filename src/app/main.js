@@ -1,36 +1,25 @@
+import { initializeApp } from "https://www.gstatic.com/firebasejs/12.12.1/firebase-app.js";
 import {
-  auth,
+  getAuth,
   createUserWithEmailAndPassword,
-  db,
-  doc,
   getRedirectResult,
-  getDoc,
-  onAuthStateChanged,
-  provider,
+  GoogleAuthProvider,
   sendPasswordResetEmail,
-  serverTimestamp,
   signInWithEmailAndPassword,
   signInWithPopup,
   signInWithRedirect,
   signOut,
-  setDoc,
+  onAuthStateChanged,
   updateProfile
-} from "./services/firebase.js";
+} from "https://www.gstatic.com/firebasejs/12.12.1/firebase-auth.js";
 import {
-  DAY_REVIEW_LIMIT,
-  HABIT_MANAGER_LIMIT,
-  LEGACY_TEST_DATA_KEY,
-  LEGACY_TEST_SESSION_KEY,
-  PROGRESS_OPTION_LIMIT,
-  PROJECTION_LIMIT,
-  TEST_ACCOUNT,
-  TEST_ACCOUNT_ALLOWED_HOSTS,
-  TEST_ACCOUNT_PASSWORD_HASH,
-  TEST_DATA_KEY,
-  TEST_SESSION_KEY,
-  TODAY_PAGE_SIZE,
-  TODAY_SEARCH_SCAN_LIMIT
-} from "./config/constants.js";
+  getFirestore,
+  doc,
+  getDoc,
+  setDoc,
+  serverTimestamp
+} from "https://www.gstatic.com/firebasejs/12.12.1/firebase-firestore.js";
+import { firebaseConfig } from "./config/firebaseConfig.js";
 import {
   dateRange,
   formatFullDate,
@@ -43,17 +32,6 @@ import {
   parseDateKey,
   toDateInputValue
 } from "./utils/dates.js";
-import * as dom from "./dom/elements.js";
-import { configureActionMenus, closeActionMenu, makeActionMenu } from "./ui/actionMenu.js";
-import { getCssColor } from "./ui/css.js";
-import { clearProgressChart, drawProgressChart } from "./ui/progressChart.js";
-import { applyThemePreference, toggleThemePreference } from "./ui/theme.js";
-import { normalizeData, normalizeTaskWorkspace } from "./data/normalizers.js";
-import { createStarterData } from "./data/starterData.js";
-import { createHabitMetrics } from "./features/habits/metrics.js";
-import { registerServiceWorker } from "./services/serviceWorker.js";
-import { loadUserBackup, saveUserBackup } from "./services/userBackup.js";
-import { createTestingData } from "./testing/seedData.js";
 import { escapeHtml } from "./utils/html.js";
 import {
   applyStaticTranslations,
@@ -64,6 +42,27 @@ import {
   t,
   tn
 } from "./i18n.js";
+
+const app = initializeApp(firebaseConfig);
+const auth = getAuth(app);
+const provider = new GoogleAuthProvider();
+provider.setCustomParameters({ prompt: "select_account" });
+const db = getFirestore(app);
+const TODAY_PAGE_SIZE = 6;
+const DAY_REVIEW_LIMIT = 80;
+const HABIT_MANAGER_LIMIT = 80;
+const PROGRESS_OPTION_LIMIT = 200;
+const PROJECTION_LIMIT = 80;
+const TODAY_SEARCH_SCAN_LIMIT = 5000;
+const TEST_ACCOUNT = {
+  uid: "local-test-account",
+  email: "test@habitline.local",
+  password: "test1234",
+  displayName: "Habitline QA",
+  isTestAccount: true
+};
+const TEST_SESSION_KEY = "habitline.testSession";
+const TEST_DATA_KEY = "habitline.testData";
 
 let currentUser = null;
 let isDirty = false;
@@ -87,8 +86,7 @@ let resolvingGoalId = null;
 let goalToastTimer = null;
 let workspaceGoalId = null;
 let workspaceTaskId = null;
-const expandedGoalIds = new Set();
-const openGoalArchiveIds = new Set();
+let activeActionMenu = null;
 let authMode = "login";
 let isAuthModalOpen = false;
 let isAuthBusy = false;
@@ -100,171 +98,129 @@ let data = {
   goals: []
 };
 
-const {
-  signInBtn,
-  signOutBtn,
-  languageSelect,
-  addHabitBtn,
-  todayBtn,
-  authModal,
-  authModalCloseBtn,
-  authModalTitle,
-  authLoginTabBtn,
-  authRegisterTabBtn,
-  authForm,
-  authNameField,
-  authNameInput,
-  authEmailInput,
-  authPasswordInput,
-  authPasswordConfirmField,
-  authPasswordConfirmInput,
-  authSubmitBtn,
-  authGoogleBtn,
-  authResetBtn,
-  authMessage,
-  themeToggle,
-  testingPanel,
-  testingAccountMeta,
-  testingScenarios,
-  testingSeedBtn,
-  testingResetBtn,
-  habitsTabBtn,
-  goalsTabBtn,
-  habitsView,
-  goalsView,
-  goalWorkspaceView,
-  activeList,
-  todayHabitSearch,
-  todayListMeta,
-  todayOpenCount,
-  todayDoneCount,
-  todayTotalCount,
-  completedTodayBtn,
-  completedTodayBtnCount,
-  completedModal,
-  completedModalCloseBtn,
-  completedSearchInput,
-  completedModalMeta,
-  completedModalList,
-  todayPager,
-  todayPrevPageBtn,
-  todayNextPageBtn,
-  todayPageMeta,
-  todayDateLabel,
-  heroStreak,
-  dailyRingFill,
-  streakMessage,
-  reviewDateInput,
-  reviewDayTitle,
-  daySummaryList,
-  reviewStreakBox,
-  reviewStreak,
-  reviewStreakText,
-  futureProjectionBox,
-  futureProjectionTitle,
-  futureProjectionText,
-  futureProjectionTable,
-  chartMetrics,
-  totalSinceStreakMetric,
-  chartTotalSinceStreak,
-  chartStreakDays,
-  chartLifetimeTotal,
-  progressHabit,
-  habitManagerPanel,
-  habitManagerList,
-  toggleHabitManagerBtn,
-  addGoalOpenBtn,
-  goalModal,
-  goalModalCloseBtn,
-  goalModalTitle,
-  goalSaveBtn,
-  goalsList,
-  goalsTotalCount,
-  goalsActiveCount,
-  goalsDueCount,
-  goalsArchivedCount,
-  goalsCalendarTitle,
-  goalsCalendarGrid,
-  goalModeMonthBtn,
-  goalModeWeekBtn,
-  goalModeDayBtn,
-  prevGoalPeriodBtn,
-  nextGoalPeriodBtn,
-  todayGoalPeriodBtn,
-  selectedDeadlineTitle,
-  selectedDeadlineList,
-  deadlineFocusMeta,
-  prevDeadlineBtn,
-  nextDeadlineBtn,
-  goalArchiveCompletedBtn,
-  goalArchiveFailedBtn,
-  goalArchiveCompletedCount,
-  goalArchiveFailedCount,
-  goalArchiveList,
-  goalResultModal,
-  goalResultCloseBtn,
-  goalResultName,
-  goalResultMeta,
-  goalResultCompletedBtn,
-  goalResultFailedBtn,
-  goalConfettiLayer,
-  goalToast,
-  goalWorkspaceBackBtn,
-  goalWorkspaceGoalName,
-  goalWorkspaceTaskName,
-  goalWorkspaceNotes,
-  goalMiniGoalInput,
-  goalMiniGoalAddBtn,
-  goalMiniGoalList,
-  chart,
-  statusDot,
-  statusText,
-  prevWeekCalendar,
-  nextWeekCalendar,
-  thisWeekCalendar,
-  prevMonthCalendar,
-  nextMonthCalendar,
-  thisMonthCalendar,
-  weekCalendarTitle,
-  monthCalendarTitle,
-  habitName,
-  habitUnit,
-  habitTarget,
-  goalName,
-  goalType,
-  goalPointA,
-  goalPointB
-} = dom;
-
+const signInBtn = document.getElementById("signInBtn");
+const signOutBtn = document.getElementById("signOutBtn");
+const languageSelect = document.getElementById("languageSelect");
+const authModal = document.getElementById("authModal");
+const authModalCloseBtn = document.getElementById("authModalCloseBtn");
+const authModalTitle = document.getElementById("authModalTitle");
+const authLoginTabBtn = document.getElementById("authLoginTabBtn");
+const authRegisterTabBtn = document.getElementById("authRegisterTabBtn");
+const authForm = document.getElementById("authForm");
+const authNameField = document.getElementById("authNameField");
+const authNameInput = document.getElementById("authNameInput");
+const authEmailInput = document.getElementById("authEmailInput");
+const authPasswordInput = document.getElementById("authPasswordInput");
+const authPasswordConfirmField = document.getElementById("authPasswordConfirmField");
+const authPasswordConfirmInput = document.getElementById("authPasswordConfirmInput");
+const authSubmitBtn = document.getElementById("authSubmitBtn");
+const authGoogleBtn = document.getElementById("authGoogleBtn");
+const authTestBtn = document.getElementById("authTestBtn");
+const authResetBtn = document.getElementById("authResetBtn");
+const authMessage = document.getElementById("authMessage");
+const themeToggle = document.getElementById("themeToggle");
+const testingPanel = document.getElementById("testingPanel");
+const testingAccountMeta = document.getElementById("testingAccountMeta");
+const testingScenarios = document.getElementById("testingScenarios");
+const testingSeedBtn = document.getElementById("testingSeedBtn");
+const testingResetBtn = document.getElementById("testingResetBtn");
+const habitsTabBtn = document.getElementById("habitsTabBtn");
+const goalsTabBtn = document.getElementById("goalsTabBtn");
+const habitsView = document.getElementById("habitsView");
+const goalsView = document.getElementById("goalsView");
+const goalWorkspaceView = document.getElementById("goalWorkspaceView");
+const activeList = document.getElementById("activeList");
+const todayHabitSearch = document.getElementById("todayHabitSearch");
+const todayListMeta = document.getElementById("todayListMeta");
+const todayOpenCount = document.getElementById("todayOpenCount");
+const todayDoneCount = document.getElementById("todayDoneCount");
+const todayTotalCount = document.getElementById("todayTotalCount");
+const completedTodayBtn = document.getElementById("completedTodayBtn");
+const completedTodayBtnCount = document.getElementById("completedTodayBtnCount");
+const completedModal = document.getElementById("completedModal");
+const completedModalCloseBtn = document.getElementById("completedModalCloseBtn");
+const completedSearchInput = document.getElementById("completedSearchInput");
+const completedModalMeta = document.getElementById("completedModalMeta");
+const completedModalList = document.getElementById("completedModalList");
+const todayPager = document.getElementById("todayPager");
+const todayPrevPageBtn = document.getElementById("todayPrevPageBtn");
+const todayNextPageBtn = document.getElementById("todayNextPageBtn");
+const todayPageMeta = document.getElementById("todayPageMeta");
+const todayDateLabel = document.getElementById("todayDateLabel");
+const heroStreak = document.getElementById("heroStreak");
+const dailyRingFill = document.getElementById("dailyRingFill");
+const streakMessage = document.getElementById("streakMessage");
+const reviewDateInput = document.getElementById("reviewDateInput");
+const reviewDayTitle = document.getElementById("reviewDayTitle");
+const daySummaryList = document.getElementById("daySummaryList");
+const reviewStreakBox = document.getElementById("reviewStreakBox");
+const reviewStreak = document.getElementById("reviewStreak");
+const reviewStreakText = document.getElementById("reviewStreakText");
+const futureProjectionBox = document.getElementById("futureProjectionBox");
+const futureProjectionTitle = document.getElementById("futureProjectionTitle");
+const futureProjectionText = document.getElementById("futureProjectionText");
+const futureProjectionTable = document.getElementById("futureProjectionTable");
+const chartMetrics = document.getElementById("chartMetrics");
+const totalSinceStreakMetric = document.getElementById("totalSinceStreakMetric");
+const chartTotalSinceStreak = document.getElementById("chartTotalSinceStreak");
+const chartStreakDays = document.getElementById("chartStreakDays");
+const chartLifetimeTotal = document.getElementById("chartLifetimeTotal");
+const progressHabit = document.getElementById("progressHabit");
+const habitManagerPanel = document.getElementById("habitManagerPanel");
+const habitManagerList = document.getElementById("habitManagerList");
+const toggleHabitManagerBtn = document.getElementById("toggleHabitManagerBtn");
+const addGoalOpenBtn = document.getElementById("addGoalOpenBtn");
+const goalModal = document.getElementById("goalModal");
+const goalModalCloseBtn = document.getElementById("goalModalCloseBtn");
+const goalModalTitle = document.getElementById("goalModalTitle");
+const goalSaveBtn = document.getElementById("goalSaveBtn");
+const goalsList = document.getElementById("goalsList");
+const goalsTotalCount = document.getElementById("goalsTotalCount");
+const goalsActiveCount = document.getElementById("goalsActiveCount");
+const goalsDueCount = document.getElementById("goalsDueCount");
+const goalsArchivedCount = document.getElementById("goalsArchivedCount");
+const goalsCalendarTitle = document.getElementById("goalsCalendarTitle");
+const goalsCalendarGrid = document.getElementById("goalsCalendarGrid");
+const goalModeMonthBtn = document.getElementById("goalModeMonthBtn");
+const goalModeWeekBtn = document.getElementById("goalModeWeekBtn");
+const goalModeDayBtn = document.getElementById("goalModeDayBtn");
+const prevGoalPeriodBtn = document.getElementById("prevGoalPeriodBtn");
+const nextGoalPeriodBtn = document.getElementById("nextGoalPeriodBtn");
+const todayGoalPeriodBtn = document.getElementById("todayGoalPeriodBtn");
+const selectedDeadlineTitle = document.getElementById("selectedDeadlineTitle");
+const selectedDeadlineList = document.getElementById("selectedDeadlineList");
+const deadlineFocusMeta = document.getElementById("deadlineFocusMeta");
+const prevDeadlineBtn = document.getElementById("prevDeadlineBtn");
+const nextDeadlineBtn = document.getElementById("nextDeadlineBtn");
+const goalArchiveCompletedBtn = document.getElementById("goalArchiveCompletedBtn");
+const goalArchiveFailedBtn = document.getElementById("goalArchiveFailedBtn");
+const goalArchiveCompletedCount = document.getElementById("goalArchiveCompletedCount");
+const goalArchiveFailedCount = document.getElementById("goalArchiveFailedCount");
+const goalArchiveList = document.getElementById("goalArchiveList");
+const goalResultModal = document.getElementById("goalResultModal");
+const goalResultCloseBtn = document.getElementById("goalResultCloseBtn");
+const goalResultName = document.getElementById("goalResultName");
+const goalResultMeta = document.getElementById("goalResultMeta");
+const goalResultCompletedBtn = document.getElementById("goalResultCompletedBtn");
+const goalResultFailedBtn = document.getElementById("goalResultFailedBtn");
+const goalConfettiLayer = document.getElementById("goalConfettiLayer");
+const goalToast = document.getElementById("goalToast");
+const goalWorkspaceBackBtn = document.getElementById("goalWorkspaceBackBtn");
+const goalWorkspaceGoalName = document.getElementById("goalWorkspaceGoalName");
+const goalWorkspaceTaskName = document.getElementById("goalWorkspaceTaskName");
+const goalWorkspaceNotes = document.getElementById("goalWorkspaceNotes");
+const goalMiniGoalInput = document.getElementById("goalMiniGoalInput");
+const goalMiniGoalAddBtn = document.getElementById("goalMiniGoalAddBtn");
+const goalMiniGoalList = document.getElementById("goalMiniGoalList");
 let isHabitManagerOpen = false;
 let isCompletedModalOpen = false;
 let completedSearchQuery = "";
+const chart = document.getElementById("progressChart");
+let progressChartInstance = null;
+const statusDot = document.getElementById("statusDot");
+const statusText = document.getElementById("statusText");
 let currentStatus = { key: "status.signedOut", mode: "off", params: {} };
 
-const {
-  getRecord,
-  saveRecord,
-  calculateStreak,
-  getPreviousDateKey,
-  isHabitDoneToday,
-  isTodayComplete,
-  getHabitStreakStartDate,
-  calculateTotalUntilDate,
-  calculateTotalBetweenDates,
-  calculateLifetimeTotal,
-  calculateGlobalStreak,
-  calculateMotivationalGlobalStreak,
-  getOldestHabit,
-  calculateGlobalStreakAtDate,
-  calculateStreakAtDate,
-  calculateProjectedGlobalStreakAtDate
-} = createHabitMetrics({
-  getData: () => data,
-  countDoneRecordsForDate
-});
-
-configureActionMenus({ onStateChange: syncModalOpenState });
-registerServiceWorker();
 initLocale();
 languageSelect.value = getLocale();
 signOutBtn.hidden = true;
@@ -282,15 +238,16 @@ authLoginTabBtn.addEventListener("click", () => setAuthMode("login"));
 authRegisterTabBtn.addEventListener("click", () => setAuthMode("register"));
 authForm.addEventListener("submit", handleAuthSubmit);
 authGoogleBtn.addEventListener("click", handleGoogleSignIn);
+authTestBtn.addEventListener("click", () => startTestAccount({ seedIfMissing: true }));
 authResetBtn.addEventListener("click", handlePasswordReset);
 testingSeedBtn.addEventListener("click", () => reloadTestSeedData());
 testingResetBtn.addEventListener("click", () => resetTestData());
-addHabitBtn.addEventListener("click", addHabit);
+document.getElementById("addHabitBtn").addEventListener("click", addHabit);
 addGoalOpenBtn.addEventListener("click", () => openGoalModal());
 goalModalCloseBtn.addEventListener("click", closeGoalModal);
 goalSaveBtn.addEventListener("click", saveGoalFromModal);
 toggleHabitManagerBtn.addEventListener("click", toggleHabitManager);
-todayBtn.addEventListener("click", goToToday);
+document.getElementById("todayBtn").addEventListener("click", goToToday);
 todayHabitSearch.addEventListener("input", (event) => {
   todaySearchQuery = event.target.value.trim().toLowerCase();
   todayPageIndex = 0;
@@ -321,10 +278,6 @@ goalModal.addEventListener("click", (event) => {
 });
 document.addEventListener("keydown", (event) => {
   if (event.key === "Escape") closeActionMenu();
-  if (event.key === "Escape" && openGoalArchiveIds.size) {
-    openGoalArchiveIds.clear();
-    renderGoalsList();
-  }
   if (event.key === "Escape" && isAuthModalOpen) closeAuthModal();
   if (event.key === "Escape" && isCompletedModalOpen) closeCompletedModal();
   if (event.key === "Escape" && isGoalModalOpen) closeGoalModal();
@@ -355,17 +308,17 @@ goalMiniGoalAddBtn.addEventListener("click", addWorkspaceMiniGoal);
 goalMiniGoalInput.addEventListener("keydown", (event) => {
   if (event.key === "Enter") addWorkspaceMiniGoal();
 });
-prevWeekCalendar.addEventListener("click", () => changeVisibleWeek(-1));
-nextWeekCalendar.addEventListener("click", () => changeVisibleWeek(1));
-thisWeekCalendar.addEventListener("click", () => {
+document.getElementById("prevWeekCalendar").addEventListener("click", () => changeVisibleWeek(-1));
+document.getElementById("nextWeekCalendar").addEventListener("click", () => changeVisibleWeek(1));
+document.getElementById("thisWeekCalendar").addEventListener("click", () => {
   visibleWeekStart = getWeekStart(new Date());
   reviewDate = toDateInputValue(new Date());
   renderDayReview();
   renderPeriodProgress();
 });
-prevMonthCalendar.addEventListener("click", () => changeVisibleMonth(-1));
-nextMonthCalendar.addEventListener("click", () => changeVisibleMonth(1));
-thisMonthCalendar.addEventListener("click", () => {
+document.getElementById("prevMonthCalendar").addEventListener("click", () => changeVisibleMonth(-1));
+document.getElementById("nextMonthCalendar").addEventListener("click", () => changeVisibleMonth(1));
+document.getElementById("thisMonthCalendar").addEventListener("click", () => {
   visibleMonthDate = new Date();
   reviewDate = toDateInputValue(new Date());
   renderDayReview();
@@ -448,6 +401,73 @@ function switchView(view, options = {}) {
   if (isWorkspace) renderGoalWorkspacePage();
 }
 
+function makeActionMenu(actions, label = t("actions.menu")) {
+  const menu = document.createElement("div");
+  menu.className = "action-menu";
+
+  const trigger = document.createElement("button");
+  trigger.className = "action-menu-trigger";
+  trigger.type = "button";
+  trigger.textContent = "⋯";
+  trigger.setAttribute("aria-label", label);
+  trigger.setAttribute("aria-haspopup", "menu");
+  trigger.setAttribute("aria-expanded", "false");
+
+  const panel = document.createElement("div");
+  panel.className = "action-menu-panel";
+  panel.setAttribute("role", "menu");
+  panel.hidden = true;
+
+  actions.forEach(action => {
+    const item = document.createElement("button");
+    item.className = "action-menu-item" + (action.danger ? " danger" : "");
+    item.type = "button";
+    item.textContent = action.label;
+    item.setAttribute("role", "menuitem");
+    item.addEventListener("click", (event) => {
+      event.stopPropagation();
+      closeActionMenu(menu);
+      action.onSelect();
+    });
+    panel.appendChild(item);
+  });
+
+  trigger.addEventListener("click", (event) => {
+    event.stopPropagation();
+    toggleActionMenu(menu);
+  });
+
+  menu.addEventListener("click", (event) => event.stopPropagation());
+  menu.appendChild(trigger);
+  menu.appendChild(panel);
+  return menu;
+}
+
+function toggleActionMenu(menu) {
+  const panel = menu.querySelector(".action-menu-panel");
+  const trigger = menu.querySelector(".action-menu-trigger");
+  const shouldOpen = panel.hidden;
+
+  if (activeActionMenu && activeActionMenu !== menu) closeActionMenu(activeActionMenu);
+
+  panel.hidden = !shouldOpen;
+  menu.classList.toggle("open", shouldOpen);
+  trigger.setAttribute("aria-expanded", String(shouldOpen));
+  activeActionMenu = shouldOpen ? menu : null;
+  if (shouldOpen) positionActionMenu(menu);
+}
+
+function closeActionMenu(menu = activeActionMenu) {
+  if (!menu) return;
+
+  const panel = menu.querySelector(".action-menu-panel");
+  const trigger = menu.querySelector(".action-menu-trigger");
+  if (panel) panel.hidden = true;
+  if (trigger) trigger.setAttribute("aria-expanded", "false");
+  menu.classList.remove("open");
+  if (activeActionMenu === menu) activeActionMenu = null;
+}
+
 function syncModalOpenState() {
   document.body.classList.toggle(
     "modal-open",
@@ -455,12 +475,37 @@ function syncModalOpenState() {
   );
 }
 
+function positionActionMenu(menu) {
+  const panel = menu.querySelector(".action-menu-panel");
+  const trigger = menu.querySelector(".action-menu-trigger");
+  if (!panel || !trigger) return;
+
+  const gap = 6;
+  const margin = 12;
+  const triggerRect = trigger.getBoundingClientRect();
+  const panelRect = panel.getBoundingClientRect();
+  const maxLeft = Math.max(margin, window.innerWidth - panelRect.width - margin);
+  const left = Math.min(maxLeft, Math.max(margin, triggerRect.right - panelRect.width));
+  const belowTop = triggerRect.bottom + gap;
+  const aboveTop = triggerRect.top - panelRect.height - gap;
+  const top = belowTop + panelRect.height > window.innerHeight - margin
+    ? Math.max(margin, aboveTop)
+    : belowTop;
+
+  panel.style.left = `${left}px`;
+  panel.style.top = `${top}px`;
+}
+
 function initTheme() {
-  applyThemePreference(themeToggle, t);
+  const savedTheme = localStorage.getItem("habitTheme") || "light";
+  document.body.classList.toggle("dark", savedTheme === "dark");
+  themeToggle.textContent = savedTheme === "dark" ? t("theme.light") : t("theme.dark");
 }
 
 function toggleTheme() {
-  toggleThemePreference(themeToggle, t);
+  const isDark = document.body.classList.toggle("dark");
+  localStorage.setItem("habitTheme", isDark ? "dark" : "light");
+  themeToggle.textContent = isDark ? t("theme.light") : t("theme.dark");
   renderProgress();
 }
 
@@ -540,18 +585,8 @@ async function handleAuthSubmit(event) {
     return;
   }
 
-  if (authMode === "login" && isTestAccountEmail(email)) {
-    if (!canUseTestAccount()) {
-      showAuthMessage(t("testing.localOnly"), "error");
-      return;
-    }
-
-    if (await isTestCredentials(email, password)) {
-      startTestAccount({ seedIfMissing: true });
-      return;
-    }
-
-    showAuthMessage(t("auth.error.invalidCredential"), "error");
+  if (authMode === "login" && isTestCredentials(email, password)) {
+    startTestAccount({ seedIfMissing: true });
     return;
   }
 
@@ -627,27 +662,8 @@ function handleRedirectResult() {
   handleGoogleRedirectResult();
 }
 
-function isTestAccountEmail(email) {
-  const normalizedEmail = email.toLowerCase();
-  return normalizedEmail === TEST_ACCOUNT.email || normalizedEmail === TEST_ACCOUNT.legacyEmail;
-}
-
-async function isTestCredentials(email, password) {
-  if (!isTestAccountEmail(email) || !password) return false;
-  return await sha256Hex(password) === TEST_ACCOUNT_PASSWORD_HASH;
-}
-
-async function sha256Hex(value) {
-  if (!globalThis.crypto?.subtle) return "";
-  const bytes = new TextEncoder().encode(value);
-  const hash = await globalThis.crypto.subtle.digest("SHA-256", bytes);
-  return [...new Uint8Array(hash)]
-    .map(byte => byte.toString(16).padStart(2, "0"))
-    .join("");
-}
-
-function canUseTestAccount() {
-  return window.location.protocol === "file:" || TEST_ACCOUNT_ALLOWED_HOSTS.has(window.location.hostname);
+function isTestCredentials(email, password) {
+  return email.toLowerCase() === TEST_ACCOUNT.email && password === TEST_ACCOUNT.password;
 }
 
 function isTestMode() {
@@ -655,28 +671,15 @@ function isTestMode() {
 }
 
 function getTestUser() {
-  const { legacyEmail, ...user } = TEST_ACCOUNT;
-  return { ...user };
+  return { ...TEST_ACCOUNT };
 }
 
 function restoreTestAccountSession() {
-  const hasActiveSession =
-    localStorage.getItem(TEST_SESSION_KEY) === "active" ||
-    localStorage.getItem(LEGACY_TEST_SESSION_KEY) === "active";
-
-  if (!hasActiveSession) return;
-  if (!canUseTestAccount()) {
-    localStorage.removeItem(TEST_SESSION_KEY);
-    localStorage.removeItem(LEGACY_TEST_SESSION_KEY);
-    return;
-  }
+  if (localStorage.getItem(TEST_SESSION_KEY) !== "active") return;
 
   currentUser = getTestUser();
   data = loadTestData() || createTestingData();
-  localStorage.setItem(TEST_SESSION_KEY, "active");
   localStorage.setItem(TEST_DATA_KEY, JSON.stringify(data));
-  localStorage.removeItem(LEGACY_TEST_SESSION_KEY);
-  localStorage.removeItem(LEGACY_TEST_DATA_KEY);
   signInBtn.hidden = true;
   signOutBtn.hidden = false;
   signOutBtn.disabled = false;
@@ -685,20 +688,13 @@ function restoreTestAccountSession() {
 }
 
 function startTestAccount({ seedIfMissing = false, forceSeed = false } = {}) {
-  if (!canUseTestAccount()) {
-    showAuthMessage(t("testing.localOnly"), "error");
-    return;
-  }
-
   clearPendingSave();
   currentUser = getTestUser();
   localStorage.setItem(TEST_SESSION_KEY, "active");
-  localStorage.removeItem(LEGACY_TEST_SESSION_KEY);
 
   const stored = forceSeed ? null : loadTestData();
   data = stored || createTestingData();
   if (forceSeed || seedIfMissing || !stored) localStorage.setItem(TEST_DATA_KEY, JSON.stringify(data));
-  localStorage.removeItem(LEGACY_TEST_DATA_KEY);
 
   isDirty = false;
   setAuthBusy(false);
@@ -713,13 +709,8 @@ function startTestAccount({ seedIfMissing = false, forceSeed = false } = {}) {
 
 function loadTestData() {
   try {
-    const raw = localStorage.getItem(TEST_DATA_KEY) || localStorage.getItem(LEGACY_TEST_DATA_KEY);
-    if (!raw) return null;
-
-    const normalizedData = normalizeData(JSON.parse(raw));
-    localStorage.setItem(TEST_DATA_KEY, JSON.stringify(normalizedData));
-    localStorage.removeItem(LEGACY_TEST_DATA_KEY);
-    return normalizedData;
+    const raw = localStorage.getItem(TEST_DATA_KEY);
+    return raw ? normalizeData(JSON.parse(raw)) : null;
   } catch {
     return null;
   }
@@ -728,7 +719,6 @@ function loadTestData() {
 function saveTestData() {
   if (!isTestMode()) return false;
   localStorage.setItem(TEST_DATA_KEY, JSON.stringify(data));
-  localStorage.removeItem(LEGACY_TEST_DATA_KEY);
   isDirty = false;
   updateStatus("status.account", "ready", { user: getUserLabel(currentUser) });
   return true;
@@ -746,7 +736,6 @@ function resetTestData() {
   if (!isTestMode()) return;
   if (!confirm(t("testing.resetConfirm"))) return;
   localStorage.removeItem(TEST_DATA_KEY);
-  localStorage.removeItem(LEGACY_TEST_DATA_KEY);
   reloadTestSeedData();
 }
 
@@ -757,7 +746,6 @@ async function handleSignOut() {
     if (isDirty) saveTestData();
     clearPendingSave();
     localStorage.removeItem(TEST_SESSION_KEY);
-    localStorage.removeItem(LEGACY_TEST_SESSION_KEY);
     currentUser = null;
     data = { habits: [], records: {}, goals: [] };
     isDirty = false;
@@ -799,6 +787,7 @@ function setAuthBusy(isBusy, message = "") {
   isAuthBusy = isBusy;
   authSubmitBtn.disabled = isBusy;
   authGoogleBtn.disabled = isBusy;
+  authTestBtn.disabled = isBusy;
   authResetBtn.disabled = isBusy;
   authLoginTabBtn.disabled = isBusy;
   authRegisterTabBtn.disabled = isBusy;
@@ -860,6 +849,178 @@ function getUserDocRef(uid = currentUser?.uid) {
   return doc(db, "users", uid, "habitData", "main");
 }
 
+function createStarterData() {
+  return {
+    habits: [
+      { id: crypto.randomUUID(), name: t("data.starter.pushups"), unit: t("data.starter.pushupsUnit"), target: 15, createdAt: toDateInputValue(new Date()) },
+      { id: crypto.randomUUID(), name: t("data.starter.reading"), unit: t("data.starter.readingUnit"), target: 20, createdAt: toDateInputValue(new Date()) }
+    ],
+    records: {},
+    goals: []
+  };
+}
+
+function createTestingData() {
+  const today = toDateInputValue(new Date());
+  const yesterday = shiftDateKey(today, -1);
+  const twoDaysAgo = shiftDateKey(today, -2);
+  const threeDaysAgo = shiftDateKey(today, -3);
+  const tomorrow = shiftDateKey(today, 1);
+  const nextWeek = shiftDateKey(today, 7);
+  const lastWeek = shiftDateKey(today, -7);
+
+  const habits = [
+    { id: "qa-water", name: "Hydration", unit: "glasses", target: 8, createdAt: threeDaysAgo },
+    { id: "qa-reading", name: "Reading", unit: "pages", target: 25, createdAt: threeDaysAgo },
+    { id: "qa-training", name: "Training", unit: "min", target: 45, createdAt: threeDaysAgo },
+    { id: "qa-language", name: "Language practice", unit: "min", target: 20, createdAt: twoDaysAgo },
+    { id: "qa-journal", name: "Journal", unit: "entry", target: 1, createdAt: twoDaysAgo },
+    { id: "qa-meditation", name: "Meditation", unit: "min", target: 10, createdAt: yesterday },
+    { id: "qa-walk", name: "Walk", unit: "steps", target: 7000, createdAt: yesterday },
+    { id: "qa-planning", name: "Plan tomorrow", unit: "plan", target: 1, createdAt: today }
+  ];
+
+  const records = {
+    [threeDaysAgo]: {
+      "qa-water": makeTestingRecord(true, 8, habits[0]),
+      "qa-reading": makeTestingRecord(true, 30, habits[1]),
+      "qa-training": makeTestingRecord(true, 45, habits[2])
+    },
+    [twoDaysAgo]: {
+      "qa-water": makeTestingRecord(true, 7, habits[0]),
+      "qa-reading": makeTestingRecord(true, 25, habits[1]),
+      "qa-training": makeTestingRecord(false, 20, habits[2]),
+      "qa-language": makeTestingRecord(true, 25, habits[3]),
+      "qa-journal": makeTestingRecord(true, 1, habits[4])
+    },
+    [yesterday]: {
+      "qa-water": makeTestingRecord(true, 8, habits[0]),
+      "qa-reading": makeTestingRecord(true, 40, habits[1]),
+      "qa-training": makeTestingRecord(true, 50, habits[2]),
+      "qa-language": makeTestingRecord(true, 20, habits[3]),
+      "qa-journal": makeTestingRecord(true, 1, habits[4]),
+      "qa-meditation": makeTestingRecord(true, 12, habits[5]),
+      "qa-walk": makeTestingRecord(true, 8100, habits[6])
+    },
+    [today]: {
+      "qa-water": makeTestingRecord(true, 6, habits[0]),
+      "qa-reading": makeTestingRecord(true, 25, habits[1]),
+      "qa-training": makeTestingRecord(false, "", habits[2]),
+      "qa-language": makeTestingRecord(false, "", habits[3])
+    }
+  };
+
+  return {
+    habits,
+    records,
+    goals: [
+      {
+        id: "qa-goal-launch",
+        name: "Launch the testing workflow",
+        type: "project",
+        pointA: "Manual checks are scattered across the app",
+        pointB: "A reusable QA checklist exists for every release",
+        createdAt: lastWeek,
+        status: "active",
+        completedAt: "",
+        failedAt: "",
+        tasks: [
+          {
+            id: "qa-task-auth",
+            title: "Verify auth modal and test account session",
+            deadline: today,
+            done: false,
+            completedAt: "",
+            workspace: {
+              notes: "Check login, sign out, reload, and saved local test data.",
+              miniGoals: [
+                { id: "qa-mini-auth-1", title: "Open auth modal", done: true, completedAt: yesterday },
+                { id: "qa-mini-auth-2", title: "Use test account button", done: false, completedAt: "" }
+              ]
+            }
+          },
+          {
+            id: "qa-task-locale",
+            title: "Switch all supported languages",
+            deadline: tomorrow,
+            done: false,
+            completedAt: "",
+            workspace: {
+              notes: "Scan header, dashboard cards, modals, goal workspace, and empty states in every locale.",
+              miniGoals: []
+            }
+          },
+          {
+            id: "qa-task-docs",
+            title: "Document the QA route",
+            deadline: nextWeek,
+            done: true,
+            completedAt: yesterday,
+            workspace: {
+              notes: "Keep docs/TESTING.md updated when scenarios change.",
+              miniGoals: [
+                { id: "qa-mini-docs-1", title: "List core smoke scenarios", done: true, completedAt: yesterday }
+              ]
+            }
+          }
+        ]
+      },
+      {
+        id: "qa-goal-completed",
+        name: "Ship multilingual interface",
+        type: "project",
+        pointA: "Russian-only UI copy",
+        pointB: "English primary UI with five supported languages",
+        createdAt: lastWeek,
+        status: "completed",
+        completedAt: yesterday,
+        failedAt: "",
+        tasks: [
+          {
+            id: "qa-task-i18n",
+            title: "Move UI copy into dictionaries",
+            deadline: yesterday,
+            done: true,
+            completedAt: yesterday,
+            workspace: {
+              notes: "Dictionary alignment is covered by the QA script.",
+              miniGoals: []
+            }
+          }
+        ]
+      },
+      {
+        id: "qa-goal-failed",
+        name: "Try unsafe production testing",
+        type: "other",
+        pointA: "Could test directly against real user data",
+        pointB: "Use isolated local test data instead",
+        createdAt: lastWeek,
+        status: "failed",
+        completedAt: "",
+        failedAt: twoDaysAgo,
+        tasks: []
+      }
+    ]
+  };
+}
+
+function makeTestingRecord(done, value, habit) {
+  return {
+    done,
+    value,
+    habitName: habit.name,
+    habitUnit: habit.unit,
+    habitTarget: habit.target
+  };
+}
+
+function shiftDateKey(dateKey, days) {
+  const date = parseDateKey(dateKey);
+  date.setDate(date.getDate() + days);
+  return toDateInputValue(date);
+}
+
 async function loadFromFirebase(expectedUid = currentUser?.uid) {
   const ref = getUserDocRef(expectedUid);
   if (!ref || !isCurrentUser(expectedUid)) return false;
@@ -867,42 +1028,20 @@ async function loadFromFirebase(expectedUid = currentUser?.uid) {
   try {
     const snap = await getDoc(ref);
     if (!isCurrentUser(expectedUid)) return false;
-    const backup = loadUserBackup(expectedUid);
 
     if (!snap.exists()) {
-      data = backup?.data || createStarterData();
+      data = createStarterData();
       const saved = await saveToFirebase(false, expectedUid);
       return saved && isCurrentUser(expectedUid);
     }
 
     const saved = snap.data();
-    const remoteData = normalizeData(saved.data || saved);
-    const remoteUpdatedAt = Number(saved.clientUpdatedAt || 0);
-
-    if (backup && backup.savedAt > remoteUpdatedAt) {
-      data = backup.data;
-      isDirty = true;
-      updateStatus("status.savingChanges", "dirty");
-      scheduleAutoSave();
-      return true;
-    }
-
-    data = remoteData;
-    saveUserBackup(expectedUid, data, remoteUpdatedAt || Date.now());
+    data = normalizeData(saved.data || saved);
     isDirty = false;
     updateStatus("status.dataSynced", "ready");
     return true;
   } catch (error) {
     if (!isCurrentUser(expectedUid)) return false;
-    const backup = loadUserBackup(expectedUid);
-    if (backup) {
-      data = backup.data;
-      isDirty = true;
-      updateStatus("status.saveError", "error");
-      scheduleAutoSave();
-      return true;
-    }
-
     updateStatus("status.syncError", "error");
     alert(t("alerts.loadFailed", { message: error.message }));
     return false;
@@ -917,22 +1056,19 @@ async function saveToFirebase(showAlert = false, expectedUid = currentUser?.uid)
   }
 
   try {
-    const clientUpdatedAt = Date.now();
     await setDoc(ref, {
       data,
       updatedAt: serverTimestamp(),
-      clientUpdatedAt,
       ownerUid: expectedUid,
       ownerEmail: currentUser.email || null
     });
 
-    saveUserBackup(expectedUid, data, clientUpdatedAt);
     isDirty = false;
     updateStatus("status.saved", "ready");
     if (showAlert) alert(t("alerts.dataSaved"));
     return true;
   } catch (error) {
-    if (showAlert) alert(t("alerts.saveFailed", { message: error.message }));
+    alert(t("alerts.saveFailed", { message: error.message }));
     updateStatus("status.saveError", "error");
     return false;
   }
@@ -956,23 +1092,8 @@ function clearPendingSave() {
   saveTimer = null;
 }
 
-function flushPendingSave() {
-  if (!isDirty || !currentUser) return;
-  clearPendingSave();
-
-  if (isTestMode()) {
-    saveTestData();
-    return;
-  }
-
-  const uid = currentUser.uid;
-  saveUserBackup(uid, data);
-  if (isCurrentUser(uid)) void saveToFirebase(false, uid);
-}
-
 function markDirty() {
   isDirty = true;
-  if (currentUser && !isTestMode()) saveUserBackup(currentUser.uid, data);
   updateStatus("status.savingChanges", "dirty");
   scheduleAutoSave();
 }
@@ -988,6 +1109,81 @@ function refreshStatusText() {
   if (currentStatus.mode === "ready") statusDot.classList.add("ready");
   if (currentStatus.mode === "dirty") statusDot.classList.add("dirty");
   if (currentStatus.mode === "error") statusDot.classList.add("error");
+}
+
+function normalizeData(input) {
+  return {
+    habits: Array.isArray(input.habits) ? input.habits : [],
+    records: input.records && typeof input.records === "object" ? input.records : {},
+    goals: Array.isArray(input.goals) ? input.goals.map(normalizeGoal) : []
+  };
+}
+
+function normalizeGoal(goal) {
+  const unit = goal.unit || "";
+  const legacyCurrent = goal.current ?? goal.currentMetric ?? "";
+  const legacyTarget = goal.target ?? goal.targetMetric ?? "";
+  const currentMetric = normalizeOptionalNumber(legacyCurrent);
+  const targetMetric = normalizeOptionalNumber(legacyTarget);
+  const fallbackPointA = currentMetric === "" ? "" : formatGoalMetric(currentMetric, unit);
+  const fallbackPointB = targetMetric === "" ? "" : formatGoalMetric(targetMetric, unit);
+  const rawTasks = Array.isArray(goal.tasks)
+    ? goal.tasks
+    : Array.isArray(goal.milestones)
+      ? goal.milestones
+      : [];
+  const status = ["completed", "failed"].includes(goal.status) ? goal.status : "active";
+
+  return {
+    id: goal.id || crypto.randomUUID(),
+    name: goal.name || t("data.goalFallback"),
+    type: goal.type || "other",
+    pointA: goal.pointA || fallbackPointA,
+    pointB: goal.pointB || fallbackPointB,
+    createdAt: goal.createdAt || toDateInputValue(new Date()),
+    status,
+    completedAt: status === "completed" ? goal.completedAt || goal.archivedAt || toDateInputValue(new Date()) : "",
+    failedAt: status === "failed" ? goal.failedAt || goal.archivedAt || toDateInputValue(new Date()) : "",
+    tasks: rawTasks.map(normalizeGoalTask)
+  };
+}
+
+function normalizeGoalTask(task) {
+  return {
+    id: task.id || crypto.randomUUID(),
+    title: task.title || task.evidence || t("data.taskFallback"),
+    deadline: task.deadline || "",
+    done: Boolean(task.done),
+    completedAt: task.completedAt || "",
+    workspace: normalizeTaskWorkspace(task.workspace)
+  };
+}
+
+function normalizeTaskWorkspace(workspace = {}) {
+  const safeWorkspace = workspace && typeof workspace === "object" ? workspace : {};
+  const rawMiniGoals = Array.isArray(safeWorkspace.miniGoals) ? safeWorkspace.miniGoals : [];
+
+  return {
+    notes: typeof safeWorkspace.notes === "string" ? safeWorkspace.notes : "",
+    miniGoals: rawMiniGoals.map(normalizeMiniGoal)
+  };
+}
+
+function normalizeMiniGoal(miniGoal = {}) {
+  const safeMiniGoal = miniGoal && typeof miniGoal === "object" ? miniGoal : {};
+
+  return {
+    id: safeMiniGoal.id || crypto.randomUUID(),
+    title: safeMiniGoal.title || t("data.miniGoalFallback"),
+    done: Boolean(safeMiniGoal.done),
+    completedAt: safeMiniGoal.completedAt || ""
+  };
+}
+
+function normalizeOptionalNumber(value) {
+  if (value === "" || value === null || value === undefined) return "";
+  const number = Number(value);
+  return Number.isNaN(number) ? "" : number;
 }
 
 function render() {
@@ -1406,16 +1602,26 @@ function renderHabitManager() {
     targetInput.placeholder = t("habit.fieldTarget");
     targetInput.onchange = () => updateHabitField(habit.id, "target", targetInput.value === "" ? "" : Number(targetInput.value));
 
-    const deleteButton = document.createElement("button");
-    deleteButton.className = "danger habit-manager-delete";
-    deleteButton.type = "button";
-    deleteButton.textContent = t("actions.delete");
-    deleteButton.onclick = () => deleteHabit(habit);
+    const actionMenu = makeActionMenu([
+      {
+        label: t("actions.edit"),
+        onSelect: () => updateHabit(habit.id, {
+          name: nameInput.value.trim(),
+          unit: unitInput.value.trim(),
+          target: targetInput.value === "" ? "" : Number(targetInput.value)
+        })
+      },
+      {
+        label: t("actions.delete"),
+        danger: true,
+        onSelect: () => deleteHabit(habit)
+      }
+    ], t("habit.menuLabel", { name: habit.name || t("habit.unnamed") }));
 
     item.appendChild(nameInput);
     item.appendChild(unitInput);
     item.appendChild(targetInput);
-    item.appendChild(deleteButton);
+    item.appendChild(actionMenu);
     habitManagerList.appendChild(item);
   });
 }
@@ -1490,7 +1696,7 @@ function renderDayReview() {
   daySummaryList.innerHTML = "";
 
   if (isFuture) {
-    daySummaryList.innerHTML = "";
+    daySummaryList.innerHTML = `<div class="empty">${t("review.futureEmpty")}</div>`;
     return;
   }
 
@@ -1553,8 +1759,7 @@ function renderFutureProjection(dateKey) {
 
   futureProjectionBox.hidden = false;
   futureProjectionTitle.textContent = t("projection.titleDays", { daysText: formatDayCount(daysAhead) });
-  futureProjectionText.hidden = true;
-  futureProjectionText.textContent = "";
+  futureProjectionText.textContent = t("projection.text");
 
   futureProjectionTable.innerHTML = `
     <div class="projection-row projection-head">
@@ -1624,8 +1829,8 @@ function renderRewardState() {
 function renderPeriodProgress() {
   const weekDays = getWeekDaysFromStart(visibleWeekStart);
   const monthDays = getMonthDays(visibleMonthDate);
-  weekCalendarTitle.textContent = `${formatFullDate(weekDays[0], getDateLocale())} — ${formatFullDate(weekDays[6], getDateLocale())}`;
-  monthCalendarTitle.textContent = visibleMonthDate.toLocaleDateString(getDateLocale(), {
+  document.getElementById("weekCalendarTitle").textContent = `${formatFullDate(weekDays[0], getDateLocale())} — ${formatFullDate(weekDays[6], getDateLocale())}`;
+  document.getElementById("monthCalendarTitle").textContent = visibleMonthDate.toLocaleDateString(getDateLocale(), {
     month: "long",
     year: "numeric"
   });
@@ -1725,7 +1930,7 @@ function renderProgress() {
   const habitId = progressHabit.value || data.habits[0]?.id;
   const habit = data.habits.find(h => h.id === habitId);
   const todayKey = toDateInputValue(new Date());
-  clearProgressChart();
+  clearChart();
   if (!habit) {
     chartTotalSinceStreak.textContent = "0";
     chartStreakDays.textContent = "0";
@@ -1762,7 +1967,7 @@ function renderProgress() {
     return { dateKey, value, done: Boolean(rec?.done) };
   });
 
-  drawProgressChart({ canvas: chart, chartData, dateLocale: getDateLocale(), habit, translate: t });
+  drawChart(chartData, habit);
 }
 
 function getChartPointValue(record, habit) {
@@ -1783,12 +1988,10 @@ function getChartPointValue(record, habit) {
 
 function renderChartMetrics(habit) {
   const todayKey = toDateInputValue(new Date());
+  const streakStart = getMotivationalHabitStreakStartDate(habit.id);
+  const totalSinceStreak = streakStart ? calculateMotivationalTotalBetweenDates(habit, streakStart, todayKey) : 0;
+  const streakDays = calculateMotivationalHabitStreak(habit.id);
   const lifetimeTotal = calculateLifetimeTotal(habit.id);
-  const streakEndDate = isHabitDoneToday(habit.id) ? todayKey : getPreviousDateKey(todayKey);
-  const streakDays = calculateStreakAtDate(habit.id, streakEndDate);
-  const streakStart = streakDays > 0 ? getHabitStreakStartDate(habit.id, streakEndDate) : null;
-  const actualTotalSinceStreak = streakStart ? calculateTotalBetweenDates(habit.id, streakStart, streakEndDate) : 0;
-  const totalSinceStreak = Math.min(actualTotalSinceStreak, lifetimeTotal);
   const unit = habit.unit ? ` ${habit.unit}` : "";
 
   if (totalSinceStreak === lifetimeTotal) {
@@ -1806,15 +2009,168 @@ function renderChartMetrics(habit) {
   chartLifetimeTotal.textContent = `${lifetimeTotal}${unit}`;
 }
 
+function drawChart(chartData, habit) {
+  const labels = chartData.map(d => formatShortDate(d.dateKey, getDateLocale()));
+  const values = chartData.map(d => d.value);
+  const target = habit.target ? Number(habit.target) : null;
+  const visibleValues = values.filter(v => v !== null && !Number.isNaN(v));
+  const maxValue = Math.max(1, ...visibleValues, target || 0);
+  const suggestedMax = Math.ceil(maxValue * 1.2);
+
+  const textColor = getCssColor("--text");
+  const mutedColor = getCssColor("--muted");
+  const lineColor = getCssColor("--line");
+  const successColor = getCssColor("--success");
+  const warningColor = getCssColor("--warning");
+  const cardColor = getCssColor("--card");
+
+  const datasets = [
+    {
+      label: habit.name,
+      data: values,
+      borderColor: successColor,
+      backgroundColor: createChartGradient(successColor),
+      pointBackgroundColor: cardColor,
+      pointBorderColor: successColor,
+      pointRadius: 0,
+      pointHoverRadius: 5,
+      pointHitRadius: 14,
+      pointBorderWidth: 2,
+      borderWidth: 2.5,
+      tension: 0.34,
+      fill: true,
+      spanGaps: true
+    }
+  ];
+
+  if (target) {
+    datasets.push({
+      label: t("chart.target", { target }),
+      data: values.map(() => target),
+      borderColor: toRgba(warningColor, 0.7),
+      borderDash: [7, 7],
+      pointRadius: 0,
+      borderWidth: 1.5,
+      fill: false
+    });
+  }
+
+  if (progressChartInstance) {
+    progressChartInstance.destroy();
+  }
+
+  progressChartInstance = new window.Chart(chart, {
+    type: "line",
+    data: { labels, datasets },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      animation: false,
+      interaction: {
+        mode: "index",
+        intersect: false
+      },
+      plugins: {
+        legend: {
+          display: false
+        },
+        tooltip: {
+          backgroundColor: cardColor,
+          titleColor: textColor,
+          bodyColor: textColor,
+          borderColor: lineColor,
+          borderWidth: 1,
+          padding: 10,
+          displayColors: false,
+          callbacks: {
+            label: (context) => {
+              if (context.datasetIndex === 1) return t("chart.target", { target });
+              const unit = habit.unit ? ` ${habit.unit}` : "";
+              return `${habit.name}: ${context.parsed.y}${unit}`;
+            }
+          }
+        }
+      },
+      scales: {
+        x: {
+          grid: { display: false },
+          border: { color: lineColor },
+          ticks: {
+            color: mutedColor,
+            autoSkip: true,
+            maxTicksLimit: 7,
+            font: { size: 12 }
+          }
+        },
+        y: {
+          beginAtZero: true,
+          suggestedMax,
+          grace: "8%",
+          border: { color: lineColor },
+          grid: { color: lineColor },
+          ticks: {
+            color: mutedColor,
+            precision: 0,
+            font: { size: 12 },
+            callback: (value) => habit.unit ? `${value} ${habit.unit}` : value
+          }
+        }
+      }
+    }
+  });
+}
+
+function createChartGradient(successColor) {
+  const ctx = chart.getContext("2d");
+  const gradient = ctx.createLinearGradient(0, 0, 0, 320);
+  gradient.addColorStop(0, toRgba(successColor, 0.16));
+  gradient.addColorStop(1, toRgba(successColor, 0));
+  return gradient;
+}
+
+function toRgba(color, alpha) {
+  const value = color.trim();
+  const hex = value.match(/^#([0-9a-f]{3}|[0-9a-f]{6})$/i);
+  if (hex) {
+    const raw = hex[1].length === 3
+      ? hex[1].split("").map(char => char + char).join("")
+      : hex[1];
+    const number = Number.parseInt(raw, 16);
+    const red = (number >> 16) & 255;
+    const green = (number >> 8) & 255;
+    const blue = number & 255;
+    return `rgba(${red}, ${green}, ${blue}, ${alpha})`;
+  }
+
+  const rgb = value.match(/^rgba?\(([^)]+)\)$/i);
+  if (rgb) {
+    const [red, green, blue] = rgb[1].split(",").map(part => part.trim());
+    return `rgba(${red}, ${green}, ${blue}, ${alpha})`;
+  }
+
+  return value;
+}
+
+function clearChart() {
+  if (progressChartInstance) {
+    progressChartInstance.destroy();
+    progressChartInstance = null;
+  }
+}
+
+function getCssColor(variableName) {
+  return getComputedStyle(document.body).getPropertyValue(variableName).trim();
+}
+
 function addHabit() {
   if (!currentUser) {
     alert(t("habit.signInRequired"));
     return;
   }
 
-  const name = habitName.value.trim();
-  const unit = habitUnit.value.trim();
-  const targetRaw = habitTarget.value;
+  const name = document.getElementById("habitName").value.trim();
+  const unit = document.getElementById("habitUnit").value.trim();
+  const targetRaw = document.getElementById("habitTarget").value;
 
   if (!name) {
     alert(t("habit.enterName"));
@@ -1829,9 +2185,9 @@ function addHabit() {
     createdAt: toDateInputValue(new Date())
   });
 
-  habitName.value = "";
-  habitUnit.value = "";
-  habitTarget.value = "";
+  document.getElementById("habitName").value = "";
+  document.getElementById("habitUnit").value = "";
+  document.getElementById("habitTarget").value = "";
 
   markDirty();
   render();
@@ -1841,14 +2197,14 @@ function openGoalModal(goalId = null) {
   const goal = goalId ? data.goals.find(item => item.id === goalId) : null;
   editingGoalId = goal?.id || null;
   syncGoalModalText();
-  goalName.value = goal?.name || "";
-  goalType.value = goal?.type || "other";
-  goalPointA.value = goal?.pointA || "";
-  goalPointB.value = goal?.pointB || "";
+  document.getElementById("goalName").value = goal?.name || "";
+  document.getElementById("goalType").value = goal?.type || "other";
+  document.getElementById("goalPointA").value = goal?.pointA || "";
+  document.getElementById("goalPointB").value = goal?.pointB || "";
   isGoalModalOpen = true;
   goalModal.hidden = false;
   syncModalOpenState();
-  goalName.focus();
+  document.getElementById("goalName").focus();
 }
 
 function syncGoalModalText() {
@@ -1870,10 +2226,10 @@ function saveGoalFromModal() {
     return;
   }
 
-  const name = goalName.value.trim();
-  const type = goalType.value || "other";
-  const pointA = goalPointA.value.trim();
-  const pointB = goalPointB.value.trim();
+  const name = document.getElementById("goalName").value.trim();
+  const type = document.getElementById("goalType").value || "other";
+  const pointA = document.getElementById("goalPointA").value.trim();
+  const pointB = document.getElementById("goalPointB").value.trim();
 
   if (!name) {
     alert(t("goals.enterName"));
@@ -1938,28 +2294,6 @@ function renderGoalsList() {
   }
 
   activeGoals.forEach(goal => goalsList.appendChild(makeGoalCard(goal)));
-}
-
-function toggleGoalDetails(goalId) {
-  closeActionMenu();
-  if (expandedGoalIds.has(goalId)) {
-    expandedGoalIds.delete(goalId);
-    openGoalArchiveIds.delete(goalId);
-  } else {
-    expandedGoalIds.add(goalId);
-  }
-  renderGoalsList();
-}
-
-function toggleGoalTaskArchive(goalId) {
-  closeActionMenu();
-  if (openGoalArchiveIds.has(goalId)) {
-    openGoalArchiveIds.delete(goalId);
-  } else {
-    openGoalArchiveIds.clear();
-    openGoalArchiveIds.add(goalId);
-  }
-  renderGoalsList();
 }
 
 function renderGoalOverview() {
@@ -2108,8 +2442,7 @@ function getGoalArchiveDate(goal) {
 
 function makeGoalCard(goal) {
   const card = document.createElement("div");
-  const isExpanded = expandedGoalIds.has(goal.id);
-  const isArchiveOpen = openGoalArchiveIds.has(goal.id);
+  card.className = "goal-item";
   const progress = getGoalProgress(goal);
   const sortedTasks = getSortedGoalTasks(goal);
   const activeTasks = sortedTasks.filter(task => !task.done);
@@ -2118,93 +2451,71 @@ function makeGoalCard(goal) {
   const typeLabel = getGoalTypeLabel(goal.type);
   const canFinish = progress.totalCount > 0 && progress.doneCount === progress.totalCount;
 
-  card.className = `goal-item ${isExpanded ? "expanded" : "collapsed"}`;
   card.innerHTML = `
-    <button class="goal-title-toggle" type="button" aria-expanded="${String(isExpanded)}">
-      <span class="goal-name">${escapeHtml(goal.name)}</span>
-      <span class="goal-toggle-icon" aria-hidden="true">${isExpanded ? "−" : "+"}</span>
-    </button>
-
-    <div class="goal-details" ${isExpanded ? "" : "hidden"}>
-      <div class="goal-head">
+    <div class="goal-head">
+      <div>
         <div class="goal-type">${escapeHtml(typeLabel)}</div>
-        <div class="goal-card-actions">
-          <button class="primary goal-result" type="button">${t("goals.finishGoal")}</button>
-        </div>
+        <div class="goal-name">${escapeHtml(goal.name)}</div>
       </div>
-
-      <div class="goal-route-grid">
-        <div class="goal-route-box">
-          <span>${t("goals.pointA")}</span>
-          <strong>${escapeHtml(goal.pointA || t("goals.notSet"))}</strong>
-        </div>
-        <div class="goal-route-box">
-          <span>${t("goals.pointB")}</span>
-          <strong>${escapeHtml(goal.pointB || t("goals.notSet"))}</strong>
-        </div>
+      <div class="goal-card-actions">
+        <button class="primary goal-result" type="button">${t("goals.finishGoal")}</button>
       </div>
+    </div>
 
-      <div class="goal-progress-line">
-        <div class="goal-progress-fill"></div>
+    <div class="goal-route-grid">
+      <div class="goal-route-box">
+        <span>${t("goals.pointA")}</span>
+        <strong>${escapeHtml(goal.pointA || t("goals.notSet"))}</strong>
       </div>
-
-      <div class="goal-stats">
-        <div class="goal-stat">
-          <span>${Math.round(progress.percent)}%</span>
-          <span>${t("goals.progress")}</span>
-        </div>
-        <div class="goal-stat">
-          <span>${progress.doneCount}/${progress.totalCount}</span>
-          <span>${t("goals.tasksClosed")}</span>
-        </div>
-        <div class="goal-stat">
-          <span>${escapeHtml(nextTask ? formatDeadlineShort(nextTask.deadline) : "—")}</span>
-          <span>${t("goals.nextDeadline")}</span>
-        </div>
+      <div class="goal-route-box">
+        <span>${t("goals.pointB")}</span>
+        <strong>${escapeHtml(goal.pointB || t("goals.notSet"))}</strong>
       </div>
+    </div>
 
-      <div class="goal-workflow">
-        <div class="goal-workflow-head">
-          <div>
-            <div class="section-kicker">${t("goals.taskPlan")}</div>
-            <h3>${t("goals.nextDeadline")}</h3>
-          </div>
-          <div class="goal-workflow-actions">
-            <button class="secondary goal-archive-toggle" type="button" aria-expanded="${String(isArchiveOpen)}">
-              ${t("goals.taskArchive")} <span>${archivedTasks.length}</span>
-            </button>
-            <button class="primary add-goal-task-btn" type="button">${t("goals.addTask")}</button>
-          </div>
-        </div>
+    <div class="goal-progress-line">
+      <div class="goal-progress-fill"></div>
+    </div>
 
-        <div class="goal-next">
-          ${canFinish ? t("goals.allTasksClosed") : nextTask ? makeNextTaskHtml(nextTask) : t("goals.noNextTask")}
-        </div>
-
-        <div class="goal-task-form">
-          <input class="goal-task-title-input" placeholder="${t("goals.taskPlaceholder")}" />
-          <input class="goal-task-deadline-input" type="date" />
-        </div>
-
-        <div class="goal-task-list"></div>
-
-        <div class="goal-archive-popover" ${isArchiveOpen ? "" : "hidden"}>
-          <div class="goal-task-archive">
-            <div class="goal-task-archive-head">
-              <div>
-                <div class="section-kicker">${t("goals.taskArchive")}</div>
-                <h3>${t("goals.completedTasks")}</h3>
-              </div>
-              <span>${archivedTasks.length}</span>
-            </div>
-            <div class="goal-task-archive-list"></div>
-          </div>
-        </div>
+    <div class="goal-stats">
+      <div class="goal-stat">
+        <span>${Math.round(progress.percent)}%</span>
+        <span>${t("goals.progress")}</span>
       </div>
+      <div class="goal-stat">
+        <span>${progress.doneCount}/${progress.totalCount}</span>
+        <span>${t("goals.tasksClosed")}</span>
+      </div>
+      <div class="goal-stat">
+        <span>${escapeHtml(nextTask ? formatDeadlineShort(nextTask.deadline) : "—")}</span>
+        <span>${t("goals.nextDeadline")}</span>
+      </div>
+    </div>
+
+    <div class="goal-next">
+      ${canFinish ? t("goals.allTasksClosed") : nextTask ? makeNextTaskHtml(nextTask) : t("goals.noNextTask")}
+    </div>
+
+    <div class="goal-task-form">
+      <input class="goal-task-title-input" placeholder="${t("goals.taskPlaceholder")}" />
+      <input class="goal-task-deadline-input" type="date" />
+      <button class="success add-goal-task-btn" type="button">${t("goals.addTask")}</button>
+    </div>
+
+    <div class="goal-task-list"></div>
+
+    <div class="goal-task-archive">
+      <div class="goal-task-archive-head">
+        <div>
+          <div class="section-kicker">${t("goals.taskArchive")}</div>
+          <h3>${t("goals.completedTasks")}</h3>
+        </div>
+        <span>${archivedTasks.length}</span>
+      </div>
+      <div class="goal-task-archive-list"></div>
     </div>
   `;
 
-  card.querySelector(".goal-title-toggle").onclick = () => toggleGoalDetails(goal.id);
   card.querySelector(".goal-result").onclick = () => openGoalResultModal(goal.id);
   card.querySelector(".goal-card-actions").appendChild(makeActionMenu([
     {
@@ -2218,7 +2529,6 @@ function makeGoalCard(goal) {
     }
   ], t("goals.menuGoalLabel", { name: goal.name || t("habit.unnamed") })));
   card.querySelector(".add-goal-task-btn").onclick = () => addGoalTask(goal.id, card);
-  card.querySelector(".goal-archive-toggle").onclick = () => toggleGoalTaskArchive(goal.id);
   card.querySelector(".goal-progress-fill").style.width = `${progress.percent}%`;
 
   const taskList = card.querySelector(".goal-task-list");
@@ -2236,6 +2546,7 @@ function makeGoalCard(goal) {
 
 function makeNextTaskHtml(task) {
   return `
+    <span>${t("goals.nextTaskLabel")}</span>
     <strong>${escapeHtml(task.title || t("data.taskFallback"))}</strong>
     <small>${escapeHtml(formatDeadlineLong(task.deadline))}</small>
   `;
@@ -2253,7 +2564,7 @@ function makeGoalTaskItem(goal, task) {
       <div class="goal-task-meta">${escapeHtml(formatDeadlineLong(task.deadline))}</div>
     </div>
     <div class="deadline-pill ${deadlineState.className}">${escapeHtml(deadlineState.text)}</div>
-    <button class="primary goal-task-work" type="button">${t("workspace.label")}</button>
+    <button class="primary goal-task-work" type="button">${t("goals.work")}</button>
   `;
 
   item.querySelector(".quest-check").onclick = () => toggleGoalTask(goal.id, task.id);
@@ -2289,6 +2600,7 @@ function renderGoalTaskArchive(goal, list, options = {}) {
 
 function makeGoalArchiveTaskItem(goal, task, options = {}) {
   const item = document.createElement("div");
+  const workspaceMeta = getTaskWorkspaceMeta(task);
   const statusText = task.done
     ? t("goals.taskClosedAt", { date: task.completedAt ? formatDeadlineLong(task.completedAt) : t("goals.noDate") })
     : t("goals.taskNotClosed");
@@ -2302,6 +2614,7 @@ function makeGoalArchiveTaskItem(goal, task, options = {}) {
       <div class="goal-task-meta">${escapeHtml(statusText)} · ${escapeHtml(t("goals.deadlineMeta", { date: formatDeadlineLong(task.deadline) }))}</div>
     </div>
     <div class="deadline-pill ${statusClass}">${task.done ? t("goals.taskInArchive") : t("goals.taskOpen")}</div>
+    <div class="goal-task-workspace-meta">${escapeHtml(workspaceMeta)}</div>
     <button class="primary goal-task-work" type="button">${t("workspace.label")}</button>
   `;
 
@@ -2764,6 +3077,18 @@ function sortArchivedGoalTasks(a, b) {
   return String(a.title || "").localeCompare(String(b.title || ""));
 }
 
+function getTaskWorkspaceMeta(task) {
+  const workspace = task.workspace && typeof task.workspace === "object" ? task.workspace : {};
+  const notes = typeof workspace.notes === "string" ? workspace.notes.trim() : "";
+  const miniGoals = Array.isArray(workspace.miniGoals) ? workspace.miniGoals : [];
+  const miniDone = miniGoals.filter(item => item.done).length;
+  const parts = [];
+
+  if (notes) parts.push(t("workspace.hasNotes"));
+  if (miniGoals.length) parts.push(`${miniDone}/${miniGoals.length} ${tn("counts.miniGoal", miniGoals.length).replace(String(miniGoals.length), "").trim()}`);
+  return parts.length ? parts.join(" · ") : t("workspace.emptyWorkspace");
+}
+
 function getNextGoalTask(goal) {
   return getSortedGoalTasks(goal).find(task => !task.done) || null;
 }
@@ -3090,12 +3415,232 @@ function getWeekdayLabels() {
   return ["mon", "tue", "wed", "thu", "fri", "sat", "sun"].map(day => t(`calendar.weekday.${day}`));
 }
 
+function formatGoalMetric(value, unit = "") {
+  if (value === "" || value === null || value === undefined) return "";
+  const suffix = unit ? ` ${unit}` : "";
+  return `${Number(value)}${suffix}`;
+}
+
+function renameHabit(habit) {
+  const newName = prompt(t("habit.promptName"), habit.name);
+  if (!newName || !newName.trim()) return;
+
+  const newTarget = prompt(t("habit.promptTarget"), habit.target || "");
+  const newUnit = prompt(t("habit.promptUnit"), habit.unit || "");
+
+  habit.name = newName.trim();
+  habit.target = newTarget === "" ? "" : Number(newTarget);
+  habit.unit = newUnit || "";
+  markDirty();
+  render();
+}
+
 function deleteHabit(habit) {
   if (!confirm(t("habit.confirmDelete", { name: habit.name }))) return;
   data.habits = data.habits.filter(h => h.id !== habit.id);
   Object.values(data.records).forEach(day => delete day[habit.id]);
   markDirty();
   render();
+}
+
+function getRecord(dateKey, habitId, create = true) {
+  if (!data.records[dateKey]) {
+    if (!create) return null;
+    data.records[dateKey] = {};
+  }
+
+  if (!data.records[dateKey][habitId]) {
+    if (!create) return null;
+    data.records[dateKey][habitId] = { done: false, value: "" };
+  }
+
+  return data.records[dateKey][habitId];
+}
+
+function saveRecord(dateKey, habitId, record) {
+  if (!data.records[dateKey]) data.records[dateKey] = {};
+  data.records[dateKey][habitId] = record;
+}
+
+function calculateStreak(habitId) {
+  let streak = 0;
+  const cursor = new Date();
+
+  for (let i = 0; i < 3650; i++) {
+    const key = toDateInputValue(cursor);
+    const rec = data.records[key]?.[habitId];
+    if (rec?.done) {
+      streak += 1;
+      cursor.setDate(cursor.getDate() - 1);
+    } else {
+      break;
+    }
+  }
+
+  return streak;
+}
+
+function getPreviousDateKey(dateKey) {
+  const date = parseDateKey(dateKey);
+  date.setDate(date.getDate() - 1);
+  return toDateInputValue(date);
+}
+
+function isHabitDoneToday(habitId) {
+  const todayKey = toDateInputValue(new Date());
+  return Boolean(data.records[todayKey]?.[habitId]?.done);
+}
+
+function isTodayComplete() {
+  if (data.habits.length === 0) return false;
+  const todayKey = toDateInputValue(new Date());
+  return countDoneRecordsForDate(todayKey) === data.habits.length;
+}
+
+function calculateMotivationalHabitStreak(habitId) {
+  if (isHabitDoneToday(habitId)) return calculateStreak(habitId);
+
+  const todayKey = toDateInputValue(new Date());
+  const yesterdayKey = getPreviousDateKey(todayKey);
+  return calculateStreakAtDate(habitId, yesterdayKey) + 1;
+}
+
+function getMotivationalHabitStreakStartDate(habitId) {
+  const todayKey = toDateInputValue(new Date());
+
+  if (isHabitDoneToday(habitId)) {
+    return getHabitStreakStartDate(habitId, todayKey);
+  }
+
+  const yesterdayKey = getPreviousDateKey(todayKey);
+  return getHabitStreakStartDate(habitId, yesterdayKey) || todayKey;
+}
+
+function getProjectedTodayValue(habit) {
+  const todayKey = toDateInputValue(new Date());
+  const record = data.records[todayKey]?.[habit.id];
+  const existingValue = Number(record?.value || 0);
+  const target = Number(habit.target || 0);
+
+  return existingValue > 0 ? existingValue : target;
+}
+
+function calculateMotivationalTotalBetweenDates(habit, startDateKey, endDateKey) {
+  const todayKey = toDateInputValue(new Date());
+  let total = calculateTotalBetweenDates(habit.id, startDateKey, endDateKey);
+
+  if (startDateKey <= todayKey && endDateKey >= todayKey && !isHabitDoneToday(habit.id)) {
+    total += getProjectedTodayValue(habit);
+  }
+
+  return total;
+}
+
+function getHabitStreakStartDate(habitId, endDateKey) {
+  const cursor = parseDateKey(endDateKey);
+  let start = null;
+
+  for (let i = 0; i < 3650; i++) {
+    const key = toDateInputValue(cursor);
+    const rec = data.records[key]?.[habitId];
+    if (rec?.done) {
+      start = key;
+      cursor.setDate(cursor.getDate() - 1);
+    } else {
+      break;
+    }
+  }
+
+  return start;
+}
+
+function calculateTotalUntilDate(habitId, endDateKey) {
+  let total = 0;
+  Object.keys(data.records).forEach(dateKey => {
+    if (dateKey <= endDateKey) {
+      const rec = data.records[dateKey]?.[habitId];
+      if (rec?.done) total += Number(rec.value || 0);
+    }
+  });
+  return total;
+}
+
+function calculateTotalBetweenDates(habitId, startDateKey, endDateKey) {
+  let total = 0;
+  Object.keys(data.records).forEach(dateKey => {
+    if (dateKey >= startDateKey && dateKey <= endDateKey) {
+      const rec = data.records[dateKey]?.[habitId];
+      if (rec?.done) total += Number(rec.value || 0);
+    }
+  });
+  return total;
+}
+
+function calculateLifetimeTotal(habitId) {
+  let total = 0;
+  Object.keys(data.records).forEach(dateKey => {
+    const rec = data.records[dateKey]?.[habitId];
+    if (rec?.done) total += Number(rec.value || 0);
+  });
+  return total;
+}
+
+function calculateGlobalStreak() {
+  return calculateGlobalStreakAtDate(toDateInputValue(new Date()));
+}
+
+function calculateMotivationalGlobalStreak() {
+  if (data.habits.length === 0) return 0;
+  if (isTodayComplete()) return calculateGlobalStreak();
+
+  const todayKey = toDateInputValue(new Date());
+  const yesterdayKey = getPreviousDateKey(todayKey);
+  return calculateGlobalStreakAtDate(yesterdayKey) + 1;
+}
+
+function getOldestHabit() {
+  if (data.habits.length === 0) return null;
+
+  return [...data.habits].sort((a, b) => {
+    const aCreated = a.createdAt || "9999-12-31";
+    const bCreated = b.createdAt || "9999-12-31";
+    if (aCreated !== bCreated) return aCreated.localeCompare(bCreated);
+    return String(a.id).localeCompare(String(b.id));
+  })[0];
+}
+
+function calculateGlobalStreakAtDate(dateKey) {
+  const oldestHabit = getOldestHabit();
+  if (!oldestHabit) return 0;
+
+  return calculateStreakAtDate(oldestHabit.id, dateKey);
+}
+
+function calculateStreakAtDate(habitId, dateKey) {
+  let streak = 0;
+  const cursor = parseDateKey(dateKey);
+
+  for (let i = 0; i < 3650; i++) {
+    const key = toDateInputValue(cursor);
+    const rec = data.records[key]?.[habitId];
+    if (rec?.done) {
+      streak += 1;
+      cursor.setDate(cursor.getDate() - 1);
+    } else {
+      break;
+    }
+  }
+
+  return streak;
+}
+
+function calculateProjectedGlobalStreakAtDate(futureDateKey) {
+  const todayKey = toDateInputValue(new Date());
+  const todayStreak = calculateMotivationalGlobalStreak();
+  const futureDate = parseDateKey(futureDateKey);
+  const todayDate = parseDateKey(todayKey);
+  const daysAhead = Math.ceil((futureDate - todayDate) / 86400000);
+  return todayStreak + Math.max(0, daysAhead);
 }
 
 function goToToday() {
@@ -3118,12 +3663,6 @@ function changeVisibleMonth(delta) {
 
 window.addEventListener("beforeunload", (event) => {
   if (!isDirty) return;
-  flushPendingSave();
   event.preventDefault();
   event.returnValue = "";
-});
-
-window.addEventListener("pagehide", flushPendingSave);
-document.addEventListener("visibilitychange", () => {
-  if (document.visibilityState === "hidden") flushPendingSave();
 });

@@ -1,6 +1,6 @@
 # Project Instructions
 
-Before adding or changing any UI in Hendle, read `docs/DESIGN_SYSTEM.md`.
+Before adding or changing any UI in Habitline, read `docs/DESIGN_SYSTEM.md`.
 
 The current design language is part of the product contract:
 

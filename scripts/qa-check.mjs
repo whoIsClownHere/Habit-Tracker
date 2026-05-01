@@ -1,7 +1,16 @@
-import { readdir, readFile } from "node:fs/promises";
-import path from "node:path";
-import { dictionaries } from "../src/app/locales/index.js";
+import { readFile } from "node:fs/promises";
 
+const DICTIONARY_RE = /const dictionaries = ([\s\S]*?);\n\nlet currentLocale/;
+const filesWithTranslationKeys = ["index.html", "src/app/main.js"];
+
+const i18nSource = await readFile("src/app/i18n.js", "utf8");
+const dictionaryMatch = i18nSource.match(DICTIONARY_RE);
+
+if (!dictionaryMatch) {
+  fail("Could not find dictionaries in src/app/i18n.js.");
+}
+
+const dictionaries = Function(`return ${dictionaryMatch[1]}`)();
 const locales = Object.keys(dictionaries);
 const baseKeys = Object.keys(dictionaries.en).sort();
 let hasFailure = false;
@@ -19,12 +28,6 @@ for (const locale of locales) {
   }
 }
 
-const filesWithTranslationKeys = [
-  "index.html",
-  ...(await listJavaScriptFiles("src/app"))
-    .filter(file => !file.includes(`${path.sep}locales${path.sep}`))
-    .sort()
-];
 const usedKeys = new Set();
 const keyPatterns = [
   /\bt\(\s*["']([^"']+)["']/g,
@@ -57,17 +60,6 @@ if (hasFailure) {
 }
 
 console.log(`QA check passed: ${locales.length} locales, ${baseKeys.length} dictionary keys, ${usedKeys.size} UI keys.`);
-
-async function listJavaScriptFiles(directory) {
-  const entries = await readdir(directory, { withFileTypes: true });
-  const files = await Promise.all(entries.map(async entry => {
-    const fullPath = path.join(directory, entry.name);
-    if (entry.isDirectory()) return listJavaScriptFiles(fullPath);
-    return entry.isFile() && entry.name.endsWith(".js") ? [fullPath] : [];
-  }));
-
-  return files.flat();
-}
 
 function fail(message) {
   console.error(message);

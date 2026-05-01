@@ -1,10 +1,10 @@
-# Hendle Design System
+# Habitline Design System
 
-This document keeps new blocks, screens, and states feeling like part of Hendle rather than one-off additions.
+This document keeps new blocks, screens, and states feeling like part of Habitline rather than one-off additions.
 
 ## Interface DNA
 
-Hendle is a strict working board for daily discipline:
+Habitline is a strict working board for daily discipline:
 
 - thin 1px rules instead of decorative shadows;
 - square surfaces with a `2px` radius;
