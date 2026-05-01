@@ -1,6 +1,6 @@
-# Habitline
+# Hendle
 
-Habitline is a clean, responsive habit and goal tracker for daily consistency work. The app helps you plan today's habits, record numeric progress, review weekly and monthly completion, and break long-term goals into measurable milestones.
+Hendle is a clean, responsive habit and goal tracker for daily consistency work. The app helps you plan today's habits, record numeric progress, review weekly and monthly completion, and break long-term goals into measurable milestones.
 
 Live demo: https://whoisclownhere.github.io/Habit-Tracker/
 
@@ -17,7 +17,7 @@ Live demo: https://whoisclownhere.github.io/Habit-Tracker/
 - Splits goals into milestones with evidence, metric values, deadlines, and completion status.
 - Saves user data in Firebase Firestore after email/password or Google sign-in.
 - Supports English as the primary language plus Russian, German, Spanish, and French.
-- Includes a local QA account with seed data for repeatable manual testing.
+- Includes a hidden local-only QA mode with seed data for repeatable manual testing.
 - Supports light and dark themes.
 
 ## Tech Stack
@@ -41,13 +41,22 @@ The current app is intentionally lightweight and does not require a frontend fra
 ├── docs
 │   ├── ARCHITECTURE.md
 │   ├── DESIGN_SYSTEM.md
+│   ├── SCALING.md
 │   └── TESTING.md
 ├── scripts
 │   └── qa-check.mjs
 └── src
     ├── app
     │   ├── config
+    │   │   ├── constants.js
     │   │   └── firebaseConfig.js
+    │   ├── data
+    │   ├── dom
+    │   ├── features
+    │   ├── locales
+    │   ├── services
+    │   ├── testing
+    │   ├── ui
     │   ├── utils
     │   │   ├── dates.js
     │   │   └── html.js
@@ -176,13 +185,7 @@ The goals view is for longer routes:
 
 ## Testing
 
-Use the local QA account for repeatable checks without touching Firebase:
-
-```text
-test@habitline.local / test1234
-```
-
-You can also click `Use test account` in the sign-in modal. The QA panel includes seed-data reset controls and scenario prompts. See `docs/TESTING.md`.
+The app has a hidden local-only QA mode for repeatable checks without touching Firebase. It is not exposed in the production UI and is blocked outside `localhost`, `127.0.0.1`, `::1`, or `file:`. The QA panel includes seed-data reset controls and scenario prompts. See `docs/TESTING.md`.
 
 ## Data Model
 
@@ -221,16 +224,22 @@ Goals contain their own milestone list:
 
 ## Development Notes
 
-- `src/app/main.js` currently contains app startup, state management, rendering, event handling, Firebase calls, streak calculations, and chart rendering.
-- `src/app/i18n.js` is the single source of truth for UI copy in English, Russian, German, Spanish, and French.
+- `src/app/main.js` is the app orchestrator: startup, state transitions, UI events, and high-level render flow.
+- `src/app/services/firebase.js` owns Firebase initialization and exported Firebase APIs.
+- `src/app/services/serviceWorker.js` registers production runtime caching.
+- `src/app/services/userBackup.js` restores unsynced signed-in edits and pushes them back to Firestore after reload or reconnect.
+- `src/app/features/habits/metrics.js` contains habit records, streaks, totals, and projected progress calculations.
+- `src/app/ui/progressChart.js`, `src/app/ui/theme.js`, and `src/app/ui/actionMenu.js` own reusable UI behavior.
+- `src/app/i18n.js` is the locale runtime; dictionaries live in `src/app/locales`.
 - `src/app/utils/dates.js` contains reusable date helpers for local date keys, weeks, months, and ranges.
 - `src/app/utils/html.js` contains escaping helpers for safe HTML string rendering.
 - `docs/ARCHITECTURE.md` describes the current architecture and likely refactor targets.
+- `docs/SCALING.md` describes the 10K-user baseline, hosting requirements, and Firestore constraints.
 - `docs/DESIGN_SYSTEM.md` captures the visual language, design tokens, spacing, typography, layout rules, and templates for future UI.
 
 ## Roadmap Ideas
 
-- Split `main.js` into smaller modules for state, rendering, charts, goals, and Firebase persistence.
+- Continue splitting goal rendering and modal flows into feature modules.
 - Move Firebase config to an environment-based setup for safer deployment workflows.
 - Add tests for streak, projection, and progress calculations.
 - Add import/export for local backups.

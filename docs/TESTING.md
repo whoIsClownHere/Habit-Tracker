@@ -1,15 +1,14 @@
-# Habitline Testing
+# Hendle Testing
 
-Habitline includes an isolated local QA account for repeatable manual testing without touching Firebase user data.
+Hendle includes an isolated local-only QA account for repeatable manual testing without touching Firebase user data.
 
 ## Test Account
 
-Use either path:
+The test account is intentionally hidden from the public UI. It works only on `localhost`, `127.0.0.1`, `::1`, or `file:` and is blocked on production hosts.
 
-- Click `Sign in / register` and then `Use test account`.
-- Enter `test@habitline.local` with password `test1234` in the sign-in form.
+Use `test@hendle.local` / `test1234` in the normal sign-in form while running the app locally.
 
-The account is local to the browser. Its session is stored under `habitline.testSession`; its data is stored under `habitline.testData`.
+The account is local to the browser. Its session is stored under `hendle.testSession`; its data is stored under `hendle.testData`. Legacy `habitline.*` keys are migrated when present.
 
 ## Seed Data
 
@@ -26,7 +25,7 @@ Use the QA panel at the top of the app to reload seed data or reset the local te
 ## Manual Smoke Scenarios
 
 1. Auth and session
-   Open the auth modal, use the test account, reload the page, sign out, and sign back in.
+   Open the auth modal, enter the internal QA credentials, reload the page, sign out, and sign back in.
 
 2. Daily habits
    Complete a habit, edit its numeric value, search active habits, open `Completed today`, and return a completed habit to active.

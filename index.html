@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Habitline</title>
+  <title>Hendle</title>
   <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' fill='%23111111'/%3E%3Cpath d='M16 34l10 10 22-24' fill='none' stroke='%23ffffff' stroke-width='7'/%3E%3C/svg%3E" />
   <link rel="stylesheet" href="./src/styles/main.css" />
 </head>
@@ -20,7 +20,7 @@
               <circle class="logo-dot" cx="46" cy="34" r="3.5" />
             </svg>
           </div>
-          <h1>Habitline</h1>
+          <h1>Hendle</h1>
         </div>
         <div class="subtitle" data-i18n="app.subtitle">Plan today's habits, record quantities, and keep your streak alive.</div>
         <div class="status">
@@ -226,9 +226,7 @@
         <div class="day-review-grid">
           <div class="day-picker-panel">
             <div class="day-review-title" id="reviewDayTitle" data-i18n="review.today">Today</div>
-            <div class="day-review-subtitle" data-i18n="review.subtitle">Click a day in the weekly or monthly calendar to inspect history.</div>
             <input type="date" id="reviewDateInput" />
-            <span class="readonly-label" data-i18n="review.readonly">read-only</span>
           </div>
           <div>
             <div class="review-streak-box" id="reviewStreakBox">
@@ -241,7 +239,7 @@
             <div class="future-projection-box" id="futureProjectionBox" hidden>
               <div class="section-kicker" data-i18n="projection.kicker">Projection</div>
               <div class="future-projection-title" id="futureProjectionTitle" data-i18n="projection.title">Projection</div>
-              <div class="future-projection-text" id="futureProjectionText"></div>
+              <div class="future-projection-text" id="futureProjectionText" hidden></div>
               <div class="projection-table" id="futureProjectionTable"></div>
             </div>
             <div id="daySummaryList" class="day-summary-list"></div>
@@ -448,8 +446,6 @@
 
       <div class="auth-divider"><span data-i18n="auth.or">or</span></div>
       <button id="authGoogleBtn" class="google-btn auth-google-btn" type="button"><span>G</span> <span data-i18n="auth.googleLogin">Sign in with Google</span></button>
-      <button id="authTestBtn" class="secondary test-account-btn" type="button" data-i18n="testing.useAccount">Use test account</button>
-      <div class="test-account-hint" data-i18n="testing.accountHint">Local QA account: test@habitline.local / test1234</div>
       <div id="authMessage" class="auth-message" role="status" aria-live="polite"></div>
     </div>
   </div>
