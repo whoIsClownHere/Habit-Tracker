@@ -772,14 +772,6 @@ input:focus, select:focus, textarea:focus { border-color: var(--text); }
   margin-top: var(--space-3);
 }
 
-.test-account-hint {
-  margin-top: var(--space-3);
-  color: var(--muted);
-  font-size: 12px;
-  line-height: 1.35;
-  text-align: center;
-}
-
 .testing-panel {
   margin-bottom: var(--layout-gap);
   border-color: color-mix(in srgb, var(--info), transparent 50%);
@@ -1514,6 +1506,18 @@ input:focus, select:focus, textarea:focus { border-color: var(--text); }
   white-space: nowrap;
 }
 
+.goal-archive-open-btn {
+  border-top: 0;
+  border-left: 0;
+  appearance: none;
+  text-align: left;
+  cursor: pointer;
+}
+
+.goal-archive-open-btn:hover {
+  background: var(--card-2);
+}
+
 .goal-overview-item {
   min-height: 86px;
   display: flex;
@@ -1583,11 +1587,6 @@ input:focus, select:focus, textarea:focus { border-color: var(--text); }
   gap: 14px;
 }
 
-.goals-archive-section {
-  border-top: var(--rule);
-  padding-top: 20px;
-}
-
 .goal-archive-tabs {
   display: grid;
   grid-template-columns: repeat(2, auto);
@@ -1619,6 +1618,13 @@ input:focus, select:focus, textarea:focus { border-color: var(--text); }
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 14px;
+  flex: 1 1 auto;
+  overflow: auto;
+  min-height: 0;
+}
+
+.goal-archive-modal-panel {
+  width: min(980px, 100%);
 }
 
 .goal-archive-card {
@@ -1680,6 +1686,50 @@ input:focus, select:focus, textarea:focus { border-color: var(--text); }
 }
 
 .goal-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 14px;
+}
+
+.goal-collapse-trigger {
+  width: 100%;
+  min-height: 48px;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 34px;
+  align-items: center;
+  gap: 12px;
+  border: 0;
+  background: transparent;
+  padding: 0;
+  color: var(--text);
+  text-align: left;
+}
+
+.goal-collapse-icon {
+  display: grid;
+  width: 34px;
+  height: 34px;
+  place-items: center;
+  border: var(--rule);
+  font-size: 20px;
+  line-height: 1;
+  transition: transform 0.2s ease;
+}
+
+.goal-item.collapsed .goal-collapse-icon {
+  transform: rotate(-90deg);
+}
+
+.goal-card-body {
+  margin-top: 14px;
+}
+
+.goal-item.collapsed .goal-card-body {
+  display: none;
+}
+
+.goal-card-toolbar {
   display: flex;
   justify-content: space-between;
   align-items: flex-start;
@@ -1798,7 +1848,7 @@ input:focus, select:focus, textarea:focus { border-color: var(--text); }
   color: var(--muted);
   font-size: 13px;
   line-height: 1.4;
-  margin-bottom: 14px;
+  min-width: 0;
 }
 
 .goal-next span,
@@ -1823,10 +1873,44 @@ input:focus, select:focus, textarea:focus { border-color: var(--text); }
 
 .goal-task-form {
   display: grid;
-  grid-template-columns: minmax(220px, 1fr) minmax(150px, 0.45fr) auto;
+  grid-template-columns: minmax(220px, 1fr) minmax(150px, 0.45fr);
   gap: 10px;
   align-items: stretch;
   margin-bottom: 12px;
+}
+
+.goal-work-section {
+  border: var(--rule);
+  background: var(--card-2);
+  padding: 12px;
+}
+
+.goal-work-section-head {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 10px;
+}
+
+.goal-work-section-head h3 {
+  margin-top: 4px;
+  font-size: 22px;
+  line-height: 1.05;
+}
+
+.goal-task-command-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 10px;
+  align-items: stretch;
+  margin-bottom: 10px;
+}
+
+.goal-task-command-row .add-goal-task-btn {
+  min-width: 108px;
+  background: var(--text);
+  color: var(--bg);
 }
 
 .goal-task-list {
@@ -2182,6 +2266,15 @@ input:focus, select:focus, textarea:focus { border-color: var(--text); }
   border-color: color-mix(in srgb, var(--success), transparent 55%);
 }
 
+.day-summary-item.inactive {
+  color: var(--muted);
+  background: var(--card-2);
+}
+
+.day-summary-item.inactive .day-summary-value {
+  color: var(--muted);
+}
+
 .day-summary-name {
   font-family: var(--font-display);
   font-size: 20px;
@@ -2358,6 +2451,7 @@ canvas {
   .goals-hero,
   .goal-archive-list,
   .goal-route-grid,
+  .goal-task-command-row,
   .workspace-hero,
   .workspace-board {
     grid-template-columns: 1fr;
@@ -2428,7 +2522,7 @@ canvas {
   .calendar-head,
   .review-streak-box,
   .goals-title-row,
-  .goal-head,
+  .goal-card-toolbar,
   .goal-archive-head {
     flex-direction: column;
     align-items: stretch;

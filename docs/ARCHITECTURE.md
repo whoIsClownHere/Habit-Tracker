@@ -36,7 +36,7 @@ When adding a UI change, add translation keys for all supported locales in the s
 
 ## Testing Mode
 
-The app has an isolated local QA account: `test@habitline.local` / `test1234`. It is not a Firebase account. The session and seeded data are stored in `localStorage`, so QA can exercise auth-like flows, persistence, habits, goals, workspaces, and localization without touching production user documents.
+The app has an isolated local-only QA account. It is not a Firebase account, and it is available only on local development hosts after QA access is enabled with `?qa=1`. The session and seeded data are stored in `localStorage`, so QA can exercise auth-like flows, persistence, habits, goals, workspaces, and localization without touching production user documents.
 
 The QA panel appears only in test mode and provides seed-data reset controls plus smoke-scenario prompts.
 

@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Habitline</title>
   <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' fill='%23111111'/%3E%3Cpath d='M16 34l10 10 22-24' fill='none' stroke='%23ffffff' stroke-width='7'/%3E%3C/svg%3E" />
-  <link rel="stylesheet" href="./src/styles/main.css" />
+  <link rel="stylesheet" href="./src/styles/main.css?v=20260502-qa-access" />
 </head>
 <body>
   <div class="app">
@@ -333,10 +333,10 @@
               <span id="goalsDueCount">0</span>
               <span data-i18n="goals.due">urgent</span>
             </div>
-            <div class="goal-overview-item">
+            <button id="openGoalArchiveBtn" class="goal-overview-item goal-archive-open-btn" type="button">
               <span id="goalsArchivedCount">0</span>
               <span data-i18n="goals.archived">archived</span>
-            </div>
+            </button>
             <button id="addGoalOpenBtn" class="goal-create-cell" type="button">
               <span>+</span>
               <strong data-i18n="goals.newGoal">New goal</strong>
@@ -348,23 +348,6 @@
           <div id="goalsList" class="goals-list"></div>
         </section>
 
-        <section class="goals-archive-section">
-          <div class="section-top">
-            <div>
-              <div class="section-kicker" data-i18n="goals.archiveKicker">Archive</div>
-              <h2 data-i18n="goals.archiveTitle">Goal archive</h2>
-            </div>
-            <div class="goal-archive-tabs" role="group" data-i18n-aria-label="goals.archiveArea" aria-label="Goal archive section">
-              <button id="goalArchiveCompletedBtn" class="active" type="button">
-                <span data-i18n="goals.completedArchive">Completed</span> <span id="goalArchiveCompletedCount">0</span>
-              </button>
-              <button id="goalArchiveFailedBtn" type="button">
-                <span data-i18n="goals.failedArchive">Failed</span> <span id="goalArchiveFailedCount">0</span>
-              </button>
-            </div>
-          </div>
-          <div id="goalArchiveList" class="goal-archive-list"></div>
-        </section>
       </div>
 
       <div id="goalWorkspaceView" class="app-view goal-workspace-page" hidden>
@@ -448,8 +431,7 @@
 
       <div class="auth-divider"><span data-i18n="auth.or">or</span></div>
       <button id="authGoogleBtn" class="google-btn auth-google-btn" type="button"><span>G</span> <span data-i18n="auth.googleLogin">Sign in with Google</span></button>
-      <button id="authTestBtn" class="secondary test-account-btn" type="button" data-i18n="testing.useAccount">Use test account</button>
-      <div class="test-account-hint" data-i18n="testing.accountHint">Local QA account: test@habitline.local / test1234</div>
+      <button id="authTestBtn" class="secondary test-account-btn" type="button" data-i18n="testing.useAccount" hidden>Use test account</button>
       <div id="authMessage" class="auth-message" role="status" aria-live="polite"></div>
     </div>
   </div>
@@ -468,6 +450,31 @@
         <div class="list-meta" id="completedModalMeta"></div>
       </div>
       <div class="completed-modal-list" id="completedModalList"></div>
+    </div>
+  </div>
+
+  <div class="modal-backdrop" id="goalArchiveModal" hidden>
+    <div class="modal-panel goal-archive-modal-panel" role="dialog" aria-modal="true" aria-labelledby="goalArchiveModalTitle">
+      <div class="modal-head">
+        <div>
+          <div class="section-kicker" data-i18n="goals.archiveKicker">Archive</div>
+          <h2 id="goalArchiveModalTitle" data-i18n="goals.archiveTitle">Goal archive</h2>
+        </div>
+        <button id="goalArchiveModalCloseBtn" type="button" data-i18n="auth.close">Close</button>
+      </div>
+      <div class="modal-tools">
+        <input id="goalArchiveSearchInput" type="search" data-i18n-placeholder="goals.archiveSearchPlaceholder" placeholder="Search archived goals" />
+        <div class="goal-archive-tabs" role="group" data-i18n-aria-label="goals.archiveArea" aria-label="Goal archive section">
+          <button id="goalArchiveCompletedBtn" class="active" type="button">
+            <span data-i18n="goals.completedArchive">Completed</span> <span id="goalArchiveCompletedCount">0</span>
+          </button>
+          <button id="goalArchiveFailedBtn" type="button">
+            <span data-i18n="goals.failedArchive">Failed</span> <span id="goalArchiveFailedCount">0</span>
+          </button>
+        </div>
+        <div class="list-meta" id="goalArchiveModalMeta"></div>
+      </div>
+      <div id="goalArchiveList" class="goal-archive-list"></div>
     </div>
   </div>
 
@@ -522,6 +529,6 @@
   <div id="goalToast" class="goal-toast" role="status" aria-live="polite" hidden></div>
 
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.5.0/dist/chart.umd.min.js"></script>
-  <script type="module" src="./src/app/main.js"></script>
+  <script type="module" src="./src/app/main.js?v=20260502-qa-access"></script>
 </body>
 </html>

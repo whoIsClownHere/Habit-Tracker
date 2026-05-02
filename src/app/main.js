@@ -57,10 +57,11 @@ const TODAY_SEARCH_SCAN_LIMIT = 5000;
 const TEST_ACCOUNT = {
   uid: "local-test-account",
   email: "test@habitline.local",
-  password: "test1234",
   displayName: "Habitline QA",
   isTestAccount: true
 };
+const QA_ACCESS_KEY = "habitline.qaAccess";
+const QA_ACCESS_QUERY = "qa";
 const TEST_SESSION_KEY = "habitline.testSession";
 const TEST_DATA_KEY = "habitline.testData";
 
@@ -81,11 +82,14 @@ let goalsVisibleDate = new Date();
 let selectedGoalDate = "";
 let hasManualGoalDateSelection = false;
 let goalArchiveMode = "completed";
+let isGoalArchiveModalOpen = false;
+let goalArchiveSearchQuery = "";
 let isGoalResultModalOpen = false;
 let resolvingGoalId = null;
 let goalToastTimer = null;
 let workspaceGoalId = null;
 let workspaceTaskId = null;
+const expandedGoalIds = new Set();
 let activeActionMenu = null;
 let authMode = "login";
 let isAuthModalOpen = false;
@@ -179,6 +183,7 @@ const goalsTotalCount = document.getElementById("goalsTotalCount");
 const goalsActiveCount = document.getElementById("goalsActiveCount");
 const goalsDueCount = document.getElementById("goalsDueCount");
 const goalsArchivedCount = document.getElementById("goalsArchivedCount");
+const openGoalArchiveBtn = document.getElementById("openGoalArchiveBtn");
 const goalsCalendarTitle = document.getElementById("goalsCalendarTitle");
 const goalsCalendarGrid = document.getElementById("goalsCalendarGrid");
 const goalModeMonthBtn = document.getElementById("goalModeMonthBtn");
@@ -192,6 +197,10 @@ const selectedDeadlineList = document.getElementById("selectedDeadlineList");
 const deadlineFocusMeta = document.getElementById("deadlineFocusMeta");
 const prevDeadlineBtn = document.getElementById("prevDeadlineBtn");
 const nextDeadlineBtn = document.getElementById("nextDeadlineBtn");
+const goalArchiveModal = document.getElementById("goalArchiveModal");
+const goalArchiveModalCloseBtn = document.getElementById("goalArchiveModalCloseBtn");
+const goalArchiveSearchInput = document.getElementById("goalArchiveSearchInput");
+const goalArchiveModalMeta = document.getElementById("goalArchiveModalMeta");
 const goalArchiveCompletedBtn = document.getElementById("goalArchiveCompletedBtn");
 const goalArchiveFailedBtn = document.getElementById("goalArchiveFailedBtn");
 const goalArchiveCompletedCount = document.getElementById("goalArchiveCompletedCount");
@@ -246,6 +255,7 @@ document.getElementById("addHabitBtn").addEventListener("click", addHabit);
 addGoalOpenBtn.addEventListener("click", () => openGoalModal());
 goalModalCloseBtn.addEventListener("click", closeGoalModal);
 goalSaveBtn.addEventListener("click", saveGoalFromModal);
+openGoalArchiveBtn.addEventListener("click", openGoalArchiveModal);
 toggleHabitManagerBtn.addEventListener("click", toggleHabitManager);
 document.getElementById("todayBtn").addEventListener("click", goToToday);
 todayHabitSearch.addEventListener("input", (event) => {
@@ -276,11 +286,15 @@ authModal.addEventListener("click", (event) => {
 goalModal.addEventListener("click", (event) => {
   if (event.target === goalModal) closeGoalModal();
 });
+goalArchiveModal.addEventListener("click", (event) => {
+  if (event.target === goalArchiveModal) closeGoalArchiveModal();
+});
 document.addEventListener("keydown", (event) => {
   if (event.key === "Escape") closeActionMenu();
   if (event.key === "Escape" && isAuthModalOpen) closeAuthModal();
   if (event.key === "Escape" && isCompletedModalOpen) closeCompletedModal();
   if (event.key === "Escape" && isGoalModalOpen) closeGoalModal();
+  if (event.key === "Escape" && isGoalArchiveModalOpen) closeGoalArchiveModal();
   if (event.key === "Escape" && isGoalResultModalOpen) closeGoalResultModal();
 });
 document.addEventListener("click", () => closeActionMenu());
@@ -294,6 +308,11 @@ nextGoalPeriodBtn.addEventListener("click", () => changeGoalCalendarPeriod(1));
 todayGoalPeriodBtn.addEventListener("click", goToTodayGoalDate);
 prevDeadlineBtn.addEventListener("click", () => stepSelectedDeadline(-1));
 nextDeadlineBtn.addEventListener("click", () => stepSelectedDeadline(1));
+goalArchiveModalCloseBtn.addEventListener("click", closeGoalArchiveModal);
+goalArchiveSearchInput.addEventListener("input", (event) => {
+  goalArchiveSearchQuery = event.target.value.trim().toLowerCase();
+  renderGoalArchive();
+});
 goalArchiveCompletedBtn.addEventListener("click", () => setGoalArchiveMode("completed"));
 goalArchiveFailedBtn.addEventListener("click", () => setGoalArchiveMode("failed"));
 goalResultCloseBtn.addEventListener("click", closeGoalResultModal);
@@ -333,6 +352,8 @@ themeToggle.addEventListener("click", toggleTheme);
 applyStaticTranslations();
 initTheme();
 refreshStatusText();
+bootstrapQaAccess();
+syncQaAccessControls();
 restoreTestAccountSession();
 switchView(activeView, { updateHash: false });
 
@@ -471,7 +492,7 @@ function closeActionMenu(menu = activeActionMenu) {
 function syncModalOpenState() {
   document.body.classList.toggle(
     "modal-open",
-    isAuthModalOpen || isCompletedModalOpen || isGoalModalOpen || isGoalResultModalOpen
+    isAuthModalOpen || isCompletedModalOpen || isGoalModalOpen || isGoalArchiveModalOpen || isGoalResultModalOpen
   );
 }
 
@@ -555,6 +576,7 @@ function setAuthMode(mode, options = {}) {
   authRegisterTabBtn.classList.toggle("active", isRegister);
   authLoginTabBtn.setAttribute("aria-selected", String(!isRegister));
   authRegisterTabBtn.setAttribute("aria-selected", String(isRegister));
+  syncQaAccessControls();
   if (options.clearMessage !== false) clearAuthMessage();
 }
 
@@ -582,11 +604,6 @@ async function handleAuthSubmit(event) {
   if (authMode === "register" && password !== passwordConfirm) {
     showAuthMessage(t("auth.passwordMismatch"), "error");
     authPasswordConfirmInput.focus();
-    return;
-  }
-
-  if (authMode === "login" && isTestCredentials(email, password)) {
-    startTestAccount({ seedIfMissing: true });
     return;
   }
 
@@ -662,10 +679,6 @@ function handleRedirectResult() {
   handleGoogleRedirectResult();
 }
 
-function isTestCredentials(email, password) {
-  return email.toLowerCase() === TEST_ACCOUNT.email && password === TEST_ACCOUNT.password;
-}
-
 function isTestMode() {
   return Boolean(currentUser?.isTestAccount);
 }
@@ -674,8 +687,43 @@ function getTestUser() {
   return { ...TEST_ACCOUNT };
 }
 
+function bootstrapQaAccess() {
+  if (!isLocalQaHost()) {
+    localStorage.removeItem(QA_ACCESS_KEY);
+    localStorage.removeItem(TEST_SESSION_KEY);
+    return;
+  }
+
+  const accessValue = new URLSearchParams(window.location.search).get(QA_ACCESS_QUERY);
+  if (["1", "true", "local"].includes(String(accessValue).toLowerCase())) {
+    localStorage.setItem(QA_ACCESS_KEY, "active");
+  }
+
+  if (["0", "false", "off"].includes(String(accessValue).toLowerCase())) {
+    localStorage.removeItem(QA_ACCESS_KEY);
+    localStorage.removeItem(TEST_SESSION_KEY);
+  }
+}
+
+function isLocalQaHost() {
+  const host = window.location.hostname;
+  return window.location.protocol === "file:" || host === "localhost" || host === "127.0.0.1" || host === "::1";
+}
+
+function canUseTestAccount() {
+  return isLocalQaHost() && localStorage.getItem(QA_ACCESS_KEY) === "active";
+}
+
+function syncQaAccessControls() {
+  authTestBtn.hidden = !canUseTestAccount();
+}
+
 function restoreTestAccountSession() {
   if (localStorage.getItem(TEST_SESSION_KEY) !== "active") return;
+  if (!canUseTestAccount()) {
+    localStorage.removeItem(TEST_SESSION_KEY);
+    return;
+  }
 
   currentUser = getTestUser();
   data = loadTestData() || createTestingData();
@@ -688,6 +736,8 @@ function restoreTestAccountSession() {
 }
 
 function startTestAccount({ seedIfMissing = false, forceSeed = false } = {}) {
+  if (!canUseTestAccount()) return;
+
   clearPendingSave();
   currentUser = getTestUser();
   localStorage.setItem(TEST_SESSION_KEY, "active");
@@ -1112,11 +1162,33 @@ function refreshStatusText() {
 }
 
 function normalizeData(input) {
+  const records = input.records && typeof input.records === "object" ? input.records : {};
   return {
-    habits: Array.isArray(input.habits) ? input.habits : [],
-    records: input.records && typeof input.records === "object" ? input.records : {},
+    habits: Array.isArray(input.habits) ? input.habits.map(habit => normalizeHabit(habit, records)) : [],
+    records,
     goals: Array.isArray(input.goals) ? input.goals.map(normalizeGoal) : []
   };
+}
+
+function normalizeHabit(habit = {}, records) {
+  const safeHabit = habit && typeof habit === "object" ? habit : {};
+
+  return {
+    ...safeHabit,
+    id: safeHabit.id || crypto.randomUUID(),
+    name: safeHabit.name || t("habit.fallback"),
+    unit: safeHabit.unit || "",
+    target: safeHabit.target ?? "",
+    createdAt: safeHabit.createdAt || inferHabitCreatedAt(safeHabit.id, records) || toDateInputValue(new Date())
+  };
+}
+
+function inferHabitCreatedAt(habitId, records) {
+  if (!habitId) return "";
+
+  return Object.keys(records)
+    .filter(dateKey => records[dateKey]?.[habitId])
+    .sort()[0] || "";
 }
 
 function normalizeGoal(goal) {
@@ -1710,26 +1782,33 @@ function renderDayReview() {
     return;
   }
 
+  const activeHabitsForDate = getActiveHabitsForDate(reviewDate);
   const completedCount = countDoneRecordsForDate(reviewDate);
   const visibleHabits = data.habits.slice(0, DAY_REVIEW_LIMIT);
 
   visibleHabits.forEach(habit => {
+    const isActive = isHabitActiveOnDate(habit, reviewDate);
     const record = getRecord(reviewDate, habit.id, false);
     const done = Boolean(record?.done);
 
     const item = document.createElement("div");
-    item.className = "day-summary-item" + (done ? " done" : "");
+    item.className = "day-summary-item" + (done ? " done" : "") + (!isActive ? " inactive" : "");
 
     const valueText = record?.value
       ? `${record.value}${habit.unit ? " " + habit.unit : ""}`
       : done
         ? "✓"
         : "—";
+    const statusText = !isActive
+      ? t("review.inactive")
+      : done
+        ? t("review.done")
+        : t("review.notDone");
 
     item.innerHTML = `
       <div>
         <div class="day-summary-name">${escapeHtml(habit.name)}</div>
-        <div class="day-summary-meta">${done ? t("review.done") : t("review.notDone")}${habit.target ? ` · ${t("review.target", { target: habit.target, unit: escapeHtml(habit.unit || "") })}` : ""}</div>
+        <div class="day-summary-meta">${statusText}${isActive && habit.target ? ` · ${t("review.target", { target: habit.target, unit: escapeHtml(habit.unit || "") })}` : ""}</div>
       </div>
       <div class="day-summary-value">${escapeHtml(valueText)}</div>
     `;
@@ -1740,8 +1819,8 @@ function renderDayReview() {
   const summary = document.createElement("div");
   summary.className = "empty";
   summary.textContent = data.habits.length > visibleHabits.length
-    ? t("review.totalShown", { done: completedCount, total: data.habits.length, shown: visibleHabits.length })
-    : t("review.total", { done: completedCount, total: data.habits.length });
+    ? t("review.totalShown", { done: completedCount, total: activeHabitsForDate.length, shown: visibleHabits.length })
+    : t("review.total", { done: completedCount, total: activeHabitsForDate.length });
   daySummaryList.prepend(summary);
 }
 
@@ -1839,16 +1918,17 @@ function renderPeriodProgress() {
 }
 
 function renderPeriod(periodName, days, completedId, rateId, perfectId, miniId) {
-  const totalHabits = data.habits.length;
-  const possible = totalHabits * days.length;
+  let possible = 0;
   let completed = 0;
   let perfectDays = 0;
   const dayStats = new Map();
 
   days.forEach(day => {
     const dateKey = toDateInputValue(day);
+    const totalHabits = countActiveHabitsForDate(dateKey);
     const dayDone = countDoneRecordsForDate(dateKey);
-    dayStats.set(dateKey, dayDone);
+    dayStats.set(dateKey, { done: dayDone, total: totalHabits });
+    possible += totalHabits;
     completed += dayDone;
     if (totalHabits > 0 && dayDone === totalHabits) perfectDays += 1;
   });
@@ -1864,14 +1944,14 @@ function renderPeriod(periodName, days, completedId, rateId, perfectId, miniId) 
 
   days.forEach(day => {
     const dateKey = toDateInputValue(day);
-    const dayDone = dayStats.get(dateKey) || 0;
+    const dayStat = dayStats.get(dateKey) || { done: 0, total: 0 };
     const el = document.createElement("div");
     el.className = "mini-day";
-    if (totalHabits > 0 && dayDone === totalHabits) el.classList.add("done");
+    if (dayStat.total > 0 && dayStat.done === dayStat.total) el.classList.add("done");
     if (dateKey === todayKey) el.classList.add("today");
     if (dateKey === reviewDate) el.classList.add("selected");
     el.textContent = day.getDate();
-    el.title = `${dayDone}/${totalHabits}`;
+    el.title = `${dayStat.done}/${dayStat.total}`;
     el.onclick = () => {
       selectReviewDate(dateKey, { syncWeek: periodName === "month" });
     };
@@ -1883,9 +1963,23 @@ function countDoneRecordsForDate(dateKey) {
   const dayRecords = data.records[dateKey];
   if (!dayRecords) return 0;
 
-  return Object.values(dayRecords).reduce((count, record) => {
+  return Object.entries(dayRecords).reduce((count, [habitId, record]) => {
+    const habit = findHabitById(habitId);
+    if (!habit || !isHabitActiveOnDate(habit, dateKey)) return count;
     return count + (record?.done ? 1 : 0);
   }, 0);
+}
+
+function getActiveHabitsForDate(dateKey) {
+  return data.habits.filter(habit => isHabitActiveOnDate(habit, dateKey));
+}
+
+function countActiveHabitsForDate(dateKey) {
+  return getActiveHabitsForDate(dateKey).length;
+}
+
+function isHabitActiveOnDate(habit, dateKey) {
+  return !habit.createdAt || habit.createdAt <= dateKey;
 }
 
 function selectReviewDate(dateKey, options = {}) {
@@ -2220,6 +2314,21 @@ function closeGoalModal() {
   syncModalOpenState();
 }
 
+function openGoalArchiveModal() {
+  isGoalArchiveModalOpen = true;
+  goalArchiveModal.hidden = false;
+  goalArchiveSearchInput.value = goalArchiveSearchQuery;
+  renderGoalArchive();
+  syncModalOpenState();
+  goalArchiveSearchInput.focus();
+}
+
+function closeGoalArchiveModal() {
+  isGoalArchiveModalOpen = false;
+  goalArchiveModal.hidden = true;
+  syncModalOpenState();
+}
+
 function saveGoalFromModal() {
   if (!currentUser) {
     alert(t("goals.signInRequired"));
@@ -2316,6 +2425,7 @@ function renderGoalArchive() {
   const completedGoals = getArchivedGoals("completed");
   const failedGoals = getArchivedGoals("failed");
   const visibleGoals = goalArchiveMode === "failed" ? failedGoals : completedGoals;
+  const searchedGoals = filterArchivedGoals(visibleGoals, goalArchiveSearchQuery);
 
   goalArchiveCompletedCount.textContent = completedGoals.length;
   goalArchiveFailedCount.textContent = failedGoals.length;
@@ -2323,6 +2433,9 @@ function renderGoalArchive() {
   goalArchiveFailedBtn.classList.toggle("active", goalArchiveMode === "failed");
   goalArchiveCompletedBtn.setAttribute("aria-pressed", String(goalArchiveMode === "completed"));
   goalArchiveFailedBtn.setAttribute("aria-pressed", String(goalArchiveMode === "failed"));
+  goalArchiveModalMeta.textContent = goalArchiveSearchQuery
+    ? `${searchedGoals.length}/${visibleGoals.length} ${t("goals.archived")}`
+    : `${visibleGoals.length} ${t("goals.archived")}`;
   goalArchiveList.innerHTML = "";
 
   if (!currentUser) {
@@ -2338,7 +2451,33 @@ function renderGoalArchive() {
     return;
   }
 
-  visibleGoals.forEach(goal => goalArchiveList.appendChild(makeGoalArchiveCard(goal)));
+  if (searchedGoals.length === 0) {
+    goalArchiveList.innerHTML = `<div class="empty">${t("goals.archiveSearchEmpty")}</div>`;
+    return;
+  }
+
+  searchedGoals.forEach(goal => goalArchiveList.appendChild(makeGoalArchiveCard(goal)));
+}
+
+function filterArchivedGoals(goals, query) {
+  if (!query) return goals;
+
+  return goals.filter(goal => {
+    const fields = [
+      goal.name,
+      getGoalTypeLabel(goal.type),
+      goal.pointA,
+      goal.pointB,
+      ...getSortedGoalTasks(goal).flatMap(task => [
+        task.title,
+        task.deadline,
+        task.completedAt,
+        task.workspace?.notes,
+        ...(Array.isArray(task.workspace?.miniGoals) ? task.workspace.miniGoals.map(item => item.title) : [])
+      ])
+    ];
+    return fields.some(value => String(value || "").toLowerCase().includes(query));
+  });
 }
 
 function getArchivedGoals(status) {
@@ -2442,7 +2581,8 @@ function getGoalArchiveDate(goal) {
 
 function makeGoalCard(goal) {
   const card = document.createElement("div");
-  card.className = "goal-item";
+  const isExpanded = expandedGoalIds.has(goal.id);
+  card.className = "goal-item" + (isExpanded ? "" : " collapsed");
   const progress = getGoalProgress(goal);
   const sortedTasks = getSortedGoalTasks(goal);
   const activeTasks = sortedTasks.filter(task => !task.done);
@@ -2453,69 +2593,87 @@ function makeGoalCard(goal) {
 
   card.innerHTML = `
     <div class="goal-head">
-      <div>
-        <div class="goal-type">${escapeHtml(typeLabel)}</div>
+      <button class="goal-collapse-trigger" type="button" aria-expanded="${String(isExpanded)}">
         <div class="goal-name">${escapeHtml(goal.name)}</div>
-      </div>
-      <div class="goal-card-actions">
-        <button class="primary goal-result" type="button">${t("goals.finishGoal")}</button>
-      </div>
+        <span class="goal-collapse-icon" aria-hidden="true">⌄</span>
+      </button>
     </div>
 
-    <div class="goal-route-grid">
-      <div class="goal-route-box">
-        <span>${t("goals.pointA")}</span>
-        <strong>${escapeHtml(goal.pointA || t("goals.notSet"))}</strong>
-      </div>
-      <div class="goal-route-box">
-        <span>${t("goals.pointB")}</span>
-        <strong>${escapeHtml(goal.pointB || t("goals.notSet"))}</strong>
-      </div>
-    </div>
-
-    <div class="goal-progress-line">
-      <div class="goal-progress-fill"></div>
-    </div>
-
-    <div class="goal-stats">
-      <div class="goal-stat">
-        <span>${Math.round(progress.percent)}%</span>
-        <span>${t("goals.progress")}</span>
-      </div>
-      <div class="goal-stat">
-        <span>${progress.doneCount}/${progress.totalCount}</span>
-        <span>${t("goals.tasksClosed")}</span>
-      </div>
-      <div class="goal-stat">
-        <span>${escapeHtml(nextTask ? formatDeadlineShort(nextTask.deadline) : "—")}</span>
-        <span>${t("goals.nextDeadline")}</span>
-      </div>
-    </div>
-
-    <div class="goal-next">
-      ${canFinish ? t("goals.allTasksClosed") : nextTask ? makeNextTaskHtml(nextTask) : t("goals.noNextTask")}
-    </div>
-
-    <div class="goal-task-form">
-      <input class="goal-task-title-input" placeholder="${t("goals.taskPlaceholder")}" />
-      <input class="goal-task-deadline-input" type="date" />
-      <button class="success add-goal-task-btn" type="button">${t("goals.addTask")}</button>
-    </div>
-
-    <div class="goal-task-list"></div>
-
-    <div class="goal-task-archive">
-      <div class="goal-task-archive-head">
-        <div>
-          <div class="section-kicker">${t("goals.taskArchive")}</div>
-          <h3>${t("goals.completedTasks")}</h3>
+    <div class="goal-card-body">
+      <div class="goal-card-toolbar">
+        <div class="goal-type">${escapeHtml(typeLabel)}</div>
+        <div class="goal-card-actions">
+          <button class="primary goal-result" type="button">${t("goals.finishGoal")}</button>
         </div>
-        <span>${archivedTasks.length}</span>
       </div>
-      <div class="goal-task-archive-list"></div>
+
+      <div class="goal-route-grid">
+        <div class="goal-route-box">
+          <span>${t("goals.pointA")}</span>
+          <strong>${escapeHtml(goal.pointA || t("goals.notSet"))}</strong>
+        </div>
+        <div class="goal-route-box">
+          <span>${t("goals.pointB")}</span>
+          <strong>${escapeHtml(goal.pointB || t("goals.notSet"))}</strong>
+        </div>
+      </div>
+
+      <div class="goal-progress-line">
+        <div class="goal-progress-fill"></div>
+      </div>
+
+      <div class="goal-stats">
+        <div class="goal-stat">
+          <span>${Math.round(progress.percent)}%</span>
+          <span>${t("goals.progress")}</span>
+        </div>
+        <div class="goal-stat">
+          <span>${progress.doneCount}/${progress.totalCount}</span>
+          <span>${t("goals.tasksClosed")}</span>
+        </div>
+        <div class="goal-stat">
+          <span>${escapeHtml(nextTask ? formatDeadlineShort(nextTask.deadline) : "—")}</span>
+          <span>${t("goals.nextDeadline")}</span>
+        </div>
+      </div>
+
+      <section class="goal-work-section">
+        <div class="goal-work-section-head">
+          <div>
+            <div class="section-kicker">${t("goals.deadlinePlanKicker")}</div>
+            <h3>${t("goals.deadlinePlanTitle")}</h3>
+          </div>
+        </div>
+
+        <div class="goal-task-command-row">
+          <div class="goal-next">
+            ${canFinish ? t("goals.allTasksClosed") : nextTask ? makeNextTaskHtml(nextTask) : t("goals.noNextTask")}
+          </div>
+          <button class="primary add-goal-task-btn" type="button">${t("goals.addTask")}</button>
+        </div>
+
+        <div class="goal-task-form">
+          <input class="goal-task-title-input" placeholder="${t("goals.taskPlaceholder")}" />
+          <input class="goal-task-deadline-input" type="date" />
+        </div>
+
+        <div class="goal-task-list"></div>
+
+        <div class="goal-task-archive">
+          <div class="goal-task-archive-head">
+            <div>
+              <div class="section-kicker">${t("goals.taskArchive")}</div>
+              <h3>${t("goals.completedTasks")}</h3>
+            </div>
+            <span>${archivedTasks.length}</span>
+          </div>
+          <div class="goal-task-archive-list"></div>
+        </div>
+      </section>
     </div>
   `;
 
+  card.querySelector(".goal-collapse-trigger").onclick = () => toggleGoalCard(goal.id);
   card.querySelector(".goal-result").onclick = () => openGoalResultModal(goal.id);
   card.querySelector(".goal-card-actions").appendChild(makeActionMenu([
     {
@@ -2542,6 +2700,12 @@ function makeGoalCard(goal) {
   renderGoalTaskArchive(goal, card.querySelector(".goal-task-archive-list"));
 
   return card;
+}
+
+function toggleGoalCard(goalId) {
+  if (expandedGoalIds.has(goalId)) expandedGoalIds.delete(goalId);
+  else expandedGoalIds.add(goalId);
+  renderGoalsList();
 }
 
 function makeNextTaskHtml(task) {
@@ -3078,15 +3242,7 @@ function sortArchivedGoalTasks(a, b) {
 }
 
 function getTaskWorkspaceMeta(task) {
-  const workspace = task.workspace && typeof task.workspace === "object" ? task.workspace : {};
-  const notes = typeof workspace.notes === "string" ? workspace.notes.trim() : "";
-  const miniGoals = Array.isArray(workspace.miniGoals) ? workspace.miniGoals : [];
-  const miniDone = miniGoals.filter(item => item.done).length;
-  const parts = [];
-
-  if (notes) parts.push(t("workspace.hasNotes"));
-  if (miniGoals.length) parts.push(`${miniDone}/${miniGoals.length} ${tn("counts.miniGoal", miniGoals.length).replace(String(miniGoals.length), "").trim()}`);
-  return parts.length ? parts.join(" · ") : t("workspace.emptyWorkspace");
+  return t("workspace.label");
 }
 
 function getNextGoalTask(goal) {
@@ -3492,9 +3648,8 @@ function isHabitDoneToday(habitId) {
 }
 
 function isTodayComplete() {
-  if (data.habits.length === 0) return false;
   const todayKey = toDateInputValue(new Date());
-  return countDoneRecordsForDate(todayKey) === data.habits.length;
+  return isDayCompleteForStreak(todayKey);
 }
 
 function calculateMotivationalHabitStreak(habitId) {
@@ -3598,22 +3753,27 @@ function calculateMotivationalGlobalStreak() {
   return calculateGlobalStreakAtDate(yesterdayKey) + 1;
 }
 
-function getOldestHabit() {
-  if (data.habits.length === 0) return null;
+function calculateGlobalStreakAtDate(dateKey) {
+  let streak = 0;
+  const cursor = parseDateKey(dateKey);
 
-  return [...data.habits].sort((a, b) => {
-    const aCreated = a.createdAt || "9999-12-31";
-    const bCreated = b.createdAt || "9999-12-31";
-    if (aCreated !== bCreated) return aCreated.localeCompare(bCreated);
-    return String(a.id).localeCompare(String(b.id));
-  })[0];
+  for (let i = 0; i < 3650; i++) {
+    const key = toDateInputValue(cursor);
+    if (isDayCompleteForStreak(key)) {
+      streak += 1;
+      cursor.setDate(cursor.getDate() - 1);
+    } else {
+      break;
+    }
+  }
+
+  return streak;
 }
 
-function calculateGlobalStreakAtDate(dateKey) {
-  const oldestHabit = getOldestHabit();
-  if (!oldestHabit) return 0;
-
-  return calculateStreakAtDate(oldestHabit.id, dateKey);
+function isDayCompleteForStreak(dateKey) {
+  const totalHabits = countActiveHabitsForDate(dateKey);
+  if (totalHabits === 0) return false;
+  return countDoneRecordsForDate(dateKey) === totalHabits;
 }
 
 function calculateStreakAtDate(habitId, dateKey) {

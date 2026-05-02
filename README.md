@@ -176,13 +176,7 @@ The goals view is for longer routes:
 
 ## Testing
 
-Use the local QA account for repeatable checks without touching Firebase:
-
-```text
-test@habitline.local / test1234
-```
-
-You can also click `Use test account` in the sign-in modal. The QA panel includes seed-data reset controls and scenario prompts. See `docs/TESTING.md`.
+Use the local-only QA account for repeatable checks without touching Firebase. On a local development host, open the app with `?qa=1`, then click `Use test account` in the sign-in modal. The QA panel includes seed-data reset controls and scenario prompts. See `docs/TESTING.md`.
 
 ## Data Model
 
