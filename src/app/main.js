@@ -22,6 +22,7 @@ import {
 import { firebaseConfig } from "./config/firebaseConfig.js";
 import {
   dateRange,
+  getCalendarMonthDays,
   formatFullDate,
   formatShortDate,
   getMonthDays,
@@ -1172,14 +1173,17 @@ function normalizeData(input) {
 
 function normalizeHabit(habit = {}, records) {
   const safeHabit = habit && typeof habit === "object" ? habit : {};
+  const id = safeHabit.id || crypto.randomUUID();
+  const firstRecordDate = inferHabitCreatedAt(id, records);
+  const createdAt = getEarliestDateKey(safeHabit.createdAt, firstRecordDate) || toDateInputValue(new Date());
 
   return {
     ...safeHabit,
-    id: safeHabit.id || crypto.randomUUID(),
+    id,
     name: safeHabit.name || t("habit.fallback"),
     unit: safeHabit.unit || "",
     target: safeHabit.target ?? "",
-    createdAt: safeHabit.createdAt || inferHabitCreatedAt(safeHabit.id, records) || toDateInputValue(new Date())
+    createdAt
   };
 }
 
@@ -1188,6 +1192,12 @@ function inferHabitCreatedAt(habitId, records) {
 
   return Object.keys(records)
     .filter(dateKey => records[dateKey]?.[habitId])
+    .sort()[0] || "";
+}
+
+function getEarliestDateKey(...dateKeys) {
+  return dateKeys
+    .filter(dateKey => typeof dateKey === "string" && /^\d{4}-\d{2}-\d{2}$/.test(dateKey))
     .sort()[0] || "";
 }
 
@@ -1334,13 +1344,14 @@ function renderTodayLists() {
   const activeHabits = [];
   const visibleHabits = getVisibleTodayHabits(todayKey);
   const doneCount = countDoneRecordsForDate(todayKey);
+  const totalCount = countActiveHabitsForDate(todayKey);
 
   visibleHabits.items.forEach(habit => {
     const record = getRecord(todayKey, habit.id, false) || { done: false, value: "" };
     activeHabits.push({ habit, record });
   });
 
-  renderTodaySummary(data.habits.length, doneCount);
+  renderTodaySummary(totalCount, doneCount);
   todayListMeta.textContent = getTodayListMeta(visibleHabits);
   renderTodayPager(visibleHabits);
 
@@ -1376,6 +1387,7 @@ function getVisibleTodayHabits(todayKey) {
 
   for (let i = 0; i < scanCount; i++) {
     const habit = data.habits[i];
+    if (!isHabitActiveOnDate(habit, todayKey)) continue;
     const record = getRecord(todayKey, habit.id, false);
     if (record?.done) continue;
     if (!habitMatchesSearch(habit, todaySearchQuery)) continue;
@@ -1514,6 +1526,14 @@ function getHabitDetails(habitId, record) {
     unit: habit?.unit ?? record.habitUnit ?? "",
     target: habit?.target ?? record.habitTarget ?? ""
   };
+}
+
+function hasHabitSnapshot(record) {
+  return Boolean(record && (
+    Object.prototype.hasOwnProperty.call(record, "habitName") ||
+    Object.prototype.hasOwnProperty.call(record, "habitUnit") ||
+    Object.prototype.hasOwnProperty.call(record, "habitTarget")
+  ));
 }
 
 function findHabitById(habitId) {
@@ -1739,9 +1759,7 @@ function renderDayReview() {
   const isFuture = reviewDate > todayKey;
   const streakOnDate = isFuture
     ? calculateProjectedGlobalStreakAtDate(reviewDate)
-    : isToday
-      ? calculateMotivationalGlobalStreak()
-      : calculateGlobalStreakAtDate(reviewDate);
+    : calculateLatestGlobalStreak(reviewDate);
   const isTodayOpen = isToday && !isTodayComplete();
 
   reviewDayTitle.textContent = isToday
@@ -1777,14 +1795,15 @@ function renderDayReview() {
     return;
   }
 
-  if (data.habits.length === 0) {
+  const activeHabitsForDate = getActiveHabitsForDate(reviewDate);
+
+  if (data.habits.length === 0 && activeHabitsForDate.length === 0) {
     daySummaryList.innerHTML = `<div class="empty">${t("review.noHabitsEmpty")}</div>`;
     return;
   }
 
-  const activeHabitsForDate = getActiveHabitsForDate(reviewDate);
   const completedCount = countDoneRecordsForDate(reviewDate);
-  const visibleHabits = data.habits.slice(0, DAY_REVIEW_LIMIT);
+  const visibleHabits = activeHabitsForDate.slice(0, DAY_REVIEW_LIMIT);
 
   visibleHabits.forEach(habit => {
     const isActive = isHabitActiveOnDate(habit, reviewDate);
@@ -1818,7 +1837,7 @@ function renderDayReview() {
 
   const summary = document.createElement("div");
   summary.className = "empty";
-  summary.textContent = data.habits.length > visibleHabits.length
+  summary.textContent = activeHabitsForDate.length > visibleHabits.length
     ? t("review.totalShown", { done: completedCount, total: activeHabitsForDate.length, shown: visibleHabits.length })
     : t("review.total", { done: completedCount, total: activeHabitsForDate.length });
   daySummaryList.prepend(summary);
@@ -1882,17 +1901,17 @@ function renderFutureProjection(dateKey) {
 
 function renderRewardState() {
   const todayKey = toDateInputValue(new Date());
-  const total = data.habits.length;
+  const total = countActiveHabitsForDate(todayKey);
   const done = countDoneRecordsForDate(todayKey);
   const percent = total === 0 ? 0 : Math.round((done / total) * 100);
-  const streak = calculateMotivationalGlobalStreak();
+  const streak = calculateLatestGlobalStreak(todayKey);
 
   heroStreak.textContent = streak;
   dailyRingFill.style.width = `${percent}%`;
 
   if (!currentUser) {
     streakMessage.textContent = t("streak.signIn");
-  } else if (total === 0) {
+  } else if (data.habits.length === 0) {
     streakMessage.textContent = t("streak.addHabit");
   } else if (done === total) {
     streakMessage.textContent = t("streak.saved");
@@ -1907,23 +1926,28 @@ function renderRewardState() {
 
 function renderPeriodProgress() {
   const weekDays = getWeekDaysFromStart(visibleWeekStart);
-  const monthDays = getMonthDays(visibleMonthDate);
+  const monthDays = getCalendarMonthDays(visibleMonthDate);
+  const monthStatDays = getMonthDays(visibleMonthDate);
   document.getElementById("weekCalendarTitle").textContent = `${formatFullDate(weekDays[0], getDateLocale())} — ${formatFullDate(weekDays[6], getDateLocale())}`;
   document.getElementById("monthCalendarTitle").textContent = visibleMonthDate.toLocaleDateString(getDateLocale(), {
     month: "long",
     year: "numeric"
   });
   renderPeriod("week", weekDays, "weekCompleted", "weekRate", "weekPerfect", "weekMiniDays");
-  renderPeriod("month", monthDays, "monthCompleted", "monthRate", "monthPerfect", "monthMiniDays");
+  renderPeriod("month", monthDays, "monthCompleted", "monthRate", "monthPerfect", "monthMiniDays", {
+    statsDays: monthStatDays,
+    visibleMonth: visibleMonthDate.getMonth()
+  });
 }
 
-function renderPeriod(periodName, days, completedId, rateId, perfectId, miniId) {
+function renderPeriod(periodName, days, completedId, rateId, perfectId, miniId, options = {}) {
   let possible = 0;
   let completed = 0;
   let perfectDays = 0;
   const dayStats = new Map();
+  const statsDays = options.statsDays || days;
 
-  days.forEach(day => {
+  statsDays.forEach(day => {
     const dateKey = toDateInputValue(day);
     const totalHabits = countActiveHabitsForDate(dateKey);
     const dayDone = countDoneRecordsForDate(dateKey);
@@ -1941,13 +1965,18 @@ function renderPeriod(periodName, days, completedId, rateId, perfectId, miniId) 
   const mini = document.getElementById(miniId);
   mini.innerHTML = "";
   const todayKey = toDateInputValue(new Date());
+  const latestStreakRange = getLatestGlobalStreakRange(todayKey);
 
   days.forEach(day => {
     const dateKey = toDateInputValue(day);
-    const dayStat = dayStats.get(dateKey) || { done: 0, total: 0 };
+    const dayStat = dayStats.get(dateKey) || getDayCompletionStats(dateKey);
     const el = document.createElement("div");
     el.className = "mini-day";
     if (dayStat.total > 0 && dayStat.done === dayStat.total) el.classList.add("done");
+    if (isDateInStreakRange(dateKey, latestStreakRange)) el.classList.add("streak");
+    if (periodName === "month" && options.visibleMonth !== undefined && day.getMonth() !== options.visibleMonth) {
+      el.classList.add("outside");
+    }
     if (dateKey === todayKey) el.classList.add("today");
     if (dateKey === reviewDate) el.classList.add("selected");
     el.textContent = day.getDate();
@@ -1962,20 +1991,37 @@ function renderPeriod(periodName, days, completedId, rateId, perfectId, miniId) 
 function countDoneRecordsForDate(dateKey) {
   const dayRecords = data.records[dateKey];
   if (!dayRecords) return 0;
+  const activeHabitIds = new Set(getActiveHabitsForDate(dateKey).map(habit => habit.id));
 
   return Object.entries(dayRecords).reduce((count, [habitId, record]) => {
-    const habit = findHabitById(habitId);
-    if (!habit || !isHabitActiveOnDate(habit, dateKey)) return count;
+    if (!activeHabitIds.has(habitId)) return count;
     return count + (record?.done ? 1 : 0);
   }, 0);
 }
 
 function getActiveHabitsForDate(dateKey) {
-  return data.habits.filter(habit => isHabitActiveOnDate(habit, dateKey));
+  const activeHabits = data.habits.filter(habit => isHabitActiveOnDate(habit, dateKey));
+  const activeHabitIds = new Set(activeHabits.map(habit => habit.id));
+  const dayRecords = data.records[dateKey] || {};
+
+  Object.entries(dayRecords).forEach(([habitId, record]) => {
+    if (activeHabitIds.has(habitId) || !hasHabitSnapshot(record)) return;
+    activeHabits.push(getHabitDetails(habitId, record));
+    activeHabitIds.add(habitId);
+  });
+
+  return activeHabits;
 }
 
 function countActiveHabitsForDate(dateKey) {
   return getActiveHabitsForDate(dateKey).length;
+}
+
+function getDayCompletionStats(dateKey) {
+  return {
+    done: countDoneRecordsForDate(dateKey),
+    total: countActiveHabitsForDate(dateKey)
+  };
 }
 
 function isHabitActiveOnDate(habit, dateKey) {
@@ -3653,22 +3699,11 @@ function isTodayComplete() {
 }
 
 function calculateMotivationalHabitStreak(habitId) {
-  if (isHabitDoneToday(habitId)) return calculateStreak(habitId);
-
-  const todayKey = toDateInputValue(new Date());
-  const yesterdayKey = getPreviousDateKey(todayKey);
-  return calculateStreakAtDate(habitId, yesterdayKey) + 1;
+  return calculateLatestHabitStreak(habitId, toDateInputValue(new Date()));
 }
 
 function getMotivationalHabitStreakStartDate(habitId) {
-  const todayKey = toDateInputValue(new Date());
-
-  if (isHabitDoneToday(habitId)) {
-    return getHabitStreakStartDate(habitId, todayKey);
-  }
-
-  const yesterdayKey = getPreviousDateKey(todayKey);
-  return getHabitStreakStartDate(habitId, yesterdayKey) || todayKey;
+  return getLatestHabitStreakStartDate(habitId, toDateInputValue(new Date()));
 }
 
 function getProjectedTodayValue(habit) {
@@ -3745,12 +3780,7 @@ function calculateGlobalStreak() {
 }
 
 function calculateMotivationalGlobalStreak() {
-  if (data.habits.length === 0) return 0;
-  if (isTodayComplete()) return calculateGlobalStreak();
-
-  const todayKey = toDateInputValue(new Date());
-  const yesterdayKey = getPreviousDateKey(todayKey);
-  return calculateGlobalStreakAtDate(yesterdayKey) + 1;
+  return calculateLatestGlobalStreak(toDateInputValue(new Date()));
 }
 
 function calculateGlobalStreakAtDate(dateKey) {
@@ -3794,9 +3824,68 @@ function calculateStreakAtDate(habitId, dateKey) {
   return streak;
 }
 
+function calculateLatestHabitStreak(habitId, maxDateKey) {
+  const endDateKey = getLatestHabitStreakEndDate(habitId, maxDateKey);
+  return endDateKey ? calculateStreakAtDate(habitId, endDateKey) : 0;
+}
+
+function getLatestHabitStreakStartDate(habitId, maxDateKey) {
+  const endDateKey = getLatestHabitStreakEndDate(habitId, maxDateKey);
+  return endDateKey ? getHabitStreakStartDate(habitId, endDateKey) : "";
+}
+
+function getLatestHabitStreakEndDate(habitId, maxDateKey) {
+  const dates = Object.keys(data.records)
+    .filter(dateKey => dateKey <= maxDateKey && data.records[dateKey]?.[habitId]?.done)
+    .sort();
+  return dates[dates.length - 1] || "";
+}
+
+function calculateLatestGlobalStreak(maxDateKey) {
+  const endDateKey = getLatestGlobalStreakEndDate(maxDateKey);
+  return endDateKey ? calculateGlobalStreakAtDate(endDateKey) : 0;
+}
+
+function getLatestGlobalStreakRange(maxDateKey) {
+  const end = getLatestGlobalStreakEndDate(maxDateKey);
+  if (!end) return null;
+
+  const start = getGlobalStreakStartDate(end);
+  return start ? { start, end } : null;
+}
+
+function getLatestGlobalStreakEndDate(maxDateKey) {
+  return Object.keys(data.records)
+    .filter(dateKey => dateKey <= maxDateKey)
+    .sort()
+    .reverse()
+    .find(dateKey => isDayCompleteForStreak(dateKey)) || "";
+}
+
+function getGlobalStreakStartDate(endDateKey) {
+  const cursor = parseDateKey(endDateKey);
+  let start = null;
+
+  for (let i = 0; i < 3650; i++) {
+    const key = toDateInputValue(cursor);
+    if (isDayCompleteForStreak(key)) {
+      start = key;
+      cursor.setDate(cursor.getDate() - 1);
+    } else {
+      break;
+    }
+  }
+
+  return start;
+}
+
+function isDateInStreakRange(dateKey, streakRange) {
+  return Boolean(streakRange && dateKey >= streakRange.start && dateKey <= streakRange.end);
+}
+
 function calculateProjectedGlobalStreakAtDate(futureDateKey) {
   const todayKey = toDateInputValue(new Date());
-  const todayStreak = calculateMotivationalGlobalStreak();
+  const todayStreak = calculateLatestGlobalStreak(todayKey);
   const futureDate = parseDateKey(futureDateKey);
   const todayDate = parseDateKey(todayKey);
   const daysAhead = Math.ceil((futureDate - todayDate) / 86400000);

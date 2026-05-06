@@ -65,6 +65,20 @@ export function getMonthDays(date) {
   return days;
 }
 
+export function getCalendarMonthDays(date) {
+  const firstOfMonth = new Date(date.getFullYear(), date.getMonth(), 1);
+  const start = getWeekStart(firstOfMonth);
+  const days = [];
+
+  for (let i = 0; i < 42; i++) {
+    const day = new Date(start);
+    day.setDate(start.getDate() + i);
+    days.push(day);
+  }
+
+  return days;
+}
+
 export function getWeekStart(date) {
   const d = new Date(date);
   d.setHours(0, 0, 0, 0);
