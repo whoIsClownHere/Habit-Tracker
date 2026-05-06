@@ -2403,15 +2403,6 @@ input:focus, select:focus, textarea:focus { border-color: var(--text); }
   font-weight: 700;
 }
 
-.mini-day.streak {
-  border-color: var(--warning);
-  box-shadow: inset 0 -3px 0 var(--warning);
-}
-
-.mini-day.streak.done {
-  color: var(--text);
-}
-
 .mini-day.outside {
   opacity: 0.56;
 }

@@ -1965,7 +1965,6 @@ function renderPeriod(periodName, days, completedId, rateId, perfectId, miniId, 
   const mini = document.getElementById(miniId);
   mini.innerHTML = "";
   const todayKey = toDateInputValue(new Date());
-  const latestStreakRange = getLatestGlobalStreakRange(todayKey);
 
   days.forEach(day => {
     const dateKey = toDateInputValue(day);
@@ -1973,7 +1972,6 @@ function renderPeriod(periodName, days, completedId, rateId, perfectId, miniId, 
     const el = document.createElement("div");
     el.className = "mini-day";
     if (dayStat.total > 0 && dayStat.done === dayStat.total) el.classList.add("done");
-    if (isDateInStreakRange(dateKey, latestStreakRange)) el.classList.add("streak");
     if (periodName === "month" && options.visibleMonth !== undefined && day.getMonth() !== options.visibleMonth) {
       el.classList.add("outside");
     }
