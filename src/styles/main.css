@@ -122,11 +122,19 @@ header {
   gap: clamp(12px, 1.6vw, 18px);
 }
 
-.brand-home {
+.brand-home,
+.brand-home:visited,
+.brand-home:hover,
+.brand-home:active {
   width: max-content;
   color: var(--text);
   text-decoration: none;
   cursor: pointer;
+}
+
+.brand-home {
+  display: inline-flex;
+  align-items: center;
   outline-offset: 5px;
 }
 
@@ -143,8 +151,10 @@ header {
   height: clamp(46px, 6vw, 64px);
   display: grid;
   place-items: center;
+  border: 0;
   background: transparent;
   flex: 0 0 auto;
+  outline: 0;
 }
 
 .logo-mark {
@@ -223,9 +233,19 @@ h1 {
   margin: 0;
   font-family: var(--font-display);
   font-size: clamp(42px, 6.2vw, 58px);
-  line-height: 0.95;
+  line-height: 1;
   font-weight: 400;
   letter-spacing: -0.055em;
+}
+
+.brand-home h1 {
+  color: inherit;
+  text-decoration: none;
+  transform: translateY(-0.015em);
+}
+
+.brand-home * {
+  text-decoration: none;
 }
 
 h2, h3 {
