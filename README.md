@@ -1,6 +1,6 @@
-# Habitline
+# Hendle
 
-Habitline is a clean, responsive habit and goal tracker for daily consistency work. The app helps you plan today's habits, record numeric progress, review weekly and monthly completion, and break long-term goals into measurable milestones.
+Hendle is a clean, responsive habit and goal tracker for daily consistency work. The app helps you plan today's habits, record numeric progress, review weekly and monthly completion, and break long-term goals into measurable milestones.
 
 Live demo: https://whoisclownhere.github.io/Habit-Tracker/
 

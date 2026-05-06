@@ -3,46 +3,58 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Habitline</title>
-  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' fill='%23111111'/%3E%3Cpath d='M16 34l10 10 22-24' fill='none' stroke='%23ffffff' stroke-width='7'/%3E%3C/svg%3E" />
+  <title>Hendle</title>
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 80 88'%3E%3Ccircle cx='40' cy='7' r='4' fill='%23f59a00'/%3E%3Crect x='24' y='19' width='32' height='8' rx='2' fill='%23f5efe6'/%3E%3Crect x='16' y='31' width='48' height='8' rx='2' fill='%23d8ccb5'/%3E%3Crect x='8' y='43' width='64' height='8' rx='2' fill='%23afa58f'/%3E%3Crect x='16' y='55' width='48' height='8' rx='2' fill='%238b806d'/%3E%3Crect x='24' y='67' width='32' height='8' rx='2' fill='%235f5748'/%3E%3Crect x='30' y='79' width='20' height='8' rx='2' fill='%23413931'/%3E%3C/svg%3E" />
   <link rel="stylesheet" href="./src/styles/main.css?v=20260506-local-qa" />
 </head>
 <body>
   <div class="app">
     <header>
-      <div>
-        <div class="brand">
+      <div class="brand-block">
+        <a id="homeBrandBtn" class="brand brand-home" href="#habits" aria-label="Hendle home">
           <div class="logo" aria-hidden="true">
-            <svg class="logo-mark" viewBox="0 0 64 64" role="img" focusable="false">
-              <rect class="logo-frame" x="7" y="7" width="50" height="50" rx="0" />
-              <path class="logo-route" d="M18 42H30L38 25L46 34" />
-              <path class="logo-check" d="M18 26L24 32L35 20" />
-              <circle class="logo-dot" cx="46" cy="34" r="3.5" />
+            <svg class="logo-mark" viewBox="0 0 80 88" role="img" focusable="false">
+              <circle class="logo-dot" cx="40" cy="7" r="4" />
+              <rect class="logo-bar logo-bar-1" x="24" y="19" width="32" height="8" rx="2" />
+              <rect class="logo-bar logo-bar-2" x="16" y="31" width="48" height="8" rx="2" />
+              <rect class="logo-bar logo-bar-3" x="8" y="43" width="64" height="8" rx="2" />
+              <rect class="logo-bar logo-bar-4" x="16" y="55" width="48" height="8" rx="2" />
+              <rect class="logo-bar logo-bar-5" x="24" y="67" width="32" height="8" rx="2" />
+              <rect class="logo-bar logo-bar-6" x="30" y="79" width="20" height="8" rx="2" />
             </svg>
           </div>
-          <h1>Habitline</h1>
-        </div>
+          <h1>Hendle</h1>
+        </a>
         <div class="subtitle" data-i18n="app.subtitle">Plan today's habits, record quantities, and keep your streak alive.</div>
-        <div class="status">
-          <span id="statusDot" class="status-dot"></span>
-          <span id="statusText" data-i18n="status.signedOut">Signed out</span>
-        </div>
       </div>
 
       <div class="top-actions">
-        <label class="language-control" for="languageSelect">
-          <span data-i18n="settings.language">Language</span>
-          <select id="languageSelect" data-i18n-aria-label="settings.language" aria-label="Language">
-            <option value="en">English</option>
-            <option value="ru">Русский</option>
-            <option value="de">Deutsch</option>
-            <option value="es">Español</option>
-            <option value="fr">Français</option>
-          </select>
-        </label>
-        <button id="signInBtn" class="primary" data-i18n="auth.signInRegister">Sign in / register</button>
-        <button id="signOutBtn" class="secondary" hidden data-i18n="auth.signOut">Sign out</button>
-        <button id="themeToggle" class="secondary" data-i18n="theme.dark">Dark theme</button>
+        <div class="account-menu" id="accountMenu">
+          <button id="accountMenuBtn" class="account-menu-trigger" type="button" aria-haspopup="true" aria-expanded="false">
+            <span id="accountButtonDot" class="status-dot"></span>
+            <span id="accountMenuLabel" data-i18n="auth.account">Account</span>
+            <span class="account-menu-chevron" aria-hidden="true">⌄</span>
+          </button>
+          <div id="accountMenuPanel" class="account-menu-panel" hidden>
+            <div class="status account-panel-status">
+              <span id="statusDot" class="status-dot"></span>
+              <span id="statusText" data-i18n="status.signedOut">Signed out</span>
+            </div>
+            <label class="language-control" for="languageSelect">
+              <span data-i18n="settings.language">Language</span>
+              <select id="languageSelect" data-i18n-aria-label="settings.language" aria-label="Language">
+                <option value="en">English</option>
+                <option value="ru">Русский</option>
+                <option value="de">Deutsch</option>
+                <option value="es">Español</option>
+                <option value="fr">Français</option>
+              </select>
+            </label>
+            <button id="themeToggle" class="secondary" data-i18n="theme.dark">Dark theme</button>
+            <button id="signInBtn" class="primary" data-i18n="auth.signInRegister">Sign in / register</button>
+            <button id="signOutBtn" class="secondary" hidden data-i18n="auth.signOut">Sign out</button>
+          </div>
+        </div>
       </div>
     </header>
 

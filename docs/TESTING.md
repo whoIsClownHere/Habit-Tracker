@@ -1,12 +1,12 @@
-# Habitline Testing
+# Hendle Testing
 
-Habitline includes an isolated local QA account for repeatable manual testing without touching Firebase user data.
+Hendle includes an isolated local QA account for repeatable manual testing without touching Firebase user data.
 
 ## Test Account
 
 On a local development host, click `Sign in / register`, then `Use test account`.
 
-The account is local to the browser. Its session is stored under `habitline.testSession`; its data is stored under `habitline.testData`.
+The account is local to the browser. Its session is stored under `hendle.testSession`; its data is stored under `hendle.testData`.
 
 ## Seed Data
 

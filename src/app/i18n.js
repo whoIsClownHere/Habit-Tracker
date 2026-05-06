@@ -1,5 +1,5 @@
 const DEFAULT_LOCALE = "en";
-const STORAGE_KEY = "habitline.locale";
+const STORAGE_KEY = "hendle.locale";
 
 export const SUPPORTED_LOCALES = [
   { code: "en", label: "English" },
@@ -12,7 +12,7 @@ export const SUPPORTED_LOCALES = [
 const dictionaries = {
   en: {
     "_dateLocale": "en-US",
-    "document.title": "Habitline",
+    "document.title": "Hendle",
     "app.subtitle": "Plan today's habits, record quantities, and keep your streak alive.",
     "settings.language": "Language",
     "testing.kicker": "QA mode",
@@ -365,7 +365,7 @@ const dictionaries = {
   },
   ru: {
     "_dateLocale": "ru-RU",
-    "document.title": "Habitline",
+    "document.title": "Hendle",
     "app.subtitle": "Отмечай привычки на день, фиксируй количество и следи за серией.",
     "settings.language": "Язык",
     "testing.kicker": "QA-режим",
@@ -718,7 +718,7 @@ const dictionaries = {
   },
   de: {
     "_dateLocale": "de-DE",
-    "document.title": "Habitline",
+    "document.title": "Hendle",
     "app.subtitle": "Plane die Gewohnheiten des Tages, erfasse Mengen und halte deine Serie am Leben.",
     "settings.language": "Sprache",
     "testing.kicker": "QA-Modus",
@@ -1071,7 +1071,7 @@ const dictionaries = {
   },
   es: {
     "_dateLocale": "es-ES",
-    "document.title": "Habitline",
+    "document.title": "Hendle",
     "app.subtitle": "Planifica los hábitos de hoy, registra cantidades y mantén viva tu racha.",
     "settings.language": "Idioma",
     "testing.kicker": "Modo QA",
@@ -1424,7 +1424,7 @@ const dictionaries = {
   },
   fr: {
     "_dateLocale": "fr-FR",
-    "document.title": "Habitline",
+    "document.title": "Hendle",
     "app.subtitle": "Planifie les habitudes du jour, note les quantités et garde ta série active.",
     "settings.language": "Langue",
     "testing.kicker": "Mode QA",

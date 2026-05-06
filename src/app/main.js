@@ -57,14 +57,14 @@ const PROJECTION_LIMIT = 80;
 const TODAY_SEARCH_SCAN_LIMIT = 5000;
 const TEST_ACCOUNT = {
   uid: "local-test-account",
-  email: "test@habitline.local",
-  displayName: "Habitline QA",
+  email: "test@hendle.local",
+  displayName: "Hendle QA",
   isTestAccount: true
 };
-const QA_ACCESS_KEY = "habitline.qaAccess";
+const QA_ACCESS_KEY = "hendle.qaAccess";
 const QA_ACCESS_QUERY = "qa";
-const TEST_SESSION_KEY = "habitline.testSession";
-const TEST_DATA_KEY = "habitline.testData";
+const TEST_SESSION_KEY = "hendle.testSession";
+const TEST_DATA_KEY = "hendle.testData";
 
 let currentUser = null;
 let isDirty = false;
@@ -106,6 +106,12 @@ let data = {
 const signInBtn = document.getElementById("signInBtn");
 const signOutBtn = document.getElementById("signOutBtn");
 const languageSelect = document.getElementById("languageSelect");
+const homeBrandBtn = document.getElementById("homeBrandBtn");
+const accountMenu = document.getElementById("accountMenu");
+const accountMenuBtn = document.getElementById("accountMenuBtn");
+const accountMenuPanel = document.getElementById("accountMenuPanel");
+const accountMenuLabel = document.getElementById("accountMenuLabel");
+const accountButtonDot = document.getElementById("accountButtonDot");
 const authModal = document.getElementById("authModal");
 const authModalCloseBtn = document.getElementById("authModalCloseBtn");
 const authModalTitle = document.getElementById("authModalTitle");
@@ -237,8 +243,22 @@ signOutBtn.hidden = true;
 
 habitsTabBtn.addEventListener("click", () => switchView("habits"));
 goalsTabBtn.addEventListener("click", () => switchView("goals"));
-signInBtn.addEventListener("click", () => openAuthModal("login"));
-signOutBtn.addEventListener("click", handleSignOut);
+homeBrandBtn.addEventListener("click", handleHomeBrandClick);
+accountMenu.addEventListener("click", (event) => event.stopPropagation());
+accountMenuBtn.addEventListener("click", (event) => {
+  event.preventDefault();
+  event.stopPropagation();
+  toggleAccountMenu();
+});
+accountMenuPanel.addEventListener("click", (event) => event.stopPropagation());
+signInBtn.addEventListener("click", () => {
+  closeAccountMenu();
+  openAuthModal("login");
+});
+signOutBtn.addEventListener("click", () => {
+  closeAccountMenu();
+  handleSignOut();
+});
 languageSelect.addEventListener("change", () => {
   setLocale(languageSelect.value);
   refreshLocalizedUi();
@@ -291,16 +311,28 @@ goalArchiveModal.addEventListener("click", (event) => {
   if (event.target === goalArchiveModal) closeGoalArchiveModal();
 });
 document.addEventListener("keydown", (event) => {
-  if (event.key === "Escape") closeActionMenu();
+  if (event.key === "Escape") {
+    closeActionMenu();
+    closeAccountMenu();
+  }
   if (event.key === "Escape" && isAuthModalOpen) closeAuthModal();
   if (event.key === "Escape" && isCompletedModalOpen) closeCompletedModal();
   if (event.key === "Escape" && isGoalModalOpen) closeGoalModal();
   if (event.key === "Escape" && isGoalArchiveModalOpen) closeGoalArchiveModal();
   if (event.key === "Escape" && isGoalResultModalOpen) closeGoalResultModal();
 });
-document.addEventListener("click", () => closeActionMenu());
-window.addEventListener("resize", () => closeActionMenu());
-window.addEventListener("scroll", () => closeActionMenu(), true);
+document.addEventListener("click", () => {
+  closeActionMenu();
+  closeAccountMenu();
+});
+window.addEventListener("resize", () => {
+  closeActionMenu();
+  closeAccountMenu();
+});
+window.addEventListener("scroll", () => {
+  closeActionMenu();
+  closeAccountMenu();
+}, true);
 goalModeMonthBtn.addEventListener("click", () => setGoalsCalendarMode("month"));
 goalModeWeekBtn.addEventListener("click", () => setGoalsCalendarMode("week"));
 goalModeDayBtn.addEventListener("click", () => setGoalsCalendarMode("day"));
@@ -404,6 +436,7 @@ function getInitialView() {
 
 function switchView(view, options = {}) {
   closeActionMenu();
+  closeAccountMenu();
   activeView = view === "workspace" ? "workspace" : view === "goals" ? "goals" : "habits";
   const isGoals = activeView === "goals";
   const isWorkspace = activeView === "workspace";
@@ -421,6 +454,46 @@ function switchView(view, options = {}) {
   }
 
   if (isWorkspace) renderGoalWorkspacePage();
+}
+
+function handleHomeBrandClick(event) {
+  event.preventDefault();
+  closeActionMenu();
+  closeAccountMenu();
+  switchView("habits");
+  playHomeLogoAnimation();
+  smoothScrollHome();
+}
+
+function playHomeLogoAnimation() {
+  homeBrandBtn.classList.remove("is-returning-home");
+  window.requestAnimationFrame(() => {
+    homeBrandBtn.classList.add("is-returning-home");
+    window.setTimeout(() => homeBrandBtn.classList.remove("is-returning-home"), 900);
+  });
+}
+
+function smoothScrollHome() {
+  const start = window.scrollY || document.documentElement.scrollTop || 0;
+  if (start <= 1) return;
+
+  const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  if (reduceMotion) {
+    window.scrollTo(0, 0);
+    return;
+  }
+
+  const duration = Math.min(900, Math.max(420, start * 0.45));
+  const startTime = window.performance.now();
+  const easeOutQuint = (value) => 1 - Math.pow(1 - value, 5);
+
+  function step(now) {
+    const progress = Math.min(1, (now - startTime) / duration);
+    window.scrollTo(0, Math.round(start * (1 - easeOutQuint(progress))));
+    if (progress < 1) window.requestAnimationFrame(step);
+  }
+
+  window.requestAnimationFrame(step);
 }
 
 function makeActionMenu(actions, label = t("actions.menu")) {
@@ -516,6 +589,21 @@ function positionActionMenu(menu) {
 
   panel.style.left = `${left}px`;
   panel.style.top = `${top}px`;
+}
+
+function toggleAccountMenu(forceOpen) {
+  const shouldOpen = typeof forceOpen === "boolean" ? forceOpen : accountMenuPanel.hidden;
+  accountMenuPanel.hidden = !shouldOpen;
+  accountMenuBtn.setAttribute("aria-expanded", String(shouldOpen));
+  accountMenu.classList.toggle("open", shouldOpen);
+  if (shouldOpen) closeActionMenu();
+}
+
+function closeAccountMenu() {
+  if (accountMenuPanel.hidden) return;
+  accountMenuPanel.hidden = true;
+  accountMenuBtn.setAttribute("aria-expanded", "false");
+  accountMenu.classList.remove("open");
 }
 
 function initTheme() {
@@ -1156,10 +1244,16 @@ function updateStatus(key, mode, params = {}) {
 
 function refreshStatusText() {
   statusText.textContent = t(currentStatus.key, currentStatus.params);
-  statusDot.className = "status-dot";
-  if (currentStatus.mode === "ready") statusDot.classList.add("ready");
-  if (currentStatus.mode === "dirty") statusDot.classList.add("dirty");
-  if (currentStatus.mode === "error") statusDot.classList.add("error");
+  applyStatusDotClass(statusDot);
+  applyStatusDotClass(accountButtonDot);
+  accountMenuLabel.textContent = currentUser ? getUserLabel(currentUser) : t("auth.account");
+}
+
+function applyStatusDotClass(dot) {
+  dot.className = "status-dot";
+  if (currentStatus.mode === "ready") dot.classList.add("ready");
+  if (currentStatus.mode === "dirty") dot.classList.add("dirty");
+  if (currentStatus.mode === "error") dot.classList.add("error");
 }
 
 function normalizeData(input) {
