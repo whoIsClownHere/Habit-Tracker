@@ -2413,9 +2413,11 @@ input:focus, select:focus, textarea:focus { border-color: var(--text); }
 }
 
 .mini-day.selected {
+  opacity: 1;
   background: var(--text);
   color: var(--bg);
   border-color: var(--text);
+  font-weight: 700;
 }
 
 .chart-top {

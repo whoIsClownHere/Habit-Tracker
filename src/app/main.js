@@ -712,7 +712,7 @@ function isLocalQaHost() {
 }
 
 function canUseTestAccount() {
-  return isLocalQaHost() && localStorage.getItem(QA_ACCESS_KEY) === "active";
+  return isLocalQaHost();
 }
 
 function syncQaAccessControls() {

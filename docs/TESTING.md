@@ -4,7 +4,7 @@ Habitline includes an isolated local QA account for repeatable manual testing wi
 
 ## Test Account
 
-On a local development host, open the app with `?qa=1`, then click `Sign in / register` and `Use test account`.
+On a local development host, click `Sign in / register`, then `Use test account`.
 
 The account is local to the browser. Its session is stored under `habitline.testSession`; its data is stored under `habitline.testData`.
 
