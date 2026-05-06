@@ -1387,7 +1387,7 @@ function getVisibleTodayHabits(todayKey) {
 
   for (let i = 0; i < scanCount; i++) {
     const habit = data.habits[i];
-    if (!isHabitActiveOnDate(habit, todayKey)) continue;
+    if (!isHabitTrackedOnDate(habit, todayKey)) continue;
     const record = getRecord(todayKey, habit.id, false);
     if (record?.done) continue;
     if (!habitMatchesSearch(habit, todaySearchQuery)) continue;
@@ -1806,7 +1806,7 @@ function renderDayReview() {
   const visibleHabits = activeHabitsForDate.slice(0, DAY_REVIEW_LIMIT);
 
   visibleHabits.forEach(habit => {
-    const isActive = isHabitActiveOnDate(habit, reviewDate);
+    const isActive = isHabitTrackedOnDate(habit, reviewDate);
     const record = getRecord(reviewDate, habit.id, false);
     const done = Boolean(record?.done);
 
@@ -2000,7 +2000,7 @@ function countDoneRecordsForDate(dateKey) {
 }
 
 function getActiveHabitsForDate(dateKey) {
-  const activeHabits = data.habits.filter(habit => isHabitActiveOnDate(habit, dateKey));
+  const activeHabits = data.habits.filter(habit => isHabitTrackedOnDate(habit, dateKey));
   const activeHabitIds = new Set(activeHabits.map(habit => habit.id));
   const dayRecords = data.records[dateKey] || {};
 
@@ -2026,6 +2026,10 @@ function getDayCompletionStats(dateKey) {
 
 function isHabitActiveOnDate(habit, dateKey) {
   return !habit.createdAt || habit.createdAt <= dateKey;
+}
+
+function isHabitTrackedOnDate(habit, dateKey) {
+  return isHabitActiveOnDate(habit, dateKey) || Boolean(data.records[dateKey]?.[habit.id]);
 }
 
 function selectReviewDate(dateKey, options = {}) {
