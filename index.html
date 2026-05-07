@@ -4,8 +4,8 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Hendle</title>
-  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 80 88'%3E%3Ccircle cx='40' cy='7' r='4' fill='%23f59a00'/%3E%3Crect x='24' y='19' width='32' height='8' rx='2' fill='%23e4d8c5'/%3E%3Crect x='16' y='31' width='48' height='8' rx='2' fill='%23cfc2aa'/%3E%3Crect x='8' y='43' width='64' height='8' rx='2' fill='%23afa58f'/%3E%3Crect x='16' y='55' width='48' height='8' rx='2' fill='%238b806d'/%3E%3Crect x='24' y='67' width='32' height='8' rx='2' fill='%235f5748'/%3E%3Crect x='30' y='79' width='20' height='8' rx='2' fill='%23413931'/%3E%3C/svg%3E" />
-  <link rel="stylesheet" href="./src/styles/main.css?v=20260506-hendle-topbar-5" />
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 80 88'%3E%3Ccircle cx='40' cy='7' r='4' fill='%23f59b12'/%3E%3Crect x='24' y='19' width='32' height='8' rx='2' fill='%23211912'/%3E%3Crect x='16' y='31' width='48' height='8' rx='2' fill='%2340372d'/%3E%3Crect x='8' y='43' width='64' height='8' rx='2' fill='%237f725d'/%3E%3Crect x='16' y='55' width='48' height='8' rx='2' fill='%23aea28b'/%3E%3Crect x='24' y='67' width='32' height='8' rx='2' fill='%23d4c8b6'/%3E%3Crect x='30' y='79' width='20' height='8' rx='2' fill='%23eee4d5'/%3E%3C/svg%3E" />
+  <link rel="stylesheet" href="./src/styles/main.css?v=20260507-warm-light-palette" />
 </head>
 <body>
   <div class="app">
@@ -65,6 +65,7 @@
 
     <nav class="app-tabs" data-i18n-aria-label="nav.label" aria-label="App sections">
       <button id="habitsTabBtn" class="app-tab active" type="button" aria-selected="true" data-i18n="nav.habits">Habits</button>
+      <button id="workoutsTabBtn" class="app-tab" type="button" aria-selected="false" data-i18n="nav.workouts">Workouts</button>
       <button id="goalsTabBtn" class="app-tab" type="button" aria-selected="false" data-i18n="nav.goals">Goals</button>
     </nav>
 
@@ -289,6 +290,81 @@
           <canvas id="progressChart"></canvas>
         </div>
       </section>
+      </div>
+
+      <div id="workoutsView" class="layout app-view" hidden>
+        <section class="card workout-hero">
+          <div class="section-top workout-hero-top">
+            <div>
+              <div class="section-kicker" data-i18n="workouts.kicker">Training log</div>
+              <h2 data-i18n="workouts.title">Workouts</h2>
+              <div class="workout-week-title" id="workoutWeekTitle"></div>
+            </div>
+            <div class="period-nav workout-week-nav">
+              <button id="prevWorkoutWeekBtn" type="button">←</button>
+              <button id="thisWorkoutWeekBtn" type="button" data-i18n="period.thisWeek">This week</button>
+              <button id="nextWorkoutWeekBtn" type="button">→</button>
+            </div>
+          </div>
+
+          <div class="workout-control-row">
+            <label class="workout-cadence-control" for="workoutCadenceSelect">
+              <span data-i18n="workouts.progressEvery">Progress every</span>
+              <select id="workoutCadenceSelect" data-i18n-aria-label="workouts.progressEvery" aria-label="Progress every">
+                <option value="1" data-i18n="workouts.cadenceOne">1 week</option>
+                <option value="2" data-i18n="workouts.cadenceTwo">2 weeks</option>
+              </select>
+            </label>
+            <button id="workoutPlanNextBtn" class="primary" type="button" data-i18n="workouts.planNextBlock">Plan next block</button>
+          </div>
+
+          <div class="workout-summary">
+            <div class="workout-summary-item">
+              <span id="workoutLoggedSets">0</span>
+              <span data-i18n="workouts.loggedSets">sets logged</span>
+            </div>
+            <div class="workout-summary-item">
+              <span id="workoutTotalSets">0</span>
+              <span data-i18n="workouts.totalSets">planned sets</span>
+            </div>
+            <div class="workout-summary-item">
+              <span id="workoutLoggedExercises">0</span>
+              <span data-i18n="workouts.loggedExercises">baselines</span>
+            </div>
+            <div class="workout-summary-item">
+              <span id="workoutNextBlockDate">—</span>
+              <span data-i18n="workouts.nextBlock">next block</span>
+            </div>
+          </div>
+
+          <div id="workoutDayTabs" class="workout-day-tabs"></div>
+        </section>
+
+        <section class="card workout-session-card">
+          <div class="section-top">
+            <div>
+              <div class="section-kicker" id="workoutDayKicker" data-i18n="workouts.schedule">Schedule</div>
+              <h2 id="workoutDayTitle" data-i18n="workouts.title">Workouts</h2>
+              <div class="workout-day-focus" id="workoutDayFocus"></div>
+            </div>
+          </div>
+          <div id="workoutExerciseList" class="workout-exercise-list"></div>
+        </section>
+
+        <section class="card workout-principles-card">
+          <div class="section-top">
+            <div>
+              <div class="section-kicker" data-i18n="workouts.principlesKicker">Main principle</div>
+              <h2 data-i18n="workouts.principlesTitle">Shoulders are a system</h2>
+            </div>
+          </div>
+          <div class="workout-principles-grid">
+            <div data-i18n="workouts.principleDelts">Lateral and rear delts</div>
+            <div data-i18n="workouts.principleBack">Upper back</div>
+            <div data-i18n="workouts.principleScapula">Scapular control</div>
+            <div data-i18n="workouts.principlePosture">Posture and traps</div>
+          </div>
+        </section>
       </div>
 
       <div id="goalsView" class="layout app-view" hidden>
