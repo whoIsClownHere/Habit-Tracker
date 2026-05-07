@@ -1574,6 +1574,17 @@ input:focus, select:focus, textarea:focus { border-color: var(--text); }
   background: var(--card-2);
 }
 
+.workout-day-tab.soft.active {
+  color: var(--text);
+  border-color: var(--text);
+  background: var(--card-2);
+}
+
+.workout-day-tab.soft.active span,
+.workout-day-tab.soft.active small {
+  color: var(--muted);
+}
+
 .workout-exercise-list {
   display: flex;
   flex-direction: column;
