@@ -268,12 +268,13 @@ h2, h3 {
 }
 
 .subtitle {
-  max-width: 620px;
+  max-width: none;
   margin-top: 0;
   color: var(--muted);
   font-size: 15px;
   line-height: 1.35;
   letter-spacing: -0.01em;
+  white-space: nowrap;
 }
 
 button, input, select, textarea { font: inherit; }
@@ -2739,6 +2740,10 @@ canvas {
   .language-control {
     grid-template-columns: 1fr auto;
     width: 100%;
+  }
+  .subtitle {
+    font-size: 12px;
+    line-height: 1.3;
   }
   h1 { font-size: 42px; }
   .today-title { font-size: 32px; }
