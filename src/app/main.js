@@ -64,6 +64,19 @@ const WORKOUT_DAY_ID_BY_INDEX = [
   "fri-lower-b",
   "sat-cardio"
 ];
+const WORKOUT_WEIGHT_UNIT_KEYS = ["kg", "lb"];
+const WORKOUT_WEIGHT_CONVERSION = {
+  kg: { lb: 2.20462 },
+  lb: { kg: 1 / 2.20462 }
+};
+const WORKOUT_RESULT_UNIT_OPTIONS = [
+  "workouts.repsUnit",
+  "workouts.metersUnit",
+  "workouts.yardsUnit",
+  "workouts.lapsUnit",
+  "workouts.minutesUnit",
+  "workouts.passUnit"
+];
 const TEST_ACCOUNT = {
   uid: "local-test-account",
   email: "test@hendle.local",
@@ -101,7 +114,9 @@ let workspaceGoalId = null;
 let workspaceTaskId = null;
 let workoutWeekStart = getWeekStart(new Date());
 let selectedWorkoutDayId = getDefaultWorkoutDayId();
+let isWorkoutPlanEditorOpen = false;
 const expandedGoalIds = new Set();
+const expandedWorkoutExerciseKeys = new Set();
 let activeActionMenu = null;
 let authMode = "login";
 let isAuthModalOpen = false;
@@ -112,7 +127,7 @@ let data = {
   habits: [],
   records: {},
   goals: [],
-  workoutSettings: { progressionWeeks: 1 },
+  workoutSettings: { progressionWeeks: 1, weightUnit: "kg" },
   workoutPlan: [],
   workoutLogs: {},
   workoutTargets: {}
@@ -250,6 +265,8 @@ const prevWorkoutWeekBtn = document.getElementById("prevWorkoutWeekBtn");
 const thisWorkoutWeekBtn = document.getElementById("thisWorkoutWeekBtn");
 const nextWorkoutWeekBtn = document.getElementById("nextWorkoutWeekBtn");
 const workoutCadenceSelect = document.getElementById("workoutCadenceSelect");
+const workoutWeightUnitSelect = document.getElementById("workoutWeightUnitSelect");
+const workoutPlanEditorToggleBtn = document.getElementById("workoutPlanEditorToggleBtn");
 const workoutPlanNextBtn = document.getElementById("workoutPlanNextBtn");
 const workoutLoggedSets = document.getElementById("workoutLoggedSets");
 const workoutTotalSets = document.getElementById("workoutTotalSets");
@@ -259,6 +276,11 @@ const workoutDayTabs = document.getElementById("workoutDayTabs");
 const workoutDayKicker = document.getElementById("workoutDayKicker");
 const workoutDayTitle = document.getElementById("workoutDayTitle");
 const workoutDayFocus = document.getElementById("workoutDayFocus");
+const workoutPlanEditor = document.getElementById("workoutPlanEditor");
+const workoutPlanDayTitleInput = document.getElementById("workoutPlanDayTitleInput");
+const workoutPlanDayFocusInput = document.getElementById("workoutPlanDayFocusInput");
+const workoutPlanDayKindSelect = document.getElementById("workoutPlanDayKindSelect");
+const workoutAddExerciseBtn = document.getElementById("workoutAddExerciseBtn");
 const workoutExerciseList = document.getElementById("workoutExerciseList");
 let isHabitManagerOpen = false;
 let isCompletedModalOpen = false;
@@ -397,6 +419,12 @@ prevWorkoutWeekBtn.addEventListener("click", () => changeWorkoutWeek(-1));
 nextWorkoutWeekBtn.addEventListener("click", () => changeWorkoutWeek(1));
 thisWorkoutWeekBtn.addEventListener("click", goToCurrentWorkoutWeek);
 workoutCadenceSelect.addEventListener("change", updateWorkoutCadence);
+workoutWeightUnitSelect.addEventListener("change", updateWorkoutWeightUnit);
+workoutPlanEditorToggleBtn.addEventListener("click", toggleWorkoutPlanEditor);
+workoutPlanDayTitleInput.addEventListener("change", () => updateWorkoutDayField("title", workoutPlanDayTitleInput.value.trim()));
+workoutPlanDayFocusInput.addEventListener("change", () => updateWorkoutDayField("focus", workoutPlanDayFocusInput.value.trim()));
+workoutPlanDayKindSelect.addEventListener("change", () => updateWorkoutDayField("kind", workoutPlanDayKindSelect.value));
+workoutAddExerciseBtn.addEventListener("click", addWorkoutExercise);
 workoutPlanNextBtn.addEventListener("click", planNextWorkoutBlock);
 document.getElementById("prevWeekCalendar").addEventListener("click", () => changeVisibleWeek(-1));
 document.getElementById("nextWeekCalendar").addEventListener("click", () => changeVisibleWeek(1));
@@ -1043,7 +1071,7 @@ function createEmptyData() {
     habits: [],
     records: {},
     goals: [],
-    workoutSettings: { progressionWeeks: 1 },
+    workoutSettings: createDefaultWorkoutSettings(),
     workoutPlan: createDefaultWorkoutPlan(),
     workoutLogs: {},
     workoutTargets: {}
@@ -1058,11 +1086,15 @@ function createStarterData() {
     ],
     records: {},
     goals: [],
-    workoutSettings: { progressionWeeks: 1 },
+    workoutSettings: createDefaultWorkoutSettings(),
     workoutPlan: createDefaultWorkoutPlan(),
     workoutLogs: {},
     workoutTargets: {}
   };
+}
+
+function createDefaultWorkoutSettings() {
+  return { progressionWeeks: 1, weightUnit: "kg" };
 }
 
 function createDefaultWorkoutPlan() {
@@ -1103,10 +1135,15 @@ function createDefaultWorkoutPlan() {
     {
       id: "wed-recovery",
       weekdayKey: "calendar.weekday.wed",
-      title: "Pool / recovery",
-      focus: "Easy swim, mobility, low stress",
-      kind: "recovery",
-      notes: ["Keep it light.", "Leave the gym fresher than you arrived."]
+      title: "Swim Technique",
+      focus: "Easy aerobic swim + clean form",
+      kind: "training",
+      exercises: [
+        makeWorkoutExercise("swim-warmup-200", "Easy Swim Warm-up", 1, 200, 200, 0, ["Relaxed pace. Breathe calmly."], "workouts.metersUnit"),
+        makeWorkoutExercise("swim-drill-50s", "Technique Drills", 6, 50, 50, 0, ["Alternate catch-up, fingertip drag, and side kick."], "workouts.metersUnit"),
+        makeWorkoutExercise("swim-steady-100s", "Steady Swim", 4, 100, 100, 0, ["Smooth pace. Leave energy in the tank."], "workouts.metersUnit"),
+        makeWorkoutExercise("swim-cooldown-100", "Cooldown", 1, 100, 100, 0, [], "workouts.metersUnit")
+      ]
     },
     {
       id: "thu-upper-b",
@@ -1144,10 +1181,15 @@ function createDefaultWorkoutPlan() {
     {
       id: "sat-cardio",
       weekdayKey: "calendar.weekday.sat",
-      title: "Light pool / cardio",
-      focus: "Easy conditioning",
-      kind: "recovery",
-      notes: ["Keep the intensity conversational.", "No need to chase fatigue."]
+      title: "Swim Conditioning",
+      focus: "Pool cardio without crushing recovery",
+      kind: "training",
+      exercises: [
+        makeWorkoutExercise("swim-easy-200", "Easy Swim", 1, 200, 200, 0, ["Settle into the water before working."], "workouts.metersUnit"),
+        makeWorkoutExercise("swim-interval-100s", "Moderate Intervals", 6, 100, 100, 0, ["Conversational-hard pace. Rest as needed."], "workouts.metersUnit"),
+        makeWorkoutExercise("swim-kick-50s", "Kick Set", 4, 50, 50, 0, ["Use a board if available."], "workouts.metersUnit"),
+        makeWorkoutExercise("swim-cooldown-200", "Long Cooldown", 1, 200, 200, 0, [], "workouts.metersUnit")
+      ]
     },
     {
       id: "sun-rest",
@@ -1317,7 +1359,7 @@ function createTestingData() {
         tasks: []
       }
     ],
-    workoutSettings: { progressionWeeks: 1 },
+    workoutSettings: createDefaultWorkoutSettings(),
     workoutPlan: createDefaultWorkoutPlan(),
     workoutLogs: {
       [previousWorkoutWeek]: {
@@ -1576,9 +1618,11 @@ function normalizeOptionalNumber(value) {
 
 function normalizeWorkoutSettings(settings = {}) {
   const progressionWeeks = Number(settings.progressionWeeks);
+  const weightUnit = WORKOUT_WEIGHT_UNIT_KEYS.includes(settings.weightUnit) ? settings.weightUnit : "kg";
 
   return {
-    progressionWeeks: progressionWeeks === 2 ? 2 : 1
+    progressionWeeks: progressionWeeks === 2 ? 2 : 1,
+    weightUnit
   };
 }
 
@@ -1593,33 +1637,58 @@ function normalizeWorkoutPlan(plan) {
 function normalizeWorkoutDay(day = {}, fallback = {}) {
   const safeDay = day && typeof day === "object" ? day : {};
   const safeFallback = fallback && typeof fallback === "object" ? fallback : {};
-  const kind = ["training", "recovery", "rest"].includes(safeDay.kind) ? safeDay.kind : safeFallback.kind || "training";
+  const shouldUpgradeSwim = shouldUpgradeLegacySwimDay(safeDay, safeFallback);
+  const kind = shouldUpgradeSwim
+    ? safeFallback.kind || "training"
+    : ["training", "recovery", "rest"].includes(safeDay.kind)
+      ? safeDay.kind
+      : safeFallback.kind || "training";
   const fallbackExercises = Array.isArray(safeFallback.exercises) ? safeFallback.exercises : [];
-  const exercises = Array.isArray(safeDay.exercises) && safeDay.exercises.length ? safeDay.exercises : fallbackExercises;
+  const exercises = shouldUpgradeSwim
+    ? fallbackExercises
+    : Array.isArray(safeDay.exercises) && safeDay.exercises.length
+      ? safeDay.exercises
+      : fallbackExercises;
 
   return {
     id: safeDay.id || safeFallback.id || crypto.randomUUID(),
     weekdayKey: safeDay.weekdayKey || safeFallback.weekdayKey || "calendar.weekday.mon",
-    title: safeDay.title || safeFallback.title || t("workouts.fallbackDay"),
-    focus: safeDay.focus || safeFallback.focus || "",
+    title: shouldUpgradeSwim ? safeFallback.title : safeDay.title || safeFallback.title || t("workouts.fallbackDay"),
+    focus: shouldUpgradeSwim ? safeFallback.focus || "" : safeDay.focus || safeFallback.focus || "",
     kind,
-    notes: normalizeWorkoutNotes(safeDay.notes || safeFallback.notes),
+    notes: normalizeWorkoutNotes(shouldUpgradeSwim ? safeFallback.notes : safeDay.notes || safeFallback.notes),
     exercises: kind === "training" ? exercises.map((exercise, exerciseIndex) => normalizeWorkoutExercise(exercise, fallbackExercises[exerciseIndex])) : []
   };
+}
+
+function shouldUpgradeLegacySwimDay(day, fallback) {
+  if (!fallback || fallback.kind !== "training") return false;
+  if (!["wed-recovery", "sat-cardio"].includes(day?.id)) return false;
+  if (day.kind === "training" || (Array.isArray(day.exercises) && day.exercises.length)) return false;
+
+  const title = String(day.title || "").toLowerCase();
+  return title === "pool / recovery" || title === "light pool / cardio";
 }
 
 function normalizeWorkoutExercise(exercise = {}, fallback = {}) {
   const safeExercise = exercise && typeof exercise === "object" ? exercise : {};
   const safeFallback = fallback && typeof fallback === "object" ? fallback : {};
+  const repUnitKey = WORKOUT_RESULT_UNIT_OPTIONS.includes(safeExercise.repUnitKey)
+    ? safeExercise.repUnitKey
+    : WORKOUT_RESULT_UNIT_OPTIONS.includes(safeFallback.repUnitKey)
+      ? safeFallback.repUnitKey
+      : "workouts.repsUnit";
+  const repMin = normalizePositiveInteger(safeExercise.repMin ?? safeFallback.repMin, 1);
+  const repMax = normalizePositiveInteger(safeExercise.repMax ?? safeFallback.repMax ?? safeExercise.repMin, repMin);
 
   return {
     id: safeExercise.id || safeFallback.id || crypto.randomUUID(),
     name: safeExercise.name || safeFallback.name || t("workouts.fallbackExercise"),
     targetSets: normalizePositiveInteger(safeExercise.targetSets ?? safeFallback.targetSets, 1),
-    repMin: normalizePositiveInteger(safeExercise.repMin ?? safeFallback.repMin, 1),
-    repMax: normalizePositiveInteger(safeExercise.repMax ?? safeFallback.repMax ?? safeExercise.repMin, 1),
+    repMin,
+    repMax: Math.max(repMin, repMax),
     weightStep: normalizeWorkoutNumber(safeExercise.weightStep ?? safeFallback.weightStep ?? 0),
-    repUnitKey: safeExercise.repUnitKey || safeFallback.repUnitKey || "workouts.repsUnit",
+    repUnitKey,
     notes: normalizeWorkoutNotes(safeExercise.notes || safeFallback.notes)
   };
 }
@@ -1655,6 +1724,8 @@ function normalizeWorkoutEntry(entry = {}) {
   const rawSets = Array.isArray(safeEntry.sets) ? safeEntry.sets : [];
 
   return {
+    done: Boolean(safeEntry.done),
+    completedAt: typeof safeEntry.completedAt === "string" ? safeEntry.completedAt : "",
     sets: rawSets.map(normalizeWorkoutSet)
   };
 }
@@ -2168,7 +2239,11 @@ function renderWorkouts() {
   const weekDays = getWeekDaysFromStart(workoutWeekStart);
 
   workoutCadenceSelect.value = String(settings.progressionWeeks);
+  workoutWeightUnitSelect.value = settings.weightUnit;
   workoutCadenceSelect.disabled = !currentUser;
+  workoutWeightUnitSelect.disabled = !currentUser;
+  workoutPlanEditorToggleBtn.disabled = !currentUser;
+  workoutPlanEditorToggleBtn.textContent = isWorkoutPlanEditorOpen ? t("workouts.hidePlanEditor") : t("workouts.editPlan");
   workoutPlanNextBtn.disabled = !currentUser;
   workoutWeekTitle.textContent = `${formatFullDate(weekDays[0], getDateLocale())} - ${formatFullDate(weekDays[6], getDateLocale())}`;
 
@@ -2188,13 +2263,13 @@ function renderWorkoutSummary() {
       return exerciseSum + countLoggedWorkoutSets(weekKey, day.id, exercise);
     }, 0);
   }, 0);
-  const loggedExercises = trainingDays.reduce((sum, day) => {
-    return sum + day.exercises.filter(exercise => isWorkoutExerciseBaselineComplete(weekKey, day.id, exercise)).length;
+  const completedExercises = trainingDays.reduce((sum, day) => {
+    return sum + day.exercises.filter(exercise => isWorkoutExerciseComplete(weekKey, day.id, exercise)).length;
   }, 0);
 
   workoutLoggedSets.textContent = loggedSets;
   workoutTotalSets.textContent = totalSets;
-  workoutLoggedExercises.textContent = loggedExercises;
+  workoutLoggedExercises.textContent = completedExercises;
   workoutNextBlockDate.textContent = formatShortDate(getNextWorkoutBlockKey(), getDateLocale());
 }
 
@@ -2205,7 +2280,7 @@ function renderWorkoutDayTabs() {
   getWorkoutPlan().forEach(day => {
     const tab = document.createElement("button");
     const isSelected = day.id === selectedWorkoutDayId;
-    const isComplete = day.kind === "training" && isWorkoutDayBaselineComplete(day, weekKey);
+    const isComplete = day.kind === "training" && isWorkoutDayComplete(day, weekKey);
     const dayType = day.kind === "training" ? getWorkoutDaySetsMeta(day, weekKey) : t(`workouts.kind.${day.kind}`);
 
     tab.className = "workout-day-tab";
@@ -2235,6 +2310,7 @@ function renderWorkoutSession() {
   workoutDayKicker.textContent = `${t(day.weekdayKey)} / ${t(`workouts.kind.${day.kind}`)}`;
   workoutDayTitle.textContent = day.title;
   workoutDayFocus.textContent = day.focus || "";
+  renderWorkoutPlanEditor(day);
 
   if (!currentUser) {
     workoutExerciseList.innerHTML = `<div class="empty">${t("workouts.signInEmpty")}</div>`;
@@ -2254,6 +2330,19 @@ function renderWorkoutSession() {
   day.exercises.forEach(exercise => {
     workoutExerciseList.appendChild(makeWorkoutExerciseCard(day, exercise));
   });
+}
+
+function renderWorkoutPlanEditor(day) {
+  workoutPlanEditor.hidden = !isWorkoutPlanEditorOpen || !currentUser;
+  if (workoutPlanEditor.hidden) return;
+
+  workoutPlanDayTitleInput.value = day.title || "";
+  workoutPlanDayFocusInput.value = day.focus || "";
+  workoutPlanDayKindSelect.value = day.kind || "training";
+  workoutPlanDayTitleInput.disabled = !currentUser;
+  workoutPlanDayFocusInput.disabled = !currentUser;
+  workoutPlanDayKindSelect.disabled = !currentUser;
+  workoutAddExerciseBtn.disabled = !currentUser;
 }
 
 function makeWorkoutRecoveryPanel(day) {
@@ -2277,38 +2366,41 @@ function makeWorkoutExerciseCard(day, exercise) {
   const weekKey = getWorkoutWeekKey();
   const sets = getWorkoutDisplayLogSets(weekKey, day.id, exercise);
   const targets = getWorkoutDisplayTargetSets(weekKey, day.id, exercise);
+  const explicitTargets = getWorkoutExplicitTargetSets(weekKey, day.id, exercise);
   const loggedCount = sets.filter(isWorkoutSetLogged).length;
+  const exerciseKey = getWorkoutExerciseKey(weekKey, day.id, exercise.id);
+  const isExpanded = expandedWorkoutExerciseKeys.has(exerciseKey);
+  const isComplete = isWorkoutExerciseComplete(weekKey, day.id, exercise);
   const card = document.createElement("article");
 
   card.className = "workout-exercise-card";
-  card.classList.toggle("done", loggedCount >= exercise.targetSets);
+  card.classList.toggle("done", isComplete);
+  card.classList.toggle("collapsed", !isExpanded);
 
   const top = document.createElement("div");
   top.className = "workout-exercise-top";
   top.innerHTML = `
+    <button class="quest-check workout-exercise-check ${isComplete ? "quest-check-done" : ""}" type="button" aria-label="${escapeHtml(t("workouts.toggleExerciseDone"))}">✓</button>
     <div class="workout-exercise-main">
       <div class="workout-exercise-name">${escapeHtml(exercise.name)}</div>
       <div class="workout-exercise-meta">
         <span>${escapeHtml(formatWorkoutPrescription(exercise))}</span>
         <span>${escapeHtml(t("workouts.setsLoggedShort", { logged: loggedCount, total: exercise.targetSets }))}</span>
+        <span>${escapeHtml(isComplete ? t("workouts.exerciseDone") : t("workouts.exerciseOpen"))}</span>
       </div>
     </div>
+    <button class="workout-collapse-toggle" type="button" aria-expanded="${String(isExpanded)}" aria-label="${escapeHtml(isExpanded ? t("workouts.collapseExercise") : t("workouts.expandExercise"))}">
+      ${isExpanded ? "⌃" : "⌄"}
+    </button>
   `;
 
-  const stepLabel = document.createElement("label");
-  stepLabel.className = "workout-step-control";
-  stepLabel.innerHTML = `<span>${escapeHtml(t("workouts.stepKg"))}</span>`;
-
-  const stepInput = document.createElement("input");
-  stepInput.type = "number";
-  stepInput.step = "0.5";
-  stepInput.value = exercise.weightStep === "" ? "" : exercise.weightStep;
-  stepInput.disabled = !currentUser;
-  stepInput.addEventListener("input", () => updateWorkoutExerciseStep(day.id, exercise.id, stepInput.value));
-
-  stepLabel.appendChild(stepInput);
-  top.appendChild(stepLabel);
+  top.querySelector(".workout-exercise-check").addEventListener("click", () => toggleWorkoutExerciseDone(day.id, exercise.id));
+  top.querySelector(".workout-collapse-toggle").addEventListener("click", () => toggleWorkoutExerciseExpanded(weekKey, day.id, exercise.id));
   card.appendChild(top);
+
+  if (!isExpanded) return card;
+
+  card.appendChild(makeWorkoutExerciseEditor(day, exercise));
 
   if (exercise.notes.length) {
     const notes = document.createElement("ul");
@@ -2328,6 +2420,7 @@ function makeWorkoutExerciseCard(day, exercise) {
 
   sets.forEach((set, index) => {
     const target = targets[index] || {};
+    const explicitTarget = explicitTargets[index] || {};
     const row = document.createElement("div");
     row.className = "workout-set-row";
     row.classList.toggle("logged", isWorkoutSetLogged(set));
@@ -2338,18 +2431,46 @@ function makeWorkoutExerciseCard(day, exercise) {
 
     const targetCell = document.createElement("div");
     targetCell.className = "workout-set-target";
-    targetCell.textContent = formatWorkoutSetTarget(target, exercise);
+    const targetInputs = document.createElement("div");
+    targetInputs.className = "workout-target-inputs";
+
+    const targetWeightInput = document.createElement("input");
+    targetWeightInput.type = "number";
+    targetWeightInput.step = getWorkoutWeightInputStep();
+    targetWeightInput.inputMode = "decimal";
+    targetWeightInput.value = explicitTarget.weight ?? "";
+    targetWeightInput.placeholder = target.weight === "" || target.weight === undefined ? getWorkoutWeightUnitLabel() : formatWorkoutNumber(target.weight);
+    targetWeightInput.disabled = !currentUser;
+    targetWeightInput.setAttribute("aria-label", t("workouts.targetWeight"));
+    targetWeightInput.addEventListener("input", () => updateWorkoutTargetSetValue(day.id, exercise.id, index, "weight", targetWeightInput.value));
+
+    const targetRepsInput = document.createElement("input");
+    targetRepsInput.type = "number";
+    targetRepsInput.step = "1";
+    targetRepsInput.min = "0";
+    targetRepsInput.inputMode = "numeric";
+    targetRepsInput.value = explicitTarget.reps ?? "";
+    targetRepsInput.placeholder = target.reps === "" || target.reps === undefined ? t("workouts.repsPlaceholder") : formatWorkoutNumber(target.reps);
+    targetRepsInput.disabled = !currentUser;
+    targetRepsInput.setAttribute("aria-label", t("workouts.targetResult"));
+    targetRepsInput.addEventListener("input", () => updateWorkoutTargetSetValue(day.id, exercise.id, index, "reps", targetRepsInput.value));
+
+    targetInputs.appendChild(targetWeightInput);
+    targetInputs.appendChild(targetRepsInput);
+    targetCell.appendChild(targetInputs);
+    targetCell.title = formatWorkoutSetTarget(target, exercise);
 
     const weightInput = document.createElement("input");
     weightInput.type = "number";
-    weightInput.step = "0.5";
+    weightInput.step = getWorkoutWeightInputStep();
     weightInput.inputMode = "decimal";
     weightInput.value = set.weight;
-    weightInput.placeholder = target.weight === "" || target.weight === undefined ? t("workouts.weightPlaceholder") : formatWorkoutNumber(target.weight);
+    weightInput.placeholder = target.weight === "" || target.weight === undefined ? getWorkoutWeightUnitLabel() : formatWorkoutNumber(target.weight);
     weightInput.disabled = !currentUser;
     weightInput.addEventListener("input", () => {
       updateWorkoutSetValue(day.id, exercise.id, index, "weight", weightInput.value);
       row.classList.toggle("logged", isWorkoutSetLogged(getWorkoutDisplayLogSets(getWorkoutWeekKey(), day.id, exercise)[index]));
+      syncWorkoutExerciseCardState(card, weekKey, day.id, exercise);
     });
 
     const repsInput = document.createElement("input");
@@ -2363,6 +2484,7 @@ function makeWorkoutExerciseCard(day, exercise) {
     repsInput.addEventListener("input", () => {
       updateWorkoutSetValue(day.id, exercise.id, index, "reps", repsInput.value);
       row.classList.toggle("logged", isWorkoutSetLogged(getWorkoutDisplayLogSets(getWorkoutWeekKey(), day.id, exercise)[index]));
+      syncWorkoutExerciseCardState(card, weekKey, day.id, exercise);
     });
 
     row.appendChild(setNumber);
@@ -2374,6 +2496,102 @@ function makeWorkoutExerciseCard(day, exercise) {
 
   card.appendChild(setGrid);
   return card;
+}
+
+function makeWorkoutExerciseEditor(day, exercise) {
+  const editor = document.createElement("div");
+  editor.className = "workout-exercise-editor";
+
+  const nameInput = makeWorkoutEditorInput("text", exercise.name, t("workouts.exerciseNamePlaceholder"));
+  nameInput.addEventListener("change", () => updateWorkoutExerciseField(day.id, exercise.id, "name", nameInput.value.trim()));
+
+  const setsInput = makeWorkoutEditorInput("number", exercise.targetSets, t("workouts.setsPlaceholder"));
+  setsInput.min = "1";
+  setsInput.step = "1";
+  setsInput.addEventListener("change", () => updateWorkoutExerciseField(day.id, exercise.id, "targetSets", setsInput.value));
+
+  const repMinInput = makeWorkoutEditorInput("number", exercise.repMin, t("workouts.repMinPlaceholder"));
+  repMinInput.min = "1";
+  repMinInput.step = "1";
+  repMinInput.addEventListener("change", () => updateWorkoutExerciseField(day.id, exercise.id, "repMin", repMinInput.value));
+
+  const repMaxInput = makeWorkoutEditorInput("number", exercise.repMax, t("workouts.repMaxPlaceholder"));
+  repMaxInput.min = "1";
+  repMaxInput.step = "1";
+  repMaxInput.addEventListener("change", () => updateWorkoutExerciseField(day.id, exercise.id, "repMax", repMaxInput.value));
+
+  const unitSelect = document.createElement("select");
+  unitSelect.setAttribute("aria-label", t("workouts.resultUnit"));
+  WORKOUT_RESULT_UNIT_OPTIONS.forEach(unitKey => {
+    const option = document.createElement("option");
+    option.value = unitKey;
+    option.textContent = t(unitKey);
+    unitSelect.appendChild(option);
+  });
+  unitSelect.value = exercise.repUnitKey || "workouts.repsUnit";
+  unitSelect.addEventListener("change", () => updateWorkoutExerciseField(day.id, exercise.id, "repUnitKey", unitSelect.value));
+
+  const stepInput = makeWorkoutEditorInput("number", exercise.weightStep, t("workouts.stepKg", { unit: getWorkoutWeightUnitLabel() }));
+  stepInput.step = getWorkoutWeightInputStep();
+  stepInput.addEventListener("input", () => updateWorkoutExerciseStep(day.id, exercise.id, stepInput.value));
+
+  const notesInput = document.createElement("textarea");
+  notesInput.rows = 2;
+  notesInput.value = exercise.notes.join("\n");
+  notesInput.placeholder = t("workouts.notesPlaceholder");
+  notesInput.addEventListener("change", () => updateWorkoutExerciseNotes(day.id, exercise.id, notesInput.value));
+
+  const deleteBtn = document.createElement("button");
+  deleteBtn.type = "button";
+  deleteBtn.className = "danger";
+  deleteBtn.textContent = t("actions.delete");
+  deleteBtn.addEventListener("click", () => deleteWorkoutExercise(day.id, exercise));
+
+  editor.appendChild(makeWorkoutEditorField(t("workouts.exerciseName"), nameInput));
+  editor.appendChild(makeWorkoutEditorField(t("workouts.sets"), setsInput));
+  editor.appendChild(makeWorkoutEditorField(t("workouts.repMin"), repMinInput));
+  editor.appendChild(makeWorkoutEditorField(t("workouts.repMax"), repMaxInput));
+  editor.appendChild(makeWorkoutEditorField(t("workouts.resultUnit"), unitSelect));
+  editor.appendChild(makeWorkoutEditorField(t("workouts.stepKg", { unit: getWorkoutWeightUnitLabel() }), stepInput));
+  editor.appendChild(makeWorkoutEditorField(t("workouts.notes"), notesInput, "wide"));
+  editor.appendChild(deleteBtn);
+  return editor;
+}
+
+function makeWorkoutEditorInput(type, value, placeholder) {
+  const input = document.createElement("input");
+  input.type = type;
+  input.value = value === "" || value === undefined ? "" : value;
+  input.placeholder = placeholder;
+  return input;
+}
+
+function makeWorkoutEditorField(label, control, extraClass = "") {
+  const wrapper = document.createElement("label");
+  wrapper.className = `workout-editor-field ${extraClass}`.trim();
+  const text = document.createElement("span");
+  text.textContent = label;
+  wrapper.appendChild(text);
+  wrapper.appendChild(control);
+  return wrapper;
+}
+
+function syncWorkoutExerciseCardState(card, weekKey, dayId, exercise) {
+  const isComplete = isWorkoutExerciseComplete(weekKey, dayId, exercise);
+  const check = card.querySelector(".workout-exercise-check");
+  const metaItems = card.querySelectorAll(".workout-exercise-meta span");
+  const status = metaItems[metaItems.length - 1];
+  const loggedMeta = metaItems[1];
+
+  card.classList.toggle("done", isComplete);
+  check?.classList.toggle("quest-check-done", isComplete);
+  if (loggedMeta) {
+    loggedMeta.textContent = t("workouts.setsLoggedShort", {
+      logged: countLoggedWorkoutSets(weekKey, dayId, exercise),
+      total: exercise.targetSets
+    });
+  }
+  if (status) status.textContent = isComplete ? t("workouts.exerciseDone") : t("workouts.exerciseOpen");
 }
 
 function updateWorkoutSetValue(dayId, exerciseId, setIndex, field, value) {
@@ -2393,6 +2611,21 @@ function updateWorkoutSetValue(dayId, exerciseId, setIndex, field, value) {
   renderWorkoutDayTabs();
 }
 
+function updateWorkoutTargetSetValue(dayId, exerciseId, setIndex, field, value) {
+  if (!currentUser) {
+    alert(t("workouts.signInRequired"));
+    return;
+  }
+
+  const day = getWorkoutDay(dayId);
+  const exercise = day?.exercises.find(item => item.id === exerciseId);
+  if (!day || !exercise || !["weight", "reps"].includes(field)) return;
+
+  const entry = ensureWorkoutExerciseTarget(getWorkoutWeekKey(), dayId, exercise);
+  entry.sets[setIndex][field] = normalizeWorkoutNumber(value);
+  markDirty();
+}
+
 function updateWorkoutExerciseStep(dayId, exerciseId, value) {
   if (!currentUser) return;
 
@@ -2404,12 +2637,206 @@ function updateWorkoutExerciseStep(dayId, exerciseId, value) {
   markDirty();
 }
 
+function updateWorkoutExerciseField(dayId, exerciseId, field, value) {
+  if (!currentUser) return;
+
+  const day = getWorkoutDay(dayId);
+  const exercise = day?.exercises.find(item => item.id === exerciseId);
+  if (!exercise) return;
+
+  if (field === "name") {
+    exercise.name = value || t("workouts.fallbackExercise");
+  }
+
+  if (field === "targetSets") {
+    exercise.targetSets = normalizePositiveInteger(value, exercise.targetSets);
+  }
+
+  if (field === "repMin") {
+    exercise.repMin = normalizePositiveInteger(value, exercise.repMin);
+    if (exercise.repMax < exercise.repMin) exercise.repMax = exercise.repMin;
+  }
+
+  if (field === "repMax") {
+    exercise.repMax = Math.max(exercise.repMin, normalizePositiveInteger(value, exercise.repMax));
+  }
+
+  if (field === "repUnitKey" && WORKOUT_RESULT_UNIT_OPTIONS.includes(value)) {
+    exercise.repUnitKey = value;
+  }
+
+  markDirty();
+  renderWorkouts();
+}
+
+function updateWorkoutExerciseNotes(dayId, exerciseId, value) {
+  if (!currentUser) return;
+
+  const day = getWorkoutDay(dayId);
+  const exercise = day?.exercises.find(item => item.id === exerciseId);
+  if (!exercise) return;
+
+  exercise.notes = normalizeWorkoutNotes(value.split("\n"));
+  markDirty();
+  renderWorkoutSession();
+}
+
+function toggleWorkoutExerciseExpanded(weekKey, dayId, exerciseId) {
+  const key = getWorkoutExerciseKey(weekKey, dayId, exerciseId);
+  if (expandedWorkoutExerciseKeys.has(key)) {
+    expandedWorkoutExerciseKeys.delete(key);
+  } else {
+    expandedWorkoutExerciseKeys.add(key);
+  }
+  renderWorkoutSession();
+}
+
+function toggleWorkoutExerciseDone(dayId, exerciseId) {
+  if (!currentUser) {
+    alert(t("workouts.signInRequired"));
+    return;
+  }
+
+  const day = getWorkoutDay(dayId);
+  const exercise = day?.exercises.find(item => item.id === exerciseId);
+  if (!exercise) return;
+
+  const entry = ensureWorkoutExerciseLog(getWorkoutWeekKey(), dayId, exercise);
+  entry.done = !entry.done;
+  entry.completedAt = entry.done ? toDateInputValue(new Date()) : "";
+  markDirty();
+  renderWorkouts();
+}
+
+function toggleWorkoutPlanEditor() {
+  if (!currentUser) {
+    alert(t("workouts.signInRequired"));
+    return;
+  }
+
+  isWorkoutPlanEditorOpen = !isWorkoutPlanEditorOpen;
+  renderWorkouts();
+}
+
+function updateWorkoutDayField(field, value) {
+  if (!currentUser) return;
+
+  const day = getSelectedWorkoutDay();
+  if (!day) return;
+
+  if (field === "title") day.title = value || t("workouts.fallbackDay");
+  if (field === "focus") day.focus = value;
+  if (field === "kind" && ["training", "recovery", "rest"].includes(value)) day.kind = value;
+
+  markDirty();
+  renderWorkouts();
+}
+
+function addWorkoutExercise() {
+  if (!currentUser) {
+    alert(t("workouts.signInRequired"));
+    return;
+  }
+
+  const day = getSelectedWorkoutDay();
+  if (!day) return;
+
+  day.kind = "training";
+  day.exercises ||= [];
+  const exercise = makeWorkoutExercise(
+    `exercise-${crypto.randomUUID()}`,
+    t("workouts.newExerciseName"),
+    3,
+    8,
+    12,
+    getDefaultWorkoutWeightStep(),
+    [],
+    "workouts.repsUnit"
+  );
+
+  day.exercises.push(exercise);
+  expandedWorkoutExerciseKeys.add(getWorkoutExerciseKey(getWorkoutWeekKey(), day.id, exercise.id));
+  markDirty();
+  renderWorkouts();
+}
+
+function deleteWorkoutExercise(dayId, exercise) {
+  if (!currentUser) return;
+  if (!confirm(t("workouts.confirmDeleteExercise", { name: exercise.name || t("workouts.fallbackExercise") }))) return;
+
+  const day = getWorkoutDay(dayId);
+  if (!day) return;
+
+  day.exercises = day.exercises.filter(item => item.id !== exercise.id);
+  deleteWorkoutExerciseStoreEntries(dayId, exercise.id);
+  expandedWorkoutExerciseKeys.forEach(key => {
+    if (key.endsWith(`:${dayId}:${exercise.id}`)) expandedWorkoutExerciseKeys.delete(key);
+  });
+  markDirty();
+  renderWorkouts();
+}
+
+function deleteWorkoutExerciseStoreEntries(dayId, exerciseId) {
+  [data.workoutLogs, data.workoutTargets].forEach(store => {
+    if (!store || typeof store !== "object") return;
+    Object.values(store).forEach(days => {
+      if (days?.[dayId]) delete days[dayId][exerciseId];
+    });
+  });
+}
+
 function updateWorkoutCadence() {
   if (!currentUser) return;
   ensureWorkoutData();
   data.workoutSettings.progressionWeeks = workoutCadenceSelect.value === "2" ? 2 : 1;
   markDirty();
   renderWorkoutSummary();
+}
+
+function updateWorkoutWeightUnit() {
+  if (!currentUser) return;
+
+  ensureWorkoutData();
+  const previousUnit = getWorkoutSettings().weightUnit;
+  const nextUnit = WORKOUT_WEIGHT_UNIT_KEYS.includes(workoutWeightUnitSelect.value) ? workoutWeightUnitSelect.value : "kg";
+  if (previousUnit === nextUnit) return;
+
+  convertWorkoutWeightUnit(previousUnit, nextUnit);
+  data.workoutSettings.weightUnit = nextUnit;
+  markDirty();
+  renderWorkouts();
+}
+
+function convertWorkoutWeightUnit(fromUnit, toUnit) {
+  const ratio = WORKOUT_WEIGHT_CONVERSION[fromUnit]?.[toUnit];
+  if (!ratio) return;
+
+  data.workoutPlan.forEach(day => {
+    day.exercises.forEach(exercise => {
+      exercise.weightStep = convertWorkoutNumberUnit(exercise.weightStep, ratio);
+    });
+  });
+
+  [data.workoutLogs, data.workoutTargets].forEach(store => {
+    if (!store || typeof store !== "object") return;
+    Object.values(store).forEach(days => {
+      if (!days || typeof days !== "object") return;
+      Object.values(days).forEach(exercises => {
+        if (!exercises || typeof exercises !== "object") return;
+        Object.values(exercises).forEach(entry => {
+          if (!Array.isArray(entry?.sets)) return;
+          entry.sets.forEach(set => {
+            set.weight = convertWorkoutNumberUnit(set.weight, ratio);
+          });
+        });
+      });
+    });
+  });
+}
+
+function convertWorkoutNumberUnit(value, ratio) {
+  const number = normalizeWorkoutNumber(value);
+  return number === "" ? "" : roundWorkoutNumber(Number(number) * ratio);
 }
 
 function planNextWorkoutBlock() {
@@ -2462,6 +2889,18 @@ function getWorkoutSettings() {
   return normalizeWorkoutSettings(data.workoutSettings);
 }
 
+function getWorkoutWeightUnitLabel() {
+  return t(getWorkoutSettings().weightUnit === "lb" ? "workouts.lbUnit" : "workouts.kgUnit");
+}
+
+function getWorkoutWeightInputStep() {
+  return getWorkoutSettings().weightUnit === "lb" ? "1" : "0.5";
+}
+
+function getDefaultWorkoutWeightStep() {
+  return getWorkoutSettings().weightUnit === "lb" ? 5 : 2.5;
+}
+
 function getWorkoutPlan() {
   return Array.isArray(data.workoutPlan) && data.workoutPlan.length ? data.workoutPlan : createDefaultWorkoutPlan();
 }
@@ -2487,6 +2926,10 @@ function getWorkoutWeekKey() {
   return toDateInputValue(workoutWeekStart);
 }
 
+function getWorkoutExerciseKey(weekKey, dayId, exerciseId) {
+  return `${weekKey}:${dayId}:${exerciseId}`;
+}
+
 function getNextWorkoutBlockKey() {
   return toDateInputValue(addWeeksToDate(workoutWeekStart, getWorkoutSettings().progressionWeeks));
 }
@@ -2508,9 +2951,23 @@ function ensureWorkoutExerciseLog(weekKey, dayId, exercise) {
   ensureWorkoutData();
   data.workoutLogs[weekKey] ||= {};
   data.workoutLogs[weekKey][dayId] ||= {};
-  data.workoutLogs[weekKey][dayId][exercise.id] ||= { sets: createEmptyWorkoutSets(exercise.targetSets) };
+  data.workoutLogs[weekKey][dayId][exercise.id] ||= { done: false, completedAt: "", sets: createEmptyWorkoutSets(exercise.targetSets) };
 
   const entry = data.workoutLogs[weekKey][dayId][exercise.id];
+  entry.done = Boolean(entry.done);
+  entry.completedAt = entry.done ? entry.completedAt || toDateInputValue(new Date()) : "";
+  while (entry.sets.length < exercise.targetSets) entry.sets.push({ weight: "", reps: "" });
+  entry.sets = entry.sets.slice(0, exercise.targetSets).map(normalizeWorkoutSet);
+  return entry;
+}
+
+function ensureWorkoutExerciseTarget(weekKey, dayId, exercise) {
+  ensureWorkoutData();
+  data.workoutTargets[weekKey] ||= {};
+  data.workoutTargets[weekKey][dayId] ||= {};
+  data.workoutTargets[weekKey][dayId][exercise.id] ||= { sets: createEmptyWorkoutSets(exercise.targetSets) };
+
+  const entry = data.workoutTargets[weekKey][dayId][exercise.id];
   while (entry.sets.length < exercise.targetSets) entry.sets.push({ weight: "", reps: "" });
   entry.sets = entry.sets.slice(0, exercise.targetSets).map(normalizeWorkoutSet);
   return entry;
@@ -2527,15 +2984,28 @@ function writeWorkoutTarget(weekKey, dayId, exerciseId, sets) {
 function getWorkoutDaySetsMeta(day, weekKey) {
   const total = day.exercises.reduce((sum, exercise) => sum + exercise.targetSets, 0);
   const logged = day.exercises.reduce((sum, exercise) => sum + countLoggedWorkoutSets(weekKey, day.id, exercise), 0);
-  return t("workouts.setsLoggedShort", { logged, total });
+  const done = day.exercises.filter(exercise => isWorkoutExerciseComplete(weekKey, day.id, exercise)).length;
+  return t("workouts.dayProgress", { done, totalExercises: day.exercises.length, logged, total });
 }
 
 function isWorkoutDayBaselineComplete(day, weekKey) {
   return day.exercises.length > 0 && day.exercises.every(exercise => isWorkoutExerciseBaselineComplete(weekKey, day.id, exercise));
 }
 
+function isWorkoutDayComplete(day, weekKey) {
+  return day.exercises.length > 0 && day.exercises.every(exercise => isWorkoutExerciseComplete(weekKey, day.id, exercise));
+}
+
 function isWorkoutExerciseBaselineComplete(weekKey, dayId, exercise) {
   return countLoggedWorkoutSets(weekKey, dayId, exercise) >= exercise.targetSets;
+}
+
+function isWorkoutExerciseComplete(weekKey, dayId, exercise) {
+  return isWorkoutExerciseExplicitlyDone(weekKey, dayId, exercise.id) || isWorkoutExerciseBaselineComplete(weekKey, dayId, exercise);
+}
+
+function isWorkoutExerciseExplicitlyDone(weekKey, dayId, exerciseId) {
+  return Boolean(data.workoutLogs?.[weekKey]?.[dayId]?.[exerciseId]?.done);
 }
 
 function countLoggedWorkoutSets(weekKey, dayId, exercise) {
@@ -2546,18 +3016,36 @@ function getWorkoutDisplayLogSets(weekKey, dayId, exercise) {
   return fillWorkoutSets(getWorkoutEntrySets(data.workoutLogs, weekKey, dayId, exercise.id), exercise.targetSets);
 }
 
+function getWorkoutExplicitTargetSets(weekKey, dayId, exercise) {
+  return fillWorkoutSets(getWorkoutEntrySets(data.workoutTargets, weekKey, dayId, exercise.id), exercise.targetSets);
+}
+
 function getWorkoutDisplayTargetSets(weekKey, dayId, exercise) {
   const explicitTargets = fillWorkoutSets(getWorkoutEntrySets(data.workoutTargets, weekKey, dayId, exercise.id), exercise.targetSets);
-  if (explicitTargets.some(hasAnyWorkoutSetValue)) return explicitTargets;
+  const hasExplicitTargets = explicitTargets.some(hasAnyWorkoutSetValue);
+  let fallbackTargets;
 
   const previousSource = findLatestWorkoutSourceBefore(weekKey, dayId, exercise.id);
   if (previousSource) {
     const weeksBetween = getWorkoutWeekDistance(previousSource.weekKey, weekKey);
     const sourceSets = fillWorkoutSets(previousSource.sets, exercise.targetSets);
-    return weeksBetween >= getWorkoutSettings().progressionWeeks ? progressWorkoutSets(sourceSets, exercise) : sourceSets;
+    fallbackTargets = weeksBetween >= getWorkoutSettings().progressionWeeks ? progressWorkoutSets(sourceSets, exercise) : sourceSets;
+  } else {
+    fallbackTargets = createWorkoutPrescriptionTargets(exercise);
   }
 
-  return createWorkoutPrescriptionTargets(exercise);
+  return hasExplicitTargets ? mergeWorkoutTargets(fallbackTargets, explicitTargets) : fallbackTargets;
+}
+
+function mergeWorkoutTargets(fallbackTargets, explicitTargets) {
+  return fallbackTargets.map((target, index) => {
+    const explicit = explicitTargets[index] || {};
+    return {
+      ...target,
+      weight: explicit.weight !== "" && explicit.weight !== undefined ? explicit.weight : target.weight,
+      reps: explicit.reps !== "" && explicit.reps !== undefined ? explicit.reps : target.reps
+    };
+  });
 }
 
 function getWorkoutCurrentSourceSets(weekKey, dayId, exercise) {
@@ -2674,12 +3162,12 @@ function formatWorkoutSetTarget(set, exercise) {
     const repsText = hasRepRange
       ? t("workouts.targetRange", { min: safeSet.reps, max: safeSet.repsMax, unit })
       : t("workouts.targetSingle", { count: safeSet.reps, unit });
-    return t("workouts.targetWeightReps", { weight: formatWorkoutNumber(safeSet.weight), reps: repsText });
+    return t("workouts.targetWeightReps", { weight: formatWorkoutNumber(safeSet.weight), unit: getWorkoutWeightUnitLabel(), reps: repsText });
   }
 
   if (hasReps && hasRepRange) return t("workouts.targetRange", { min: safeSet.reps, max: safeSet.repsMax, unit });
   if (hasReps) return t("workouts.targetSingle", { count: safeSet.reps, unit });
-  if (hasWeight) return t("workouts.targetWeightOnly", { weight: formatWorkoutNumber(safeSet.weight) });
+  if (hasWeight) return t("workouts.targetWeightOnly", { weight: formatWorkoutNumber(safeSet.weight), unit: getWorkoutWeightUnitLabel() });
   return t("workouts.noTarget");
 }
 
@@ -2913,14 +3401,16 @@ function renderPeriod(periodName, days, completedId, rateId, perfectId, miniId, 
     const dateKey = toDateInputValue(day);
     const dayStat = dayStats.get(dateKey) || getDayCompletionStats(dateKey);
     const el = document.createElement("div");
+    const isClosed = dayStat.total > 0 && dayStat.done === dayStat.total;
     el.className = "mini-day";
-    if (dayStat.total > 0 && dayStat.done === dayStat.total) el.classList.add("done");
+    if (isClosed) el.classList.add("done");
     if (periodName === "month" && options.visibleMonth !== undefined && day.getMonth() !== options.visibleMonth) {
       el.classList.add("outside");
     }
     if (dateKey === todayKey) el.classList.add("today");
     if (dateKey === reviewDate) el.classList.add("selected");
-    el.textContent = day.getDate();
+    el.innerHTML = `<span>${day.getDate()}</span>${isClosed ? '<span class="mini-day-status" aria-hidden="true">✓</span>' : ""}`;
+    el.setAttribute("aria-label", isClosed ? `${dateKey}: ${dayStat.done}/${dayStat.total} ${t("review.done")}` : `${dateKey}: ${dayStat.done}/${dayStat.total}`);
     el.title = `${dayStat.done}/${dayStat.total}`;
     el.onclick = () => {
       selectReviewDate(dateKey, { syncWeek: periodName === "month" });

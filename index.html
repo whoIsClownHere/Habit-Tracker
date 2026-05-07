@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Hendle</title>
   <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 80 88'%3E%3Ccircle cx='40' cy='7' r='4' fill='%23f59b12'/%3E%3Crect x='24' y='19' width='32' height='8' rx='2' fill='%23211912'/%3E%3Crect x='16' y='31' width='48' height='8' rx='2' fill='%2340372d'/%3E%3Crect x='8' y='43' width='64' height='8' rx='2' fill='%237f725d'/%3E%3Crect x='16' y='55' width='48' height='8' rx='2' fill='%23aea28b'/%3E%3Crect x='24' y='67' width='32' height='8' rx='2' fill='%23d4c8b6'/%3E%3Crect x='30' y='79' width='20' height='8' rx='2' fill='%23eee4d5'/%3E%3C/svg%3E" />
-  <link rel="stylesheet" href="./src/styles/main.css?v=20260507-workouts-fix" />
+  <link rel="stylesheet" href="./src/styles/main.css?v=20260507-workout-plan-editor" />
 </head>
 <body>
   <div class="app">
@@ -315,6 +315,14 @@
                 <option value="2" data-i18n="workouts.cadenceTwo">2 weeks</option>
               </select>
             </label>
+            <label class="workout-cadence-control" for="workoutWeightUnitSelect">
+              <span data-i18n="workouts.weightUnit">Weight unit</span>
+              <select id="workoutWeightUnitSelect" data-i18n-aria-label="workouts.weightUnit" aria-label="Weight unit">
+                <option value="kg" data-i18n="workouts.kgUnit">kg</option>
+                <option value="lb" data-i18n="workouts.lbUnit">lb</option>
+              </select>
+            </label>
+            <button id="workoutPlanEditorToggleBtn" class="secondary" type="button" data-i18n="workouts.editPlan">Edit plan</button>
             <button id="workoutPlanNextBtn" class="primary" type="button" data-i18n="workouts.planNextBlock">Plan next block</button>
           </div>
 
@@ -346,6 +354,18 @@
               <div class="section-kicker" id="workoutDayKicker" data-i18n="workouts.schedule">Schedule</div>
               <h2 id="workoutDayTitle" data-i18n="workouts.title">Workouts</h2>
               <div class="workout-day-focus" id="workoutDayFocus"></div>
+            </div>
+          </div>
+          <div id="workoutPlanEditor" class="workout-plan-editor" hidden>
+            <div class="workout-plan-editor-grid">
+              <input id="workoutPlanDayTitleInput" data-i18n-placeholder="workouts.dayTitlePlaceholder" placeholder="Day title" />
+              <input id="workoutPlanDayFocusInput" data-i18n-placeholder="workouts.dayFocusPlaceholder" placeholder="Focus" />
+              <select id="workoutPlanDayKindSelect" data-i18n-aria-label="workouts.dayKind" aria-label="Day kind">
+                <option value="training" data-i18n="workouts.kind.training">training</option>
+                <option value="recovery" data-i18n="workouts.kind.recovery">recovery</option>
+                <option value="rest" data-i18n="workouts.kind.rest">rest</option>
+              </select>
+              <button id="workoutAddExerciseBtn" class="success" type="button" data-i18n="workouts.addExercise">+ Exercise</button>
             </div>
           </div>
           <div id="workoutExerciseList" class="workout-exercise-list"></div>

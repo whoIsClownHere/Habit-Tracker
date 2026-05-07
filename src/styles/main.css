@@ -1452,7 +1452,7 @@ input:focus, select:focus, textarea:focus { border-color: var(--text); }
 
 .workout-control-row {
   display: grid;
-  grid-template-columns: minmax(220px, 1fr) auto;
+  grid-template-columns: minmax(180px, 1fr) minmax(130px, 0.55fr) auto auto;
   gap: var(--space-3);
   align-items: end;
   margin-bottom: var(--space-7);
@@ -1512,6 +1512,20 @@ input:focus, select:focus, textarea:focus { border-color: var(--text); }
   display: grid;
   grid-template-columns: repeat(7, minmax(0, 1fr));
   gap: var(--space-2);
+}
+
+.workout-plan-editor {
+  border: var(--rule);
+  background: var(--card-2);
+  padding: var(--space-5);
+  margin-bottom: var(--space-6);
+}
+
+.workout-plan-editor-grid {
+  display: grid;
+  grid-template-columns: minmax(150px, 1fr) minmax(160px, 1.2fr) minmax(130px, 0.7fr) auto;
+  gap: var(--space-3);
+  align-items: center;
 }
 
 .workout-day-tab {
@@ -1604,14 +1618,31 @@ input:focus, select:focus, textarea:focus { border-color: var(--text); }
 
 .workout-exercise-top {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(110px, 142px);
+  grid-template-columns: 38px minmax(0, 1fr) 38px;
   gap: var(--space-4);
-  align-items: start;
-  margin-bottom: var(--space-5);
+  align-items: center;
 }
 
 .workout-exercise-main {
   min-width: 0;
+}
+
+.workout-exercise-card:not(.collapsed) .workout-exercise-top {
+  margin-bottom: var(--space-5);
+}
+
+.workout-exercise-check {
+  padding: 0;
+}
+
+.workout-collapse-toggle {
+  width: 38px;
+  height: 38px;
+  padding: 0;
+  display: grid;
+  place-items: center;
+  font-size: 18px;
+  line-height: 1;
 }
 
 .workout-exercise-name,
@@ -1654,6 +1685,44 @@ input:focus, select:focus, textarea:focus { border-color: var(--text); }
   text-align: center;
   text-transform: none;
   letter-spacing: 0;
+}
+
+.workout-exercise-editor {
+  display: grid;
+  grid-template-columns: minmax(160px, 1.3fr) repeat(4, minmax(72px, 0.55fr)) minmax(112px, 0.7fr);
+  gap: var(--space-3);
+  align-items: end;
+  margin-bottom: var(--space-5);
+  padding-bottom: var(--space-5);
+  border-bottom: var(--rule);
+}
+
+.workout-editor-field {
+  display: grid;
+  gap: var(--space-2);
+  min-width: 0;
+  color: var(--muted);
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.workout-editor-field.wide {
+  grid-column: span 2;
+}
+
+.workout-editor-field input,
+.workout-editor-field select,
+.workout-editor-field textarea {
+  min-width: 0;
+  color: var(--text);
+  font-size: 13px;
+  text-transform: none;
+  letter-spacing: 0;
+}
+
+.workout-exercise-editor > button {
+  min-height: 42px;
 }
 
 .workout-notes {
@@ -1717,11 +1786,31 @@ input:focus, select:focus, textarea:focus { border-color: var(--text); }
   font-weight: 700;
 }
 
+.workout-target-inputs {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--space-2);
+  width: 100%;
+}
+
+.workout-target-inputs input {
+  min-height: 34px;
+  border: var(--rule);
+  background: var(--card);
+  font-size: 12px;
+}
+
 .workout-set-row input {
   min-height: 40px;
   border: 0;
   background: transparent;
   text-align: center;
+}
+
+.workout-set-row .workout-target-inputs input {
+  min-height: 34px;
+  border: var(--rule);
+  background: var(--card);
 }
 
 .workout-set-row input:focus {
@@ -2916,6 +3005,7 @@ input:focus, select:focus, textarea:focus { border-color: var(--text); }
 }
 
 .mini-day {
+  position: relative;
   min-height: 38px;
   border: var(--rule);
   display: grid;
@@ -2925,6 +3015,21 @@ input:focus, select:focus, textarea:focus { border-color: var(--text); }
   background: var(--card);
   cursor: pointer;
   transition: 0.12s ease;
+}
+
+.mini-day-status {
+  position: absolute;
+  right: 5px;
+  bottom: 4px;
+  width: 15px;
+  height: 15px;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  background: var(--success);
+  color: var(--card);
+  font-size: 10px;
+  line-height: 1;
 }
 
 .mini-day:hover {
@@ -3013,9 +3118,15 @@ canvas {
   }
   .habit-manager-item { grid-template-columns: 1fr; }
   .workout-control-row,
-  .workout-exercise-top,
   .workout-principles-grid {
     grid-template-columns: 1fr;
+  }
+  .workout-plan-editor-grid,
+  .workout-exercise-editor {
+    grid-template-columns: 1fr;
+  }
+  .workout-editor-field.wide {
+    grid-column: auto;
   }
   .workout-day-tabs {
     grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -3176,6 +3287,9 @@ canvas {
   .workout-day-tabs,
   .workout-set-grid {
     grid-template-columns: 1fr;
+  }
+  .workout-exercise-top {
+    grid-template-columns: 38px minmax(0, 1fr) 38px;
   }
   .workout-set-head {
     display: none;
