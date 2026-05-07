@@ -2240,8 +2240,8 @@ function renderWorkouts() {
 
   workoutCadenceSelect.value = String(settings.progressionWeeks);
   workoutWeightUnitSelect.value = settings.weightUnit;
-  workoutCadenceSelect.disabled = !currentUser;
-  workoutWeightUnitSelect.disabled = !currentUser;
+  workoutCadenceSelect.disabled = !currentUser || !isWorkoutPlanEditorOpen;
+  workoutWeightUnitSelect.disabled = !currentUser || !isWorkoutPlanEditorOpen;
   workoutPlanEditorToggleBtn.disabled = !currentUser;
   workoutPlanEditorToggleBtn.textContent = isWorkoutPlanEditorOpen ? t("workouts.hidePlanEditor") : t("workouts.editPlan");
   workoutPlanNextBtn.disabled = !currentUser;
@@ -2400,7 +2400,9 @@ function makeWorkoutExerciseCard(day, exercise) {
 
   if (!isExpanded) return card;
 
-  card.appendChild(makeWorkoutExerciseEditor(day, exercise));
+  if (isWorkoutPlanEditorOpen) {
+    card.appendChild(makeWorkoutExerciseEditor(day, exercise));
+  }
 
   if (exercise.notes.length) {
     const notes = document.createElement("ul");
@@ -2431,34 +2433,39 @@ function makeWorkoutExerciseCard(day, exercise) {
 
     const targetCell = document.createElement("div");
     targetCell.className = "workout-set-target";
-    const targetInputs = document.createElement("div");
-    targetInputs.className = "workout-target-inputs";
-
-    const targetWeightInput = document.createElement("input");
-    targetWeightInput.type = "number";
-    targetWeightInput.step = getWorkoutWeightInputStep();
-    targetWeightInput.inputMode = "decimal";
-    targetWeightInput.value = explicitTarget.weight ?? "";
-    targetWeightInput.placeholder = target.weight === "" || target.weight === undefined ? getWorkoutWeightUnitLabel() : formatWorkoutNumber(target.weight);
-    targetWeightInput.disabled = !currentUser;
-    targetWeightInput.setAttribute("aria-label", t("workouts.targetWeight"));
-    targetWeightInput.addEventListener("input", () => updateWorkoutTargetSetValue(day.id, exercise.id, index, "weight", targetWeightInput.value));
-
-    const targetRepsInput = document.createElement("input");
-    targetRepsInput.type = "number";
-    targetRepsInput.step = "1";
-    targetRepsInput.min = "0";
-    targetRepsInput.inputMode = "numeric";
-    targetRepsInput.value = explicitTarget.reps ?? "";
-    targetRepsInput.placeholder = target.reps === "" || target.reps === undefined ? t("workouts.repsPlaceholder") : formatWorkoutNumber(target.reps);
-    targetRepsInput.disabled = !currentUser;
-    targetRepsInput.setAttribute("aria-label", t("workouts.targetResult"));
-    targetRepsInput.addEventListener("input", () => updateWorkoutTargetSetValue(day.id, exercise.id, index, "reps", targetRepsInput.value));
-
-    targetInputs.appendChild(targetWeightInput);
-    targetInputs.appendChild(targetRepsInput);
-    targetCell.appendChild(targetInputs);
     targetCell.title = formatWorkoutSetTarget(target, exercise);
+
+    if (isWorkoutPlanEditorOpen) {
+      const targetInputs = document.createElement("div");
+      targetInputs.className = "workout-target-inputs";
+
+      const targetWeightInput = document.createElement("input");
+      targetWeightInput.type = "number";
+      targetWeightInput.step = getWorkoutWeightInputStep();
+      targetWeightInput.inputMode = "decimal";
+      targetWeightInput.value = explicitTarget.weight ?? "";
+      targetWeightInput.placeholder = target.weight === "" || target.weight === undefined ? getWorkoutWeightUnitLabel() : formatWorkoutNumber(target.weight);
+      targetWeightInput.disabled = !currentUser;
+      targetWeightInput.setAttribute("aria-label", t("workouts.targetWeight"));
+      targetWeightInput.addEventListener("input", () => updateWorkoutTargetSetValue(day.id, exercise.id, index, "weight", targetWeightInput.value));
+
+      const targetRepsInput = document.createElement("input");
+      targetRepsInput.type = "number";
+      targetRepsInput.step = "1";
+      targetRepsInput.min = "0";
+      targetRepsInput.inputMode = "numeric";
+      targetRepsInput.value = explicitTarget.reps ?? "";
+      targetRepsInput.placeholder = target.reps === "" || target.reps === undefined ? t("workouts.repsPlaceholder") : formatWorkoutNumber(target.reps);
+      targetRepsInput.disabled = !currentUser;
+      targetRepsInput.setAttribute("aria-label", t("workouts.targetResult"));
+      targetRepsInput.addEventListener("input", () => updateWorkoutTargetSetValue(day.id, exercise.id, index, "reps", targetRepsInput.value));
+
+      targetInputs.appendChild(targetWeightInput);
+      targetInputs.appendChild(targetRepsInput);
+      targetCell.appendChild(targetInputs);
+    } else {
+      targetCell.textContent = formatWorkoutSetTarget(target, exercise);
+    }
 
     const weightInput = document.createElement("input");
     weightInput.type = "number";
