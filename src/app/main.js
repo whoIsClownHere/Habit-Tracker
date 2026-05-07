@@ -1246,7 +1246,11 @@ function refreshStatusText() {
   statusText.textContent = t(currentStatus.key, currentStatus.params);
   applyStatusDotClass(statusDot);
   applyStatusDotClass(accountButtonDot);
-  accountMenuLabel.textContent = currentUser ? getUserLabel(currentUser) : t("auth.account");
+  const hasAccount = Boolean(currentUser);
+  const label = hasAccount ? getUserLabel(currentUser) : t("auth.account");
+  accountMenu.classList.toggle("signed-in", hasAccount);
+  accountMenuLabel.textContent = label;
+  accountMenuBtn.setAttribute("aria-label", hasAccount ? `${t("auth.account")}: ${label}` : t("auth.account"));
 }
 
 function applyStatusDotClass(dot) {
