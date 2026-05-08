@@ -134,6 +134,7 @@ let data = {
 };
 
 const signInBtn = document.getElementById("signInBtn");
+const createAccountBtn = document.getElementById("createAccountBtn");
 const signOutBtn = document.getElementById("signOutBtn");
 const languageSelect = document.getElementById("languageSelect");
 const homeBrandBtn = document.getElementById("homeBrandBtn");
@@ -160,6 +161,7 @@ const authTestBtn = document.getElementById("authTestBtn");
 const authResetBtn = document.getElementById("authResetBtn");
 const authMessage = document.getElementById("authMessage");
 const themeToggle = document.getElementById("themeToggle");
+const themeToggleLabel = document.getElementById("themeToggleLabel");
 const testingPanel = document.getElementById("testingPanel");
 const testingAccountMeta = document.getElementById("testingAccountMeta");
 const testingScenarios = document.getElementById("testingScenarios");
@@ -309,6 +311,10 @@ accountMenuPanel.addEventListener("click", (event) => event.stopPropagation());
 signInBtn.addEventListener("click", () => {
   closeAccountMenu();
   openAuthModal("login");
+});
+createAccountBtn.addEventListener("click", () => {
+  closeAccountMenu();
+  openAuthModal("register");
 });
 signOutBtn.addEventListener("click", () => {
   closeAccountMenu();
@@ -472,6 +478,7 @@ onAuthStateChanged(auth, async (user) => {
   if (!user) {
     setAuthBusy(false);
     signInBtn.hidden = false;
+    createAccountBtn.hidden = false;
     signOutBtn.hidden = true;
     signOutBtn.disabled = false;
     data = createEmptyData();
@@ -482,6 +489,7 @@ onAuthStateChanged(auth, async (user) => {
   }
 
   signInBtn.hidden = true;
+  createAccountBtn.hidden = true;
   signOutBtn.hidden = false;
   signOutBtn.disabled = false;
   setAuthBusy(false);
@@ -686,15 +694,23 @@ function closeAccountMenu() {
 
 function initTheme() {
   const savedTheme = localStorage.getItem("habitTheme") || "light";
-  document.body.classList.toggle("dark", savedTheme === "dark");
-  themeToggle.textContent = savedTheme === "dark" ? t("theme.light") : t("theme.dark");
+  const isDark = savedTheme === "dark";
+  document.body.classList.toggle("dark", isDark);
+  syncThemeToggleText(isDark);
 }
 
 function toggleTheme() {
   const isDark = document.body.classList.toggle("dark");
   localStorage.setItem("habitTheme", isDark ? "dark" : "light");
-  themeToggle.textContent = isDark ? t("theme.light") : t("theme.dark");
+  syncThemeToggleText(isDark);
   renderProgress();
+}
+
+function syncThemeToggleText(isDark) {
+  const label = isDark ? t("theme.light") : t("theme.dark");
+  themeToggle.setAttribute("aria-label", label);
+  themeToggle.title = label;
+  themeToggleLabel.textContent = label;
 }
 
 function refreshLocalizedUi() {
@@ -896,6 +912,7 @@ function restoreTestAccountSession() {
   data = loadTestData() || createTestingData();
   localStorage.setItem(TEST_DATA_KEY, JSON.stringify(data));
   signInBtn.hidden = true;
+  createAccountBtn.hidden = true;
   signOutBtn.hidden = false;
   signOutBtn.disabled = false;
   isDirty = false;
@@ -916,6 +933,7 @@ function startTestAccount({ seedIfMissing = false, forceSeed = false } = {}) {
   isDirty = false;
   setAuthBusy(false);
   signInBtn.hidden = true;
+  createAccountBtn.hidden = true;
   signOutBtn.hidden = false;
   signOutBtn.disabled = false;
   closeAuthModal();
@@ -967,6 +985,7 @@ async function handleSignOut() {
     data = createEmptyData();
     isDirty = false;
     signInBtn.hidden = false;
+    createAccountBtn.hidden = false;
     signOutBtn.hidden = true;
     signOutBtn.disabled = false;
     updateStatus("status.signedOut", "off");
@@ -1009,6 +1028,7 @@ function setAuthBusy(isBusy, message = "") {
   authLoginTabBtn.disabled = isBusy;
   authRegisterTabBtn.disabled = isBusy;
   signInBtn.disabled = isBusy;
+  createAccountBtn.disabled = isBusy;
   if (message) showAuthMessage(message, "info");
 }
 
@@ -3195,10 +3215,15 @@ function renderDayReview() {
   const todayKey = toDateInputValue(new Date());
   const isToday = reviewDate === todayKey;
   const isFuture = reviewDate > todayKey;
-  const streakOnDate = isFuture
-    ? calculateProjectedGlobalStreakAtDate(reviewDate)
-    : calculateLatestGlobalStreak(reviewDate);
   const isTodayOpen = isToday && !isTodayComplete();
+  let streakOnDate;
+  if (isFuture) {
+    streakOnDate = calculateProjectedGlobalStreakAtDate(reviewDate);
+  } else if (isTodayOpen) {
+    streakOnDate = calculatePotentialGlobalStreakAtDate(reviewDate);
+  } else {
+    streakOnDate = calculateLatestGlobalStreak(reviewDate);
+  }
 
   reviewDayTitle.textContent = isToday
     ? t("review.today")
@@ -3346,12 +3371,16 @@ function renderRewardState() {
 
   heroStreak.textContent = streak;
   dailyRingFill.style.width = `${percent}%`;
+  streakMessage.className = "streak-warning";
 
   if (!currentUser) {
+    streakMessage.classList.add("neutral");
     streakMessage.textContent = t("streak.signIn");
   } else if (data.habits.length === 0) {
+    streakMessage.classList.add("neutral");
     streakMessage.textContent = t("streak.addHabit");
   } else if (done === total) {
+    streakMessage.classList.add("saved");
     streakMessage.textContent = t("streak.saved");
   } else {
     const remaining = total - done;
@@ -3416,7 +3445,7 @@ function renderPeriod(periodName, days, completedId, rateId, perfectId, miniId, 
     }
     if (dateKey === todayKey) el.classList.add("today");
     if (dateKey === reviewDate) el.classList.add("selected");
-    el.innerHTML = `<span>${day.getDate()}</span>${isClosed ? '<span class="mini-day-status" aria-hidden="true">✓</span>' : ""}`;
+    el.innerHTML = `<span>${day.getDate()}</span>`;
     el.setAttribute("aria-label", isClosed ? `${dateKey}: ${dayStat.done}/${dayStat.total} ${t("review.done")}` : `${dateKey}: ${dayStat.done}/${dayStat.total}`);
     el.title = `${dayStat.done}/${dayStat.total}`;
     el.onclick = () => {
@@ -5286,6 +5315,11 @@ function getLatestHabitStreakEndDate(habitId, maxDateKey) {
 function calculateLatestGlobalStreak(maxDateKey) {
   const endDateKey = getLatestGlobalStreakEndDate(maxDateKey);
   return endDateKey ? calculateGlobalStreakAtDate(endDateKey) : 0;
+}
+
+function calculatePotentialGlobalStreakAtDate(dateKey) {
+  if (countActiveHabitsForDate(dateKey) === 0) return 0;
+  return calculateGlobalStreakAtDate(getPreviousDateKey(dateKey)) + 1;
 }
 
 function getLatestGlobalStreakRange(maxDateKey) {

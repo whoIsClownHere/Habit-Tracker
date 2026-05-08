@@ -4,8 +4,11 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Hendle</title>
-  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 80 88'%3E%3Ccircle cx='40' cy='7' r='4' fill='%23f59b12'/%3E%3Crect x='24' y='19' width='32' height='8' rx='2' fill='%23211912'/%3E%3Crect x='16' y='31' width='48' height='8' rx='2' fill='%2340372d'/%3E%3Crect x='8' y='43' width='64' height='8' rx='2' fill='%237f725d'/%3E%3Crect x='16' y='55' width='48' height='8' rx='2' fill='%23aea28b'/%3E%3Crect x='24' y='67' width='32' height='8' rx='2' fill='%23d4c8b6'/%3E%3Crect x='30' y='79' width='20' height='8' rx='2' fill='%23eee4d5'/%3E%3C/svg%3E" />
-  <link rel="stylesheet" href="./src/styles/main.css?v=20260507-workout-plan-editor" />
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 80 88'%3E%3Ccircle cx='40' cy='10' r='4' fill='%23f59e0b'/%3E%3Crect x='30' y='22' width='20' height='8' rx='2' fill='%231c1712'/%3E%3Crect x='25' y='34' width='30' height='8' rx='2' fill='%233f3a32'/%3E%3Crect x='20' y='46' width='40' height='8' rx='2' fill='%237c6f59'/%3E%3Crect x='15' y='58' width='50' height='8' rx='2' fill='%23a89b85'/%3E%3Crect x='10' y='70' width='60' height='8' rx='2' fill='%23d4c9b8'/%3E%3C/svg%3E" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,700;9..144,900&family=DM+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="./src/styles/main.css?v=20260508-header-controls" />
 </head>
 <body>
   <div class="app">
@@ -14,22 +17,29 @@
         <a id="homeBrandBtn" class="brand brand-home" href="#habits" aria-label="Hendle home">
           <div class="logo" aria-hidden="true">
             <svg class="logo-mark" viewBox="0 0 80 88" role="img" focusable="false">
-              <circle class="logo-dot" cx="40" cy="7" r="4" />
-              <rect class="logo-bar logo-bar-1" x="24" y="19" width="32" height="8" rx="2" />
-              <rect class="logo-bar logo-bar-2" x="16" y="31" width="48" height="8" rx="2" />
-              <rect class="logo-bar logo-bar-3" x="8" y="43" width="64" height="8" rx="2" />
-              <rect class="logo-bar logo-bar-4" x="16" y="55" width="48" height="8" rx="2" />
-              <rect class="logo-bar logo-bar-5" x="24" y="67" width="32" height="8" rx="2" />
-              <rect class="logo-bar logo-bar-6" x="30" y="79" width="20" height="8" rx="2" />
+              <circle class="logo-dot" cx="40" cy="10" r="4" />
+              <rect class="logo-bar logo-bar-1" x="30" y="22" width="20" height="8" rx="2" />
+              <rect class="logo-bar logo-bar-2" x="25" y="34" width="30" height="8" rx="2" />
+              <rect class="logo-bar logo-bar-3" x="20" y="46" width="40" height="8" rx="2" />
+              <rect class="logo-bar logo-bar-4" x="15" y="58" width="50" height="8" rx="2" />
+              <rect class="logo-bar logo-bar-5" x="10" y="70" width="60" height="8" rx="2" />
             </svg>
           </div>
           <h1>Hendle</h1>
         </a>
-        <div class="subtitle" data-i18n="app.subtitle">Plan today's habits, record quantities, and keep your streak alive.</div>
       </div>
 
+      <nav class="app-tabs" data-i18n-aria-label="nav.label" aria-label="App sections">
+        <button id="habitsTabBtn" class="app-tab active" type="button" aria-selected="true" data-i18n="nav.habits">Habits</button>
+        <button id="workoutsTabBtn" class="app-tab" type="button" aria-selected="false" data-i18n="nav.workouts">Workouts</button>
+        <button id="goalsTabBtn" class="app-tab" type="button" aria-selected="false" data-i18n="nav.goals">Goals</button>
+      </nav>
+
       <div class="top-actions">
-        <button id="signInBtn" class="primary top-sign-in-btn" data-i18n="auth.signInRegister">Sign in / register</button>
+        <button id="themeToggle" class="theme-toggle" type="button" data-i18n-aria-label="theme.dark" aria-label="Dark theme" title="Dark theme">
+          <span class="theme-toggle-icon" aria-hidden="true"></span>
+          <span id="themeToggleLabel" class="visually-hidden" data-i18n="theme.dark">Dark theme</span>
+        </button>
         <div class="account-menu" id="accountMenu">
           <button id="accountMenuBtn" class="account-menu-trigger" type="button" aria-haspopup="true" aria-expanded="false" data-i18n-aria-label="auth.account" aria-label="Account">
             <span class="account-avatar" aria-hidden="true">
@@ -42,7 +52,7 @@
             <span id="accountButtonDot" class="status-dot" hidden></span>
           </button>
           <div id="accountMenuPanel" class="account-menu-panel" hidden>
-            <div class="status account-panel-status">
+            <div class="status account-panel-status visually-hidden">
               <span id="statusDot" class="status-dot"></span>
               <span id="statusText" data-i18n="status.signedOut">Signed out</span>
             </div>
@@ -56,18 +66,13 @@
                 <option value="fr">Français</option>
               </select>
             </label>
-            <button id="themeToggle" class="secondary" data-i18n="theme.dark">Dark theme</button>
-            <button id="signOutBtn" class="secondary" hidden data-i18n="auth.signOut">Sign out</button>
           </div>
         </div>
+        <button id="signInBtn" class="secondary top-sign-in-btn" data-i18n="auth.login">Sign in</button>
+        <button id="createAccountBtn" class="primary top-create-account-btn" data-i18n="auth.submitRegister">Create account</button>
+        <button id="signOutBtn" class="secondary top-sign-out-btn" hidden data-i18n="auth.signOut">Sign out</button>
       </div>
     </header>
-
-    <nav class="app-tabs" data-i18n-aria-label="nav.label" aria-label="App sections">
-      <button id="habitsTabBtn" class="app-tab active" type="button" aria-selected="true" data-i18n="nav.habits">Habits</button>
-      <button id="workoutsTabBtn" class="app-tab" type="button" aria-selected="false" data-i18n="nav.workouts">Workouts</button>
-      <button id="goalsTabBtn" class="app-tab" type="button" aria-selected="false" data-i18n="nav.goals">Goals</button>
-    </nav>
 
     <main>
       <section id="testingPanel" class="testing-panel card" hidden>
@@ -94,7 +99,7 @@
               <h2 class="today-title" data-i18n="today.title">Today</h2>
               <div class="today-date" id="todayDateLabel"></div>
             </div>
-            <button id="todayBtn" class="success" data-i18n="today.goToday">Today</button>
+            <button id="todayBtn" class="today-action" data-i18n="today.goToday">Today</button>
           </div>
 
           <div class="today-tools">
@@ -365,7 +370,7 @@
                 <option value="recovery" data-i18n="workouts.kind.recovery">recovery</option>
                 <option value="rest" data-i18n="workouts.kind.rest">rest</option>
               </select>
-              <button id="workoutAddExerciseBtn" class="success" type="button" data-i18n="workouts.addExercise">+ Exercise</button>
+              <button id="workoutAddExerciseBtn" class="secondary" type="button" data-i18n="workouts.addExercise">+ Exercise</button>
             </div>
           </div>
           <div id="workoutExerciseList" class="workout-exercise-list"></div>
@@ -642,6 +647,6 @@
   <div id="goalToast" class="goal-toast" role="status" aria-live="polite" hidden></div>
 
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.5.0/dist/chart.umd.min.js"></script>
-  <script type="module" src="./src/app/main.js?v=20260507-workouts-fix"></script>
+  <script type="module" src="./src/app/main.js?v=20260508-header-controls"></script>
 </body>
 </html>

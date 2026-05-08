@@ -1,215 +1,189 @@
-# Hendle Design System
+# Hendle Five Layers Design System
 
-This document keeps new blocks, screens, and states feeling like part of Hendle rather than one-off additions.
+This file is the source of truth for Hendle UI decisions. It translates the
+`Five Layers Palette.html` reference into app rules, tokens, and component
+patterns that future work should reuse.
 
 ## Interface DNA
 
-Hendle is a strict working board for daily discipline:
+Hendle is a strict habit and goal workspace built from five warm tonal layers.
+The product should feel editorial, precise, and useful:
 
-- thin 1px rules instead of decorative shadows;
-- square surfaces with a `2px` radius;
-- calm warm page background and white working surfaces;
-- large serif typography for meaning, numbers, and object names;
-- system sans-serif for controls, statuses, captions, and forms;
-- green is a progress signal, not a decorative theme color;
-- yellow, red, and blue are reserved for state: warning, danger, projection.
+- five warm neutral layers form the visual spine;
+- page background is paper, cards are true white, inset panels are warm paper;
+- 1px hairline rules define structure instead of decorative shadows;
+- surfaces stay square, with `3px` as the default radius;
+- display text uses Fraunces, working UI uses DM Sans, technical counters can use JetBrains Mono;
+- amber is the single bright brand moment;
+- green is progress only: completed habits, finished goals, growing streaks;
+- warning, danger, and info are semantic states, not decorative themes;
+- no grey palettes, broad gradients, purple/blue decorative washes, or card-inside-card layouts.
 
-A new element should be useful and scannable first. Decoration is only added when it communicates state or improves structure.
+## Source Files
 
-## Source Of Truth
+- Main styles: `src/styles/main.css`
+- App structure: `index.html`
+- User-facing copy: `src/app/i18n.js`
+- This design contract: `docs/DESIGN_SYSTEM.md`
 
-Main style file: `src/styles/main.css`.
+When changing visual direction, update this document and apply the change across
+the full app. Do not add local one-off colors in the middle of CSS.
 
-The top of that file contains the design tokens. If a repeated color, spacing value, size, or behavior appears, add or reuse a token first, then apply it in components.
+## Light Tokens
 
-Do not add new hex colors in the middle of the CSS except for rare local effects such as chart or confetti rendering. Normal UI should use variables.
+Use these variables through the existing aliases. Normal UI should use the
+aliases (`--bg`, `--card`, `--text`, `--success`, etc.) unless a component needs
+a specific ramp step.
 
-Before adding UI or changing the visual direction, read this document. If the design changes, update this file and apply the change across every affected screen and component.
+```css
+--paper: #faf6ee;
+--paper-warm: #f5ede0;
+--surface: #ffffff;
+--line: #eee5d6;
 
-## Internationalization
+--layer-1: #d4c9b8; /* sand: borders, disabled, faint dividers */
+--layer-2: #a89b85; /* stone: tertiary text, subtle marks */
+--layer-3: #7c6f59; /* bark: muted/body support text */
+--layer-4: #3f3a32; /* cocoa: strong text, dark fills */
+--layer-5: #1c1712; /* ink: primary text, brand mark, primary CTA */
+--subtle-tan: #b5a48e;
 
-English is the primary UI language. The app also supports Russian, German, Spanish, and French.
+--bg: var(--paper);
+--card: var(--surface);
+--card-2: var(--paper-warm);
+--text: var(--layer-5);
+--muted: var(--layer-3);
+--accent: var(--layer-5);
+--accent-soft: var(--paper-warm);
+```
 
-All user-facing strings must live in `src/app/i18n.js`:
+## Accent And States
 
-- static HTML uses `data-i18n`, `data-i18n-placeholder`, `data-i18n-aria-label`, or `data-i18n-title`;
-- dynamic text in JavaScript uses `t("key")`;
-- plural-sensitive counts use `tn("key", count)`;
-- dates use `getDateLocale()` and helpers from `src/app/utils/dates.js`.
+Amber is rare. Use it for the logo dot, today/focus highlights, and small pins.
+Do not use amber as a page-wide theme.
 
-When adding or changing UI copy, add or update the same key in all supported locales in the same change. Avoid placing visible copy directly in `main.js` or `index.html` unless it is a symbol, user-created content, or a stable product name.
+```css
+--amber-50: #fef9ec;
+--amber-100: #fdecc4;
+--amber-300: #fcd163;
+--amber-500: #f59e0b;
+--amber-600: #c97f08;
+--amber-700: #8a560b;
+```
 
-Design for longer translated text. Use `minmax(0, 1fr)`, `min-width: 0`, and `overflow-wrap: anywhere` where labels, buttons, or cards can grow.
+Green is progress only.
 
-## Color
+```css
+--green-50: #eef3e6;
+--green-100: #d8e5c5;
+--green-300: #8fae6e;
+--green-500: #5a8042;
+--green-600: #3f5e2c;
+--green-700: #28411b;
+--success: var(--green-500);
+--success-soft: #e6efd8;
+```
 
-Core surfaces:
+Semantic states:
 
-- `--bg`: page background.
-- `--card`: main working surface.
-- `--card-2`: secondary surface inside cards.
-- `--text`: main text and active controls.
-- `--muted`: supporting text.
-- `--line`: dividers and borders.
-- `--accent-soft`: hover and neutral highlight.
+```css
+--warning: #b86e10;
+--warning-soft: #fbe9c8;
+--danger: #9f2a2a;
+--danger-soft: #f4dcd6;
+--info: #2956a8;
+--info-soft: #dde6f4;
+```
 
-States:
+## Dark Tokens
 
-- `--success`: completed, progress, positive action.
-- `--success-soft`: soft completed-state background.
-- `--warning`: urgent, today, streak at risk.
-- `--warning-soft`: soft warning background.
-- `--danger`: delete, failed, overdue.
-- `--info`: projection or future date.
-- `--info-soft`: soft projection background.
+Dark mode keeps the Five Layers structure, but intentionally sits closer to the
+older Hendle dark palette: near-black page, charcoal cards, neutral warm lines,
+cream text, and brighter legacy success/warning/danger states.
 
-Rule: color should not become the screen theme. The app stays black and white with warm surfaces; color appears only as a semantic marker.
+```css
+--paper: #111111;
+--surface: #171717;
+--paper-warm: #202020;
+--line: #383838;
+
+--layer-1: #5f5748;
+--layer-2: #8b806d;
+--layer-3: #aaa39a;
+--layer-4: #cfc2aa;
+--layer-5: #f5f1e8;
+
+--amber-500: #f59b12;
+--success: #7ccf8a;
+--success-soft: rgba(124, 207, 138, 0.12);
+--warning: #ffc46b;
+--warning-soft: rgba(255, 196, 107, 0.11);
+--danger: #ff8a8a;
+--danger-soft: rgba(255, 138, 138, 0.12);
+--info: #aaa39a;
+--info-soft: rgba(170, 163, 154, 0.12);
+```
 
 ## Typography
 
-Fonts:
-
-- UI: `var(--font-ui)` for body, buttons, forms, statuses, labels.
-- Display: `var(--font-display)` for `h1`, `h2`, `h3`, habit and goal names, and large metrics.
-
-Hierarchy:
-
-- Brand `h1`: around `50px`, `42px` on mobile.
-- Main section headings: `30-44px`.
-- Card, task, and object names: `20-30px`.
-- Large metrics: `28-46px`, always display type.
-- Regular UI text: `13-15px`.
-- Kicker and labels: `11-12px`, uppercase, letter-spacing `0.08-0.09em`.
-
-Rule: if text is a working object, such as a habit, task, or goal name, it can use serif type. If text is a control or explanation, it should use sans-serif.
-
-## Spacing
-
-The base scale is already defined in CSS:
-
-```css
---space-1: 4px;
---space-2: 6px;
---space-3: 8px;
---space-4: 10px;
---space-5: 12px;
---space-6: 14px;
---space-7: 16px;
---space-8: 18px;
---space-9: 20px;
---space-10: 22px;
---space-11: 24px;
---space-12: 28px;
---space-13: 30px;
---space-14: 34px;
---space-15: 38px;
-```
-
-Practical rules:
-
-- large sections: `22-24px` gaps;
-- inside a card: around `20px`;
-- section headers separate from content with `16px` and a bottom rule;
-- list items: `10-12px` gap and padding;
-- compact control groups: `6-8px`;
-- forms: `10px` gap, inputs with `10px 11px` padding;
-- avoid random values such as `17px`, `23px`, or `31px`.
+- UI font: `var(--font-ui)` / DM Sans for body, forms, buttons, labels, statuses.
+- Display font: `var(--font-display)` / Fraunces for `h1`, `h2`, `h3`, habit names, goal names, and large metrics.
+- Mono font: `var(--font-mono)` / JetBrains Mono only for compact technical counters or token/code displays.
+- Use `letter-spacing: 0` for display text in this app.
+- Labels and kickers use uppercase with positive tracking: `0.08em` for normal labels, `0.22em` for section kickers.
+- Design for translated strings with `minmax(0, 1fr)`, `min-width: 0`, and `overflow-wrap: anywhere`.
 
 ## Layout
 
-Page:
-
-- `.app`: max width `1120px`;
-- desktop padding: `38px 34px`;
-- mobile padding: `22px 16px`;
-- `.layout`: column flex with `24px` gap.
-
-Grids:
-
-- main two-column areas: `1.2fr 0.8fr` or close;
-- paired analytics cards: `1fr 1fr`;
-- metrics: `repeat(3, 1fr)`;
-- month and week calendars: `repeat(7, minmax(0, 1fr))`.
-
-Breakpoints:
-
-- up to `1040px`: goal workspace becomes one column;
-- up to `960px`: main two-column grids become one column;
-- up to `760px`: buttons, stats, calendars, and forms stack vertically.
+- `.app` max width: `1120px`.
+- Desktop padding: `38px 34px`; mobile padding: `22px 16px`.
+- Main layout gap: `24px`.
+- Main two-column areas use approximately `1.2fr 0.8fr`.
+- Analytics pairs use `1fr 1fr`.
+- Metrics use table-like grids with top/left borders and 1px internal rules.
+- At `960px`, primary grids collapse to one column.
+- At `760px`, controls, stats, calendars, and form grids stack.
 
 ## Components
 
-### Section Card
+### Header
 
-Use for most standalone blocks.
+The primary app sections live in the header navigation, not in a separate tab
+bar below it. The header uses a framed logo mark and brand wordmark on the left,
+plain text navigation in the center, and square authentication/settings controls
+on the right. The theme toggle is a standalone square control immediately after
+the section links; the account dropdown is reserved for language selection.
 
-```html
-<section class="card">
-  <div class="section-top">
-    <div>
-      <div class="section-kicker" data-i18n="example.context">Context</div>
-      <h2 data-i18n="example.title">Title</h2>
-    </div>
-    <button class="secondary" type="button" data-i18n="example.action">Action</button>
-  </div>
+### Cards
 
-  <!-- content -->
-</section>
-```
-
-Rules:
-
-- `.card` always has border, background, padding, and radius;
-- `.section-top` always separates the header with a rule;
-- the action button sits on the right and drops under the heading on mobile.
+Use `.card` for standalone work surfaces. It always has `--card`, a 1px
+`--line` border, `3px` radius, and no shadow. Header rows use `.section-top`
+with a bottom rule.
 
 ### Buttons
 
-The base button is neutral. Modifier classes carry meaning:
+- Neutral/secondary buttons stay on `--card` with `--line`.
+- Primary buttons use `--text` on `--bg`.
+- Success buttons are filled green and only mean completion/progress.
+- Danger buttons use `--danger-soft` by default and fill red on hover.
+- Today/focus actions use amber, not green.
 
-```html
-<button type="button">Neutral</button>
-<button class="primary" type="button">Primary</button>
-<button class="success" type="button">Done</button>
-<button class="danger" type="button">Delete</button>
-```
+### Logo
 
-Rules:
+The mark has five bars, not six. From top to bottom in light mode:
 
-- `primary`: one main action in the local context;
-- `success`: confirmation, completion, or today's progress;
-- `danger`: deletion, failure, or irreversible action;
-- buttons trigger actions and are not decorative chips.
+1. `--layer-5`
+2. `--layer-4`
+3. `--layer-3`
+4. `--layer-2`
+5. `--layer-1`
 
-### Action Menu
+The dot is `--amber-500`. In dark mode, the same CSS variables invert through
+the dark token set.
 
-Use `.action-menu` for secondary actions on a working entity. The visible ellipsis button opens verbs such as edit and delete.
+### Working Rows
 
-Rules:
-
-- keep the most important primary action visible next to the menu;
-- mark delete as a danger action;
-- close the menu on outside click and `Escape`;
-- repeated cards and rows should not bring back separate edit and delete buttons.
-
-### Metrics
-
-Metrics look like a table made of thin rules.
-
-```html
-<div class="goal-stats">
-  <div class="goal-stat">
-    <span>12</span>
-    <span data-i18n="example.done">done</span>
-  </div>
-</div>
-```
-
-You may reuse `goal-stats/goal-stat`, `period-stats/period-stat`, and `today-summary/today-summary-item`, but do not mix visual languages inside one block.
-
-### List Item
-
-Working entities are rows with a check, content, and an action or value.
+Rows for habits, workouts, goals, and mini-goals should follow:
 
 ```html
 <div class="quest-item">
@@ -224,43 +198,54 @@ Working entities are rows with a check, content, and an action or value.
 
 Rules:
 
-- the check on the left has fixed size;
-- middle content uses `minmax(0, 1fr)`;
-- value or action on the right is fixed and moves to a new row on mobile;
-- completed state uses `--success-soft`.
+- check controls are fixed-size square buttons;
+- the content column uses `minmax(0, 1fr)`;
+- completed state uses `--success-soft`;
+- open rows stay neutral;
+- right-side values/actions move to a new row on mobile.
 
-### Pills And Statuses
+### Calendars And Dates
 
-Use a border, small type, and semantic state:
+- Completed days use green.
+- Today uses amber.
+- Future/projection uses info blue.
+- Overdue/missed uses danger.
+- Generic active deadline chips use warning, not green.
+
+### Pills And Status
+
+Use a 1px border, small type, and semantic state. Keep text short.
 
 ```html
 <div class="deadline-pill warning">today</div>
 <div class="deadline-pill danger">overdue</div>
 <div class="deadline-pill done">done</div>
+<div class="deadline-pill info">projected</div>
 ```
 
-Rules:
+## Internationalization
 
-- keep text short;
-- choose color by meaning;
-- do not use pills as large buttons.
+English is the primary UI language. The app also supports Russian, German,
+Spanish, and French.
 
-### Forms
+All user-facing strings must live in `src/app/i18n.js`:
 
-Forms should be dense but readable.
+- static HTML uses `data-i18n`, `data-i18n-placeholder`,
+  `data-i18n-aria-label`, or `data-i18n-title`;
+- dynamic text in JavaScript uses `t("key")`;
+- plural-sensitive counts use `tn("key", count)`;
+- dates use `getDateLocale()` and helpers from `src/app/utils/dates.js`.
 
-```html
-<div class="habit-form">
-  <input data-i18n-placeholder="habit.fieldName" placeholder="Name" />
-  <input data-i18n-placeholder="habit.fieldUnit" placeholder="Unit" />
-  <input type="number" min="0" data-i18n-placeholder="habit.fieldTarget" placeholder="Target" />
-  <button class="primary" type="button" data-i18n="actions.add">Add</button>
-</div>
-```
+When adding or changing UI copy, update all supported locales in the same
+change.
 
-Rules:
+## Implementation Checklist
 
-- desktop: grid with `minmax`;
-- mobile: one column;
-- placeholders describe example data, not instructions;
-- validation and helper messages must be localized through `src/app/i18n.js`.
+Before shipping a visual change:
+
+- reuse existing tokens before adding any variable;
+- search for new hex colors and keep them in the token block only;
+- verify light and dark themes;
+- check desktop and mobile widths;
+- check that long translated labels wrap cleanly;
+- run the project QA/build command when available.
