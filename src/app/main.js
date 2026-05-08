@@ -122,6 +122,9 @@ let authMode = "login";
 let isAuthModalOpen = false;
 let isAuthBusy = false;
 let authStateToken = 0;
+const MOTION_FAST_MS = 120;
+const MOTION_NORMAL_MS = 190;
+const MOTION_SLOW_MS = 280;
 
 let data = {
   habits: [],
@@ -512,6 +515,7 @@ function getInitialView() {
 function switchView(view, options = {}) {
   closeActionMenu();
   closeAccountMenu();
+  const previousView = [habitsView, workoutsView, goalsView, goalWorkspaceView].find(item => !item.hidden);
   activeView = view === "workspace"
     ? "workspace"
     : view === "goals"
@@ -540,6 +544,8 @@ function switchView(view, options = {}) {
 
   if (isWorkspace) renderGoalWorkspacePage();
   if (isWorkouts) renderWorkouts();
+  const nextView = isWorkspace ? goalWorkspaceView : isGoals ? goalsView : isWorkouts ? workoutsView : habitsView;
+  if (previousView !== nextView) animateSectionEnter(nextView);
 }
 
 function handleHomeBrandClick(event) {
@@ -580,6 +586,67 @@ function smoothScrollHome() {
   }
 
   window.requestAnimationFrame(step);
+}
+
+function prefersReducedMotion() {
+  return window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+}
+
+function afterMotion(callback, duration = MOTION_NORMAL_MS) {
+  if (prefersReducedMotion()) {
+    callback();
+    return;
+  }
+  window.setTimeout(callback, duration);
+}
+
+function revealFloatingElement(element) {
+  element.hidden = false;
+  if (prefersReducedMotion()) {
+    element.classList.add("is-visible");
+    return;
+  }
+  window.requestAnimationFrame(() => element.classList.add("is-visible"));
+}
+
+function hideFloatingElement(element, duration = MOTION_NORMAL_MS) {
+  element.classList.remove("is-visible");
+  afterMotion(() => {
+    if (!element.classList.contains("is-visible")) element.hidden = true;
+  }, duration);
+}
+
+function animateSectionEnter(section) {
+  if (!section || prefersReducedMotion()) return;
+  section.classList.remove("is-entering");
+  void section.offsetWidth;
+  section.classList.add("is-entering");
+  section.addEventListener("animationend", () => section.classList.remove("is-entering"), { once: true });
+}
+
+function animateRenderedChildren(container, selector = ":scope > *") {
+  if (!container || prefersReducedMotion()) return;
+  const items = [...container.querySelectorAll(selector)];
+  items.forEach((item, index) => {
+    item.classList.remove("motion-item-enter");
+    item.style.setProperty("--motion-delay", `${Math.min(index, 8) * 18}ms`);
+    void item.offsetWidth;
+    item.classList.add("motion-item-enter");
+    item.addEventListener("animationend", () => {
+      item.classList.remove("motion-item-enter");
+      item.style.removeProperty("--motion-delay");
+    }, { once: true });
+  });
+}
+
+function animateCompletion(source, callback, className = "is-completing") {
+  if (!source || prefersReducedMotion()) {
+    callback();
+    return;
+  }
+
+  source.classList.add(className);
+  afterMotion(callback, MOTION_SLOW_MS);
 }
 
 function makeActionMenu(actions, label = t("actions.menu")) {
@@ -627,15 +694,19 @@ function makeActionMenu(actions, label = t("actions.menu")) {
 function toggleActionMenu(menu) {
   const panel = menu.querySelector(".action-menu-panel");
   const trigger = menu.querySelector(".action-menu-trigger");
-  const shouldOpen = panel.hidden;
+  const shouldOpen = panel.hidden || !menu.classList.contains("open");
 
   if (activeActionMenu && activeActionMenu !== menu) closeActionMenu(activeActionMenu);
+  if (!shouldOpen) {
+    closeActionMenu(menu);
+    return;
+  }
 
-  panel.hidden = !shouldOpen;
-  menu.classList.toggle("open", shouldOpen);
-  trigger.setAttribute("aria-expanded", String(shouldOpen));
-  activeActionMenu = shouldOpen ? menu : null;
-  if (shouldOpen) positionActionMenu(menu);
+  panel.hidden = false;
+  menu.classList.add("open");
+  trigger.setAttribute("aria-expanded", "true");
+  activeActionMenu = menu;
+  positionActionMenu(menu);
 }
 
 function closeActionMenu(menu = activeActionMenu) {
@@ -643,10 +714,14 @@ function closeActionMenu(menu = activeActionMenu) {
 
   const panel = menu.querySelector(".action-menu-panel");
   const trigger = menu.querySelector(".action-menu-trigger");
-  if (panel) panel.hidden = true;
   if (trigger) trigger.setAttribute("aria-expanded", "false");
   menu.classList.remove("open");
   if (activeActionMenu === menu) activeActionMenu = null;
+  if (panel) {
+    afterMotion(() => {
+      if (!menu.classList.contains("open")) panel.hidden = true;
+    }, MOTION_FAST_MS);
+  }
 }
 
 function syncModalOpenState() {
@@ -678,18 +753,24 @@ function positionActionMenu(menu) {
 }
 
 function toggleAccountMenu(forceOpen) {
-  const shouldOpen = typeof forceOpen === "boolean" ? forceOpen : accountMenuPanel.hidden;
-  accountMenuPanel.hidden = !shouldOpen;
+  const shouldOpen = typeof forceOpen === "boolean" ? forceOpen : !accountMenu.classList.contains("open");
+  if (!shouldOpen) {
+    closeAccountMenu();
+    return;
+  }
+  accountMenuPanel.hidden = false;
   accountMenuBtn.setAttribute("aria-expanded", String(shouldOpen));
-  accountMenu.classList.toggle("open", shouldOpen);
+  accountMenu.classList.add("open");
   if (shouldOpen) closeActionMenu();
 }
 
 function closeAccountMenu() {
-  if (accountMenuPanel.hidden) return;
-  accountMenuPanel.hidden = true;
+  if (accountMenuPanel.hidden && !accountMenu.classList.contains("open")) return;
   accountMenuBtn.setAttribute("aria-expanded", "false");
   accountMenu.classList.remove("open");
+  afterMotion(() => {
+    if (!accountMenu.classList.contains("open")) accountMenuPanel.hidden = true;
+  }, MOTION_FAST_MS);
 }
 
 function initTheme() {
@@ -727,7 +808,7 @@ function openAuthModal(mode = authMode) {
   setAuthMode(mode);
   clearAuthMessage();
   isAuthModalOpen = true;
-  authModal.hidden = false;
+  revealFloatingElement(authModal);
   syncModalOpenState();
   requestAnimationFrame(() => {
     const firstField = authMode === "register" ? authNameInput : authEmailInput;
@@ -737,7 +818,7 @@ function openAuthModal(mode = authMode) {
 
 function closeAuthModal() {
   isAuthModalOpen = false;
-  authModal.hidden = true;
+  hideFloatingElement(authModal);
   syncModalOpenState();
 }
 
@@ -1801,6 +1882,7 @@ function renderTestingPanel() {
     `;
     testingScenarios.appendChild(item);
   });
+  animateRenderedChildren(testingScenarios);
 }
 
 function getTestingScenarios() {
@@ -1834,6 +1916,7 @@ function renderTodayLists() {
     renderTodaySummary(0, 0);
     completedTodayBtn.disabled = true;
     activeList.innerHTML = `<div class="empty">${t("empty.signInToday")}</div>`;
+    animateRenderedChildren(activeList);
     return;
   }
 
@@ -1841,6 +1924,7 @@ function renderTodayLists() {
     renderTodaySummary(0, 0);
     completedTodayBtn.disabled = true;
     activeList.innerHTML = `<div class="empty">${t("empty.noHabits")}</div>`;
+    animateRenderedChildren(activeList);
     return;
   }
 
@@ -1866,6 +1950,7 @@ function renderTodayLists() {
   } else {
     activeHabits.forEach(({ habit, record }) => activeList.appendChild(makeQuestItem(habit, record, todayKey)));
   }
+  animateRenderedChildren(activeList);
 }
 
 function renderTodaySummary(total, done) {
@@ -1963,7 +2048,7 @@ function openCompletedModal() {
   isCompletedModalOpen = true;
   completedSearchQuery = "";
   completedSearchInput.value = "";
-  completedModal.hidden = false;
+  revealFloatingElement(completedModal);
   syncModalOpenState();
   renderCompletedModal();
   completedSearchInput.focus();
@@ -1971,7 +2056,7 @@ function openCompletedModal() {
 
 function closeCompletedModal() {
   isCompletedModalOpen = false;
-  completedModal.hidden = true;
+  hideFloatingElement(completedModal);
   syncModalOpenState();
 }
 
@@ -1982,6 +2067,7 @@ function renderCompletedModal() {
   if (!currentUser) {
     completedModalMeta.textContent = "";
     completedModalList.innerHTML = `<div class="empty">${t("completed.signInEmpty")}</div>`;
+    animateRenderedChildren(completedModalList);
     return;
   }
 
@@ -1994,11 +2080,13 @@ function renderCompletedModal() {
 
   if (completedItems.length === 0) {
     completedModalList.innerHTML = `<div class="empty">${t("completed.noneToday")}</div>`;
+    animateRenderedChildren(completedModalList);
     return;
   }
 
   if (visibleItems.length === 0) {
     completedModalList.innerHTML = `<div class="empty">${t("empty.noResults")}</div>`;
+    animateRenderedChildren(completedModalList);
     return;
   }
 
@@ -2007,6 +2095,7 @@ function renderCompletedModal() {
     fragment.appendChild(makeCompletedQuestItem(habit, record, todayKey));
   });
   completedModalList.appendChild(fragment);
+  animateRenderedChildren(completedModalList);
 }
 
 function getCompletedTodayItems(dateKey) {
@@ -2057,16 +2146,21 @@ function makeQuestItem(habit, record, dateKey) {
   const el = document.createElement("div");
   el.className = "quest-item";
 
-  const check = document.createElement("div");
+  const check = document.createElement("button");
   check.className = "quest-check";
+  check.type = "button";
   check.textContent = "✓";
+  check.setAttribute("aria-label", t("review.done"));
   check.onclick = () => {
+    if (check.dataset.busy === "true") return;
+    check.dataset.busy = "true";
+    check.classList.add("is-checking", "quest-check-done");
     record.done = true;
     if (!record.value && habit.target) record.value = Number(habit.target);
     applyHabitSnapshot(record, habit);
     saveRecord(dateKey, habit.id, record);
     markDirty();
-    render();
+    animateCompletion(el, render);
   };
 
   const info = document.createElement("div");
@@ -2161,11 +2255,13 @@ function renderHabitManager() {
 
   if (!currentUser) {
     habitManagerList.innerHTML = `<div class="empty habit-manager-empty">${t("empty.signInHabitManager")}</div>`;
+    animateRenderedChildren(habitManagerList);
     return;
   }
 
   if (data.habits.length === 0) {
     habitManagerList.innerHTML = `<div class="empty habit-manager-empty">${t("empty.noHabitsToEdit")}</div>`;
+    animateRenderedChildren(habitManagerList);
     return;
   }
 
@@ -2219,6 +2315,7 @@ function renderHabitManager() {
     item.appendChild(actionMenu);
     habitManagerList.appendChild(item);
   });
+  animateRenderedChildren(habitManagerList);
 }
 
 function updateHabitField(habitId, field, value) {
@@ -2334,22 +2431,26 @@ function renderWorkoutSession() {
 
   if (!currentUser) {
     workoutExerciseList.innerHTML = `<div class="empty">${t("workouts.signInEmpty")}</div>`;
+    animateRenderedChildren(workoutExerciseList);
     return;
   }
 
   if (day.kind !== "training") {
     workoutExerciseList.appendChild(makeWorkoutRecoveryPanel(day));
+    animateRenderedChildren(workoutExerciseList);
     return;
   }
 
   if (!day.exercises.length) {
     workoutExerciseList.innerHTML = `<div class="empty">${t("workouts.noExercises")}</div>`;
+    animateRenderedChildren(workoutExerciseList);
     return;
   }
 
   day.exercises.forEach(exercise => {
     workoutExerciseList.appendChild(makeWorkoutExerciseCard(day, exercise));
   });
+  animateRenderedChildren(workoutExerciseList);
 }
 
 function renderWorkoutPlanEditor(day) {
@@ -3250,11 +3351,13 @@ function renderDayReview() {
 
   if (isFuture) {
     daySummaryList.innerHTML = `<div class="empty">${t("review.futureEmpty")}</div>`;
+    animateRenderedChildren(daySummaryList);
     return;
   }
 
   if (!currentUser) {
     daySummaryList.innerHTML = `<div class="empty">${t("review.signInEmpty")}</div>`;
+    animateRenderedChildren(daySummaryList);
     return;
   }
 
@@ -3262,6 +3365,7 @@ function renderDayReview() {
 
   if (data.habits.length === 0 && activeHabitsForDate.length === 0) {
     daySummaryList.innerHTML = `<div class="empty">${t("review.noHabitsEmpty")}</div>`;
+    animateRenderedChildren(daySummaryList);
     return;
   }
 
@@ -3304,6 +3408,7 @@ function renderDayReview() {
     ? t("review.totalShown", { done: completedCount, total: activeHabitsForDate.length, shown: visibleHabits.length })
     : t("review.total", { done: completedCount, total: activeHabitsForDate.length });
   daySummaryList.prepend(summary);
+  animateRenderedChildren(daySummaryList);
 }
 
 function renderFutureProjection(dateKey) {
@@ -3813,7 +3918,7 @@ function openGoalModal(goalId = null) {
   document.getElementById("goalPointA").value = goal?.pointA || "";
   document.getElementById("goalPointB").value = goal?.pointB || "";
   isGoalModalOpen = true;
-  goalModal.hidden = false;
+  revealFloatingElement(goalModal);
   syncModalOpenState();
   document.getElementById("goalName").focus();
 }
@@ -3827,13 +3932,13 @@ function syncGoalModalText() {
 function closeGoalModal() {
   isGoalModalOpen = false;
   editingGoalId = null;
-  goalModal.hidden = true;
+  hideFloatingElement(goalModal);
   syncModalOpenState();
 }
 
 function openGoalArchiveModal() {
   isGoalArchiveModalOpen = true;
-  goalArchiveModal.hidden = false;
+  revealFloatingElement(goalArchiveModal);
   goalArchiveSearchInput.value = goalArchiveSearchQuery;
   renderGoalArchive();
   syncModalOpenState();
@@ -3842,7 +3947,7 @@ function openGoalArchiveModal() {
 
 function closeGoalArchiveModal() {
   isGoalArchiveModalOpen = false;
-  goalArchiveModal.hidden = true;
+  hideFloatingElement(goalArchiveModal);
   syncModalOpenState();
 }
 
@@ -3906,20 +4011,24 @@ function renderGoalsList() {
 
   if (!currentUser) {
     goalsList.innerHTML = `<div class="empty">${t("goals.signInEmpty")}</div>`;
+    animateRenderedChildren(goalsList);
     return;
   }
 
   if (data.goals.length === 0) {
     goalsList.innerHTML = `<div class="empty">${t("goals.noneEmpty")}</div>`;
+    animateRenderedChildren(goalsList);
     return;
   }
 
   if (activeGoals.length === 0) {
     goalsList.innerHTML = `<div class="empty">${t("goals.noActiveEmpty")}</div>`;
+    animateRenderedChildren(goalsList);
     return;
   }
 
   activeGoals.forEach(goal => goalsList.appendChild(makeGoalCard(goal)));
+  animateRenderedChildren(goalsList);
 }
 
 function renderGoalOverview() {
@@ -3957,6 +4066,7 @@ function renderGoalArchive() {
 
   if (!currentUser) {
     goalArchiveList.innerHTML = `<div class="empty">${t("goals.archiveSignInEmpty")}</div>`;
+    animateRenderedChildren(goalArchiveList);
     return;
   }
 
@@ -3965,15 +4075,18 @@ function renderGoalArchive() {
       ? t("goals.archiveCompletedEmpty")
       : t("goals.archiveFailedEmpty");
     goalArchiveList.innerHTML = `<div class="empty">${emptyText}</div>`;
+    animateRenderedChildren(goalArchiveList);
     return;
   }
 
   if (searchedGoals.length === 0) {
     goalArchiveList.innerHTML = `<div class="empty">${t("goals.archiveSearchEmpty")}</div>`;
+    animateRenderedChildren(goalArchiveList);
     return;
   }
 
   searchedGoals.forEach(goal => goalArchiveList.appendChild(makeGoalArchiveCard(goal)));
+  animateRenderedChildren(goalArchiveList);
 }
 
 function filterArchivedGoals(goals, query) {
@@ -4214,6 +4327,7 @@ function makeGoalCard(goal) {
       taskList.appendChild(makeGoalTaskItem(goal, task));
     });
   }
+  animateRenderedChildren(taskList);
   renderGoalTaskArchive(goal, card.querySelector(".goal-task-archive-list"));
 
   return card;
@@ -4248,7 +4362,7 @@ function makeGoalTaskItem(goal, task) {
     <button class="primary goal-task-work" type="button">${t("goals.work")}</button>
   `;
 
-  item.querySelector(".quest-check").onclick = () => toggleGoalTask(goal.id, task.id);
+  item.querySelector(".quest-check").onclick = () => toggleGoalTask(goal.id, task.id, { source: item });
   item.querySelector(".goal-task-work").onclick = () => openGoalWorkspace(goal.id, task.id);
   item.appendChild(makeActionMenu([
     {
@@ -4271,12 +4385,14 @@ function renderGoalTaskArchive(goal, list, options = {}) {
 
   if (tasks.length === 0) {
     list.innerHTML = `<div class="empty goal-task-empty">${escapeHtml(options.emptyText || t("goals.completedTasksEmpty"))}</div>`;
+    animateRenderedChildren(list);
     return;
   }
 
   tasks.forEach(task => {
     list.appendChild(makeGoalArchiveTaskItem(goal, task, options));
   });
+  animateRenderedChildren(list);
 }
 
 function makeGoalArchiveTaskItem(goal, task, options = {}) {
@@ -4299,7 +4415,7 @@ function makeGoalArchiveTaskItem(goal, task, options = {}) {
     <button class="primary goal-task-work" type="button">${t("workspace.label")}</button>
   `;
 
-  item.querySelector(".quest-check").onclick = () => toggleGoalTask(goal.id, task.id);
+  item.querySelector(".quest-check").onclick = () => toggleGoalTask(goal.id, task.id, { source: item });
   item.querySelector(".goal-task-work").onclick = () => openGoalWorkspace(goal.id, task.id);
   item.appendChild(makeActionMenu([
     {
@@ -4384,14 +4500,21 @@ function editGoalTask(goalId, taskId) {
   renderGoals();
 }
 
-function toggleGoalTask(goalId, taskId) {
+function toggleGoalTask(goalId, taskId, options = {}) {
   const task = findGoalTask(goalId, taskId);
   if (!task) return;
 
-  task.done = !task.done;
+  const willComplete = !task.done;
+  task.done = willComplete;
   task.completedAt = task.done ? toDateInputValue(new Date()) : "";
   markDirty();
-  renderGoals();
+  if (willComplete && options.source) {
+    const check = options.source.querySelector(".quest-check");
+    check?.classList.add("is-checking", "quest-check-done");
+    animateCompletion(options.source, renderGoals);
+  } else {
+    renderGoals();
+  }
 }
 
 function deleteGoalTask(goalId, taskId) {
@@ -4421,7 +4544,7 @@ function openGoalResultModal(goalId) {
   resolvingGoalId = goal.id;
   isGoalResultModalOpen = true;
   syncGoalResultModalText();
-  goalResultModal.hidden = false;
+  revealFloatingElement(goalResultModal);
   syncModalOpenState();
   goalResultCompletedBtn.focus();
 }
@@ -4440,7 +4563,7 @@ function syncGoalResultModalText() {
 function closeGoalResultModal() {
   isGoalResultModalOpen = false;
   resolvingGoalId = null;
-  goalResultModal.hidden = true;
+  hideFloatingElement(goalResultModal);
   syncModalOpenState();
 }
 
@@ -4506,6 +4629,8 @@ function showGoalToast(message) {
 }
 
 function launchGoalConfetti(status) {
+  if (prefersReducedMotion()) return;
+
   const colors = status === "completed"
     ? [getCssColor("--success"), getCssColor("--warning"), getCssColor("--text"), getCssColor("--card")]
     : [getCssColor("--danger"), getCssColor("--warning"), getCssColor("--text"), getCssColor("--card")];
@@ -4513,24 +4638,24 @@ function launchGoalConfetti(status) {
   goalConfettiLayer.innerHTML = "";
   goalConfettiLayer.classList.add("active");
 
-  for (let i = 0; i < 70; i++) {
+  for (let i = 0; i < 24; i++) {
     const piece = document.createElement("span");
-    const size = 6 + Math.random() * 8;
+    const size = 4 + Math.random() * 5;
     piece.style.left = `${Math.random() * 100}%`;
     piece.style.width = `${size}px`;
     piece.style.height = `${size * (0.45 + Math.random() * 0.9)}px`;
     piece.style.background = colors[i % colors.length];
-    piece.style.animationDelay = `${Math.random() * 0.25}s`;
-    piece.style.animationDuration = `${1.7 + Math.random() * 1.2}s`;
-    piece.style.setProperty("--confetti-x", `${-70 + Math.random() * 140}px`);
-    piece.style.setProperty("--confetti-rotation", `${180 + Math.random() * 720}deg`);
+    piece.style.animationDelay = `${Math.random() * 0.12}s`;
+    piece.style.animationDuration = `${1.2 + Math.random() * 0.55}s`;
+    piece.style.setProperty("--confetti-x", `${-38 + Math.random() * 76}px`);
+    piece.style.setProperty("--confetti-rotation", `${120 + Math.random() * 360}deg`);
     goalConfettiLayer.appendChild(piece);
   }
 
   setTimeout(() => {
     goalConfettiLayer.classList.remove("active");
     goalConfettiLayer.innerHTML = "";
-  }, 3200);
+  }, 2100);
 }
 
 function openGoalWorkspace(goalId, taskId) {
@@ -4584,6 +4709,7 @@ function renderWorkspaceEmpty(message) {
   goalMiniGoalInput.disabled = true;
   goalMiniGoalAddBtn.disabled = true;
   goalMiniGoalList.innerHTML = `<div class="empty goal-mini-empty">${escapeHtml(message)}</div>`;
+  animateRenderedChildren(goalMiniGoalList);
 }
 
 function getWorkspaceRoute() {
@@ -4601,6 +4727,7 @@ function renderWorkspaceMiniGoals(workspace) {
 
   if (workspace.miniGoals.length === 0) {
     goalMiniGoalList.innerHTML = `<div class="empty goal-mini-empty">${t("workspace.emptyMiniGoals")}</div>`;
+    animateRenderedChildren(goalMiniGoalList);
     return;
   }
 
@@ -4612,7 +4739,7 @@ function renderWorkspaceMiniGoals(workspace) {
       <div class="goal-mini-title">${escapeHtml(miniGoal.title)}</div>
     `;
 
-    item.querySelector(".quest-check").onclick = () => toggleWorkspaceMiniGoal(miniGoal.id);
+    item.querySelector(".quest-check").onclick = () => toggleWorkspaceMiniGoal(miniGoal.id, { source: item });
     item.appendChild(makeActionMenu([
       {
         label: t("actions.edit"),
@@ -4626,6 +4753,7 @@ function renderWorkspaceMiniGoals(workspace) {
     ], t("workspace.menuMiniGoalLabel", { name: miniGoal.title || t("habit.unnamed") })));
     goalMiniGoalList.appendChild(item);
   });
+  animateRenderedChildren(goalMiniGoalList);
 }
 
 function updateWorkspaceNotes() {
@@ -4664,7 +4792,7 @@ function addWorkspaceMiniGoal() {
   renderGoals();
 }
 
-function toggleWorkspaceMiniGoal(miniGoalId) {
+function toggleWorkspaceMiniGoal(miniGoalId, options = {}) {
   const context = findGoalTaskContext(workspaceGoalId, workspaceTaskId);
   if (!context) return;
 
@@ -4672,11 +4800,21 @@ function toggleWorkspaceMiniGoal(miniGoalId) {
   const miniGoal = workspace.miniGoals.find(item => item.id === miniGoalId);
   if (!miniGoal) return;
 
-  miniGoal.done = !miniGoal.done;
+  const willComplete = !miniGoal.done;
+  miniGoal.done = willComplete;
   miniGoal.completedAt = miniGoal.done ? toDateInputValue(new Date()) : "";
   markDirty();
-  renderWorkspaceMiniGoals(workspace);
-  renderGoals();
+  const rerender = () => {
+    renderWorkspaceMiniGoals(workspace);
+    renderGoals();
+  };
+  if (willComplete && options.source) {
+    const check = options.source.querySelector(".quest-check");
+    check?.classList.add("is-checking", "quest-check-done");
+    animateCompletion(options.source, rerender);
+  } else {
+    rerender();
+  }
 }
 
 function editWorkspaceMiniGoal(miniGoalId) {
@@ -4861,6 +4999,7 @@ function renderDeadlineCalendar() {
 
     goalsCalendarGrid.appendChild(dayButton);
   });
+  animateRenderedChildren(goalsCalendarGrid, ".deadline-day");
 }
 
 function renderDeadlineFocus() {
@@ -4880,15 +5019,18 @@ function renderDeadlineFocus() {
 
   if (!currentUser) {
     selectedDeadlineList.innerHTML = `<div class="empty">${t("deadlines.signInEmpty")}</div>`;
+    animateRenderedChildren(selectedDeadlineList);
     return;
   }
 
   if (items.length === 0) {
     selectedDeadlineList.innerHTML = `<div class="empty">${t("deadlines.noneForDay")}</div>`;
+    animateRenderedChildren(selectedDeadlineList);
     return;
   }
 
   items.forEach(item => selectedDeadlineList.appendChild(makeDeadlineFocusItem(item)));
+  animateRenderedChildren(selectedDeadlineList);
 }
 
 function makeDeadlineFocusItem(item) {
@@ -4905,7 +5047,7 @@ function makeDeadlineFocusItem(item) {
     <div class="deadline-pill ${state.className}">${escapeHtml(state.text)}</div>
   `;
 
-  el.querySelector(".quest-check").onclick = () => toggleGoalTask(item.goal.id, item.task.id);
+  el.querySelector(".quest-check").onclick = () => toggleGoalTask(item.goal.id, item.task.id, { source: el });
   return el;
 }
 

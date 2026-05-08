@@ -75,8 +75,21 @@
   --rule: var(--rule-width) solid var(--line);
   --control-height: 44px;
   --control-height-sm: 36px;
-  --motion-fast: 0.15s ease;
-  --motion-base: 0.2s ease;
+  --duration-fast: 120ms;
+  --duration-normal: 190ms;
+  --duration-slow: 280ms;
+  --easing-standard: cubic-bezier(0.2, 0, 0, 1);
+  --easing-emphasized: cubic-bezier(0.16, 1, 0.3, 1);
+  --motion-translate-xs: 1px;
+  --motion-translate-sm: 2px;
+  --motion-translate-md: 8px;
+  --motion-scale-press: 0.985;
+  --motion-scale-lift: 1.006;
+  --motion-scale-check: 1.12;
+  --motion-reduced-duration: 1ms;
+  --motion-fast: var(--duration-fast) var(--easing-standard);
+  --motion-base: var(--duration-normal) var(--easing-standard);
+  --motion-slow: var(--duration-slow) var(--easing-emphasized);
 
   --radius: 3px;
   --shadow: none;
@@ -135,7 +148,9 @@ body {
   background: var(--bg);
   color: var(--text);
   font-family: var(--font-ui);
-  transition: background var(--motion-base), color var(--motion-base);
+  transition:
+    background-color var(--motion-base),
+    color var(--motion-base);
 }
 
 body.modal-open {
@@ -156,6 +171,15 @@ body.modal-open {
 
 .app-view[hidden] {
   display: none;
+}
+
+.app-view.is-entering {
+  animation: app-view-enter var(--motion-slow) both;
+}
+
+.motion-item-enter {
+  animation: motion-item-enter var(--motion-slow) both;
+  animation-delay: var(--motion-delay, 0ms);
 }
 
 .visually-hidden {
@@ -261,11 +285,11 @@ body.dark .logo-bar-5 { fill: var(--layer-1); }
 }
 
 .brand-home.is-returning-home .logo-dot {
-  animation: logo-dot-return 0.72s cubic-bezier(0.16, 1, 0.3, 1);
+  animation: logo-dot-return 0.72s var(--easing-emphasized);
 }
 
 .brand-home.is-returning-home .logo-bar {
-  animation: logo-bar-return 0.72s cubic-bezier(0.16, 1, 0.3, 1);
+  animation: logo-bar-return 0.72s var(--easing-emphasized);
 }
 
 .brand-home.is-returning-home .logo-bar-2 { animation-delay: 0.025s; }
@@ -284,6 +308,75 @@ body.dark .logo-bar-5 { fill: var(--layer-1); }
   38% { transform: translateY(-7px) scale(0.86); }
   72% { transform: translateY(2px) scale(1.1); }
   100% { transform: translateY(0) scale(1); }
+}
+
+@keyframes app-view-enter {
+  from {
+    opacity: 0;
+    transform: translateY(var(--motion-translate-md));
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes motion-item-enter {
+  from {
+    opacity: 0;
+    transform: translateY(var(--motion-translate-sm));
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes section-reveal {
+  from {
+    opacity: 0;
+    transform: translateY(calc(var(--motion-translate-sm) * -1)) scaleY(0.99);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scaleY(1);
+  }
+}
+
+@keyframes check-mark-pop {
+  0% {
+    transform: scale(1);
+  }
+  45% {
+    transform: scale(var(--motion-scale-check));
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+
+@keyframes milestone-complete {
+  0% {
+    border-color: var(--line);
+    transform: scale(1);
+  }
+  45% {
+    border-color: color-mix(in srgb, var(--success), transparent 25%);
+    transform: scale(var(--motion-scale-lift));
+  }
+  100% {
+    border-color: color-mix(in srgb, var(--success), transparent 55%);
+    transform: scale(1);
+  }
+}
+
+@keyframes calendar-select {
+  0% {
+    transform: scale(0.992);
+  }
+  100% {
+    transform: scale(1);
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -339,10 +432,20 @@ button {
   background: transparent;
   color: var(--text);
   font-weight: 500;
-  transition: var(--motion-fast);
+  transform: translateZ(0);
+  transition:
+    background-color var(--motion-fast),
+    border-color var(--motion-fast),
+    color var(--motion-fast),
+    opacity var(--motion-fast),
+    transform var(--motion-fast);
 }
 
-button:hover { background: var(--accent-soft); }
+button:not(:disabled):hover { background: var(--accent-soft); }
+
+button:not(:disabled):active {
+  transform: translateY(var(--motion-translate-xs)) scale(var(--motion-scale-press));
+}
 
 button:focus-visible,
 input:focus-visible,
@@ -356,6 +459,7 @@ a:focus-visible {
 button:disabled {
   cursor: default;
   opacity: 0.48;
+  transform: none;
 }
 
 button.quest-check {
@@ -425,6 +529,11 @@ button.danger:hover {
   letter-spacing: 0;
 }
 
+.action-menu-trigger:hover,
+.action-menu-trigger:focus-visible {
+  border-color: color-mix(in srgb, var(--text), transparent 45%);
+}
+
 .action-menu.open .action-menu-trigger {
   border-color: var(--text);
   background: var(--accent-soft);
@@ -439,6 +548,21 @@ button.danger:hover {
   border: var(--rule);
   background: var(--card);
   padding: var(--space-1);
+  opacity: 0;
+  pointer-events: none;
+  transform: translateY(calc(var(--motion-translate-sm) * -1)) scale(0.98);
+  transform-origin: top right;
+  transition:
+    opacity var(--motion-fast),
+    transform var(--motion-fast),
+    border-color var(--motion-fast),
+    background-color var(--motion-fast);
+}
+
+.action-menu.open .action-menu-panel {
+  opacity: 1;
+  pointer-events: auto;
+  transform: translateY(0) scale(1);
 }
 
 .action-menu-panel[hidden] {
@@ -458,6 +582,11 @@ button.danger:hover {
   font-size: 14px;
   text-align: left;
   white-space: nowrap;
+}
+
+.action-menu-item:hover,
+.action-menu-item:focus-visible {
+  background: var(--accent-soft);
 }
 
 .action-menu-item.danger {
@@ -500,12 +629,23 @@ button.danger:hover {
   background: var(--card);
 }
 
+.theme-toggle:hover .theme-toggle-icon,
+.theme-toggle:focus-visible .theme-toggle-icon {
+  transform: rotate(-10deg) scale(1.04);
+}
+
 .theme-toggle-icon {
   position: relative;
   width: 22px;
   height: 22px;
   border: 4px solid var(--text);
   border-radius: 50%;
+  transition:
+    background-color var(--motion-base),
+    border-color var(--motion-base),
+    border-width var(--motion-base),
+    box-shadow var(--motion-base),
+    transform var(--motion-base);
 }
 
 .theme-toggle-icon::after {
@@ -517,6 +657,13 @@ button.danger:hover {
   height: 14px;
   border-radius: 50%;
   background: var(--card);
+  transition:
+    background-color var(--motion-base),
+    box-shadow var(--motion-base),
+    height var(--motion-base),
+    right var(--motion-base),
+    top var(--motion-base),
+    width var(--motion-base);
 }
 
 body.dark .theme-toggle-icon {
@@ -556,6 +703,11 @@ body.dark .theme-toggle-icon::after {
   background: var(--card);
   color: var(--text);
   white-space: nowrap;
+}
+
+.account-menu-trigger:hover,
+.account-menu-trigger:focus-visible {
+  border-color: color-mix(in srgb, var(--text), transparent 45%);
 }
 
 .account-menu.open .account-menu-trigger {
@@ -627,6 +779,21 @@ body.dark .theme-toggle-icon::after {
   background: var(--card);
   padding: 12px;
   box-shadow: none;
+  opacity: 0;
+  pointer-events: none;
+  transform: translateY(calc(var(--motion-translate-sm) * -1)) scale(0.98);
+  transform-origin: top right;
+  transition:
+    opacity var(--motion-fast),
+    transform var(--motion-fast),
+    border-color var(--motion-fast),
+    background-color var(--motion-fast);
+}
+
+.account-menu.open .account-menu-panel {
+  opacity: 1;
+  pointer-events: auto;
+  transform: translateY(0) scale(1);
 }
 
 .account-menu-panel[hidden] {
@@ -666,6 +833,15 @@ body.dark .theme-toggle-icon::after {
   border: var(--rule);
   background: var(--card);
   padding: 0 var(--space-3);
+  transition:
+    background-color var(--motion-fast),
+    border-color var(--motion-fast);
+}
+
+.language-control:hover,
+.language-control:focus-within {
+  border-color: color-mix(in srgb, var(--text), transparent 45%);
+  background: var(--accent-soft);
 }
 
 .language-control span {
@@ -728,6 +904,7 @@ body.dark .theme-toggle-icon::after {
 }
 
 .app-tab {
+  position: relative;
   min-height: auto;
   border: 0;
   padding: var(--space-3) 0;
@@ -736,6 +913,22 @@ body.dark .theme-toggle-icon::after {
   font-size: 15px;
   font-weight: 600;
   white-space: nowrap;
+}
+
+.app-tab::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 1px;
+  height: 1px;
+  background: currentColor;
+  opacity: 0;
+  transform: scaleX(0.35);
+  transform-origin: center;
+  transition:
+    opacity var(--motion-fast),
+    transform var(--motion-fast);
 }
 
 .app-tab:hover,
@@ -748,6 +941,11 @@ body.dark .theme-toggle-icon::after {
   color: var(--text);
   border-color: transparent;
   background: transparent;
+}
+
+.app-tab.active::after {
+  opacity: 1;
+  transform: scaleX(1);
 }
 
 .hero-grid {
@@ -763,6 +961,16 @@ body.dark .theme-toggle-icon::after {
   border-radius: var(--radius);
   padding: var(--card-pad);
   box-shadow: var(--shadow);
+  transform: translateZ(0);
+  transition:
+    background-color var(--motion-base),
+    border-color var(--motion-base),
+    transform var(--motion-base);
+}
+
+.card:hover {
+  border-color: color-mix(in srgb, var(--layer-2), var(--line) 62%);
+  transform: translateY(calc(var(--motion-translate-xs) * -1));
 }
 
 .today-card {
@@ -872,6 +1080,24 @@ body.dark .theme-toggle-icon::after {
   border: var(--rule);
   background: var(--card);
   padding: 12px;
+  transform: translateZ(0);
+  transition:
+    background-color var(--motion-base),
+    border-color var(--motion-base),
+    opacity var(--motion-base),
+    transform var(--motion-base);
+}
+
+.quest-item:hover {
+  border-color: color-mix(in srgb, var(--layer-2), var(--line) 55%);
+  background: color-mix(in srgb, var(--card), var(--accent-soft) 34%);
+}
+
+.quest-item.is-completing {
+  border-color: color-mix(in srgb, var(--success), transparent 30%);
+  background: var(--success-soft);
+  opacity: 0;
+  transform: translateY(calc(var(--motion-translate-sm) * -1)) scale(0.992);
 }
 
 .quest-check {
@@ -883,13 +1109,19 @@ body.dark .theme-toggle-icon::after {
   place-items: center;
   cursor: pointer;
   color: transparent;
-  transition: 0.12s ease;
+  transform: translateZ(0);
+  transition:
+    background-color var(--motion-fast),
+    border-color var(--motion-fast),
+    color var(--motion-fast),
+    transform var(--motion-fast);
 }
 
 .quest-check:hover {
   border-color: var(--success);
   background: var(--success-soft);
   color: var(--success);
+  transform: scale(1.04);
 }
 
 .quest-item-done {
@@ -906,6 +1138,10 @@ body.dark .theme-toggle-icon::after {
 .quest-check-done:hover {
   background: transparent;
   color: var(--success);
+}
+
+.quest-check.is-checking {
+  animation: check-mark-pop var(--duration-slow) var(--easing-emphasized) both;
 }
 
 .quest-name {
@@ -929,6 +1165,11 @@ input, select, textarea {
   padding: 10px 11px;
   color: var(--text);
   outline: none;
+  transition:
+    background-color var(--motion-fast),
+    border-color var(--motion-fast),
+    box-shadow var(--motion-fast),
+    color var(--motion-fast);
 }
 
 textarea {
@@ -936,7 +1177,10 @@ textarea {
   line-height: 1.4;
 }
 
-input:focus, select:focus, textarea:focus { border-color: var(--text); }
+input:focus, select:focus, textarea:focus {
+  border-color: var(--text);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--text), transparent 78%);
+}
 
 .quest-value {
   text-align: center;
@@ -1014,6 +1258,16 @@ input:focus, select:focus, textarea:focus { border-color: var(--text); }
   place-items: center;
   padding: 24px;
   background: var(--overlay);
+  opacity: 0;
+  pointer-events: none;
+  transition:
+    opacity var(--motion-base),
+    background-color var(--motion-base);
+}
+
+.modal-backdrop.is-visible {
+  opacity: 1;
+  pointer-events: auto;
 }
 
 .modal-backdrop[hidden] {
@@ -1029,6 +1283,18 @@ input:focus, select:focus, textarea:focus { border-color: var(--text); }
   border: 1px solid var(--text);
   background: var(--card);
   padding: 20px;
+  opacity: 0;
+  transform: translateY(var(--motion-translate-md)) scale(0.985);
+  transition:
+    opacity var(--motion-base),
+    transform var(--motion-base),
+    background-color var(--motion-base),
+    border-color var(--motion-base);
+}
+
+.modal-backdrop.is-visible .modal-panel {
+  opacity: 1;
+  transform: translateY(0) scale(1);
 }
 
 .goal-modal-panel {
@@ -1269,6 +1535,16 @@ input:focus, select:focus, textarea:focus { border-color: var(--text); }
   background: var(--card);
   padding: 8px 10px;
   min-height: 48px;
+  transform: translateZ(0);
+  transition:
+    background-color var(--motion-base),
+    border-color var(--motion-base),
+    opacity var(--motion-base),
+    transform var(--motion-base);
+}
+
+.goal-mini-item:hover {
+  border-color: color-mix(in srgb, var(--layer-2), var(--line) 55%);
 }
 
 .goal-mini-item .quest-check {
@@ -1280,6 +1556,11 @@ input:focus, select:focus, textarea:focus { border-color: var(--text); }
 .goal-mini-item.done {
   border-color: color-mix(in srgb, var(--success), transparent 55%);
   background: var(--success-soft);
+}
+
+.goal-mini-item.is-completing {
+  background: var(--success-soft);
+  animation: milestone-complete var(--duration-slow) var(--easing-emphasized) both;
 }
 
 .goal-mini-title {
@@ -1354,6 +1635,15 @@ input:focus, select:focus, textarea:focus { border-color: var(--text); }
   background: var(--card);
   padding: 14px;
   min-width: 0;
+  transition:
+    background-color var(--motion-base),
+    border-color var(--motion-base),
+    transform var(--motion-base);
+}
+
+.workspace-mini-section:hover,
+.workspace-notes-section:hover {
+  border-color: color-mix(in srgb, var(--layer-2), var(--line) 62%);
 }
 
 .workspace-panel-head {
@@ -1426,7 +1716,11 @@ input:focus, select:focus, textarea:focus { border-color: var(--text); }
   line-height: 1.45;
   transform: translateY(16px);
   opacity: 0;
-  transition: transform 0.18s ease, opacity 0.18s ease;
+  transition:
+    transform var(--motion-base),
+    opacity var(--motion-base),
+    background-color var(--motion-base),
+    border-color var(--motion-base);
 }
 
 .goal-toast.show {
@@ -1454,6 +1748,12 @@ input:focus, select:focus, textarea:focus { border-color: var(--text); }
   border: 1px dashed var(--line);
   text-align: center;
   line-height: 1.5;
+  transition:
+    background-color var(--motion-base),
+    border-color var(--motion-base),
+    color var(--motion-base),
+    opacity var(--motion-base),
+    transform var(--motion-base);
 }
 
 .streak-card {
@@ -1579,7 +1879,7 @@ input:focus, select:focus, textarea:focus { border-color: var(--text); }
   height: 100%;
   width: 0%;
   background: var(--success);
-  transition: width 0.2s ease;
+  transition: width var(--duration-slow) var(--easing-emphasized);
 }
 
 .habit-form {
@@ -1595,10 +1895,12 @@ input:focus, select:focus, textarea:focus { border-color: var(--text); }
   margin-top: 16px;
   padding-top: 16px;
   border-top: var(--rule);
+  transform-origin: top;
 }
 
 .habit-manager-panel.open {
   display: block;
+  animation: section-reveal var(--motion-base) both;
 }
 
 .habit-manager-list {
@@ -1619,6 +1921,15 @@ input:focus, select:focus, textarea:focus { border-color: var(--text); }
   border: var(--rule);
   background: var(--card);
   padding: 12px;
+  transition:
+    background-color var(--motion-base),
+    border-color var(--motion-base),
+    transform var(--motion-base);
+}
+
+.habit-manager-item:hover {
+  border-color: color-mix(in srgb, var(--layer-2), var(--line) 55%);
+  transform: translateY(calc(var(--motion-translate-xs) * -1));
 }
 
 .habit-manager-item input {
@@ -1709,6 +2020,8 @@ input:focus, select:focus, textarea:focus { border-color: var(--text); }
   background: var(--card-2);
   padding: var(--space-5);
   margin-bottom: var(--space-6);
+  transform-origin: top;
+  animation: section-reveal var(--motion-base) both;
 }
 
 .workout-plan-editor-grid {
@@ -1727,6 +2040,16 @@ input:focus, select:focus, textarea:focus { border-color: var(--text); }
   padding: var(--space-4);
   text-align: left;
   background: var(--card);
+  transition:
+    background-color var(--motion-base),
+    border-color var(--motion-base),
+    color var(--motion-base),
+    transform var(--motion-base);
+}
+
+.workout-day-tab:hover {
+  border-color: color-mix(in srgb, var(--text), transparent 45%);
+  transform: translateY(calc(var(--motion-translate-xs) * -1));
 }
 
 .workout-day-tab span {
@@ -1800,6 +2123,16 @@ input:focus, select:focus, textarea:focus { border-color: var(--text); }
   border: var(--rule);
   background: var(--card);
   padding: var(--space-6);
+  transition:
+    background-color var(--motion-base),
+    border-color var(--motion-base),
+    transform var(--motion-base);
+}
+
+.workout-exercise-card:hover,
+.workout-recovery-panel:hover {
+  border-color: color-mix(in srgb, var(--layer-2), var(--line) 55%);
+  transform: translateY(calc(var(--motion-translate-xs) * -1));
 }
 
 .workout-exercise-card.done {
@@ -1953,6 +2286,9 @@ input:focus, select:focus, textarea:focus { border-color: var(--text); }
   border-right: var(--rule);
   border-bottom: var(--rule);
   background: var(--card);
+  transition:
+    background-color var(--motion-base),
+    border-color var(--motion-base);
 }
 
 .workout-set-row.logged > * {
@@ -2126,6 +2462,14 @@ input:focus, select:focus, textarea:focus { border-color: var(--text); }
   padding: 9px;
   text-align: left;
   overflow: hidden;
+  transform: translateZ(0);
+  transition:
+    background-color var(--motion-base),
+    border-color var(--motion-base),
+    color var(--motion-base),
+    opacity var(--motion-base),
+    outline-color var(--motion-base),
+    transform var(--motion-base);
 }
 
 .deadline-calendar-grid.week .deadline-day {
@@ -2139,6 +2483,7 @@ input:focus, select:focus, textarea:focus { border-color: var(--text); }
 .deadline-day:hover {
   border-color: var(--text);
   background: var(--card);
+  transform: translateY(calc(var(--motion-translate-xs) * -1));
 }
 
 .deadline-day.today {
@@ -2149,6 +2494,7 @@ input:focus, select:focus, textarea:focus { border-color: var(--text); }
 .deadline-day.selected {
   outline: 2px solid var(--text);
   outline-offset: -2px;
+  animation: calendar-select var(--duration-slow) var(--easing-emphasized) both;
 }
 
 .deadline-day.today .deadline-day-top span {
@@ -2198,6 +2544,10 @@ input:focus, select:focus, textarea:focus { border-color: var(--text); }
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  transition:
+    background-color var(--motion-fast),
+    border-color var(--motion-fast),
+    color var(--motion-fast);
 }
 
 .deadline-chip.done {
@@ -2233,11 +2583,25 @@ input:focus, select:focus, textarea:focus { border-color: var(--text); }
   border: var(--rule);
   background: var(--card);
   padding: 10px;
+  transition:
+    background-color var(--motion-base),
+    border-color var(--motion-base),
+    transform var(--motion-base);
+}
+
+.deadline-focus-item:hover {
+  border-color: color-mix(in srgb, var(--layer-2), var(--line) 55%);
+  transform: translateY(calc(var(--motion-translate-xs) * -1));
 }
 
 .deadline-focus-item.done {
   border-color: color-mix(in srgb, var(--success), transparent 55%);
   background: var(--success-soft);
+}
+
+.deadline-focus-item.is-completing {
+  background: var(--success-soft);
+  animation: milestone-complete var(--duration-slow) var(--easing-emphasized) both;
 }
 
 .deadline-focus-task {
@@ -2298,11 +2662,18 @@ input:focus, select:focus, textarea:focus { border-color: var(--text); }
   color: var(--bg);
   padding: 14px 18px;
   text-align: left;
+  transition:
+    background-color var(--motion-base),
+    border-color var(--motion-base),
+    color var(--motion-base),
+    opacity var(--motion-base),
+    transform var(--motion-base);
 }
 
 .goal-create-cell:hover {
   background: var(--text);
   opacity: 0.9;
+  transform: translateY(calc(var(--motion-translate-xs) * -1));
 }
 
 .goal-create-cell span {
@@ -2348,6 +2719,10 @@ input:focus, select:focus, textarea:focus { border-color: var(--text); }
   border-bottom: var(--rule);
   background: var(--card);
   padding: 14px 16px;
+  transition:
+    background-color var(--motion-base),
+    border-color var(--motion-base),
+    color var(--motion-base);
 }
 
 .goal-overview-item span:first-child {
@@ -2451,6 +2826,14 @@ input:focus, select:focus, textarea:focus { border-color: var(--text); }
   border: var(--rule);
   background: var(--card);
   padding: 16px;
+  transition:
+    background-color var(--motion-base),
+    border-color var(--motion-base),
+    transform var(--motion-base);
+}
+
+.goal-archive-card:hover {
+  transform: translateY(calc(var(--motion-translate-xs) * -1));
 }
 
 .goal-archive-card.completed {
@@ -2503,6 +2886,16 @@ input:focus, select:focus, textarea:focus { border-color: var(--text); }
   border: var(--rule);
   background: var(--card);
   padding: 16px;
+  transform: translateZ(0);
+  transition:
+    background-color var(--motion-base),
+    border-color var(--motion-base),
+    transform var(--motion-base);
+}
+
+.goal-item:hover {
+  border-color: color-mix(in srgb, var(--layer-2), var(--line) 55%);
+  transform: translateY(calc(var(--motion-translate-xs) * -1));
 }
 
 .goal-head {
@@ -2534,7 +2927,10 @@ input:focus, select:focus, textarea:focus { border-color: var(--text); }
   border: var(--rule);
   font-size: 20px;
   line-height: 1;
-  transition: transform 0.2s ease;
+  transition:
+    background-color var(--motion-base),
+    border-color var(--motion-base),
+    transform var(--motion-base);
 }
 
 .goal-item.collapsed .goal-collapse-icon {
@@ -2543,6 +2939,8 @@ input:focus, select:focus, textarea:focus { border-color: var(--text); }
 
 .goal-card-body {
   margin-top: 14px;
+  transform-origin: top;
+  animation: section-reveal var(--motion-base) both;
 }
 
 .goal-item.collapsed .goal-card-body {
@@ -2625,7 +3023,7 @@ input:focus, select:focus, textarea:focus { border-color: var(--text); }
   height: 100%;
   width: 0%;
   background: var(--success);
-  transition: width 0.2s ease;
+  transition: width var(--duration-slow) var(--easing-emphasized);
 }
 
 .goal-stats {
@@ -2789,6 +3187,21 @@ input:focus, select:focus, textarea:focus { border-color: var(--text); }
   border: var(--rule);
   padding: 10px;
   background: var(--card);
+  transform: translateZ(0);
+  transition:
+    background-color var(--motion-base),
+    border-color var(--motion-base),
+    opacity var(--motion-base),
+    transform var(--motion-base);
+}
+
+.goal-task-item:hover {
+  border-color: color-mix(in srgb, var(--layer-2), var(--line) 55%);
+}
+
+.goal-task-item.is-completing {
+  background: var(--success-soft);
+  animation: milestone-complete var(--duration-slow) var(--easing-emphasized) both;
 }
 
 .goal-task-item.done {
@@ -2804,11 +3217,25 @@ input:focus, select:focus, textarea:focus { border-color: var(--text); }
   border: var(--rule);
   padding: 10px;
   background: var(--card);
+  transform: translateZ(0);
+  transition:
+    background-color var(--motion-base),
+    border-color var(--motion-base),
+    transform var(--motion-base);
+}
+
+.goal-archive-task-item:hover {
+  border-color: color-mix(in srgb, var(--layer-2), var(--line) 55%);
 }
 
 .goal-archive-task-item.done {
   border-color: color-mix(in srgb, var(--success), transparent 55%);
   background: var(--success-soft);
+}
+
+.goal-archive-task-item.is-completing {
+  background: var(--success-soft);
+  animation: milestone-complete var(--duration-slow) var(--easing-emphasized) both;
 }
 
 .goal-task-archive.compact .goal-archive-task-item {
@@ -2865,6 +3292,10 @@ input:focus, select:focus, textarea:focus { border-color: var(--text); }
   font-size: 12px;
   white-space: nowrap;
   background: var(--card);
+  transition:
+    background-color var(--motion-fast),
+    border-color var(--motion-fast),
+    color var(--motion-fast);
 }
 
 .deadline-pill.warning {
@@ -2941,6 +3372,10 @@ input:focus, select:focus, textarea:focus { border-color: var(--text); }
   background: var(--warning-soft);
   padding: 14px;
   margin-bottom: 14px;
+  transition:
+    background-color var(--motion-base),
+    border-color var(--motion-base),
+    color var(--motion-base);
 }
 
 .review-streak-number {
@@ -2964,6 +3399,7 @@ input:focus, select:focus, textarea:focus { border-color: var(--text); }
   background: var(--info-soft);
   padding: 14px;
   margin-bottom: 14px;
+  animation: section-reveal var(--motion-base) both;
 }
 
 .review-streak-box.danger {
@@ -3061,6 +3497,9 @@ input:focus, select:focus, textarea:focus { border-color: var(--text); }
   padding: 14px;
   background: var(--card);
   min-width: 0;
+  transition:
+    background-color var(--motion-base),
+    border-color var(--motion-base);
 }
 
 .chart-metric-value {
@@ -3086,6 +3525,14 @@ input:focus, select:focus, textarea:focus { border-color: var(--text); }
   border: var(--rule);
   padding: 12px;
   background: var(--card);
+  transition:
+    background-color var(--motion-base),
+    border-color var(--motion-base),
+    transform var(--motion-base);
+}
+
+.day-summary-item:hover {
+  border-color: color-mix(in srgb, var(--layer-2), var(--line) 55%);
 }
 
 .day-summary-item.done {
@@ -3216,12 +3663,20 @@ input:focus, select:focus, textarea:focus { border-color: var(--text); }
   font-size: 12px;
   background: var(--card);
   cursor: pointer;
-  transition: 0.12s ease;
+  transform: translateZ(0);
+  transition:
+    background-color var(--motion-fast),
+    border-color var(--motion-fast),
+    color var(--motion-fast),
+    opacity var(--motion-fast),
+    outline-color var(--motion-fast),
+    transform var(--motion-fast);
 }
 
 .mini-day:hover {
   border-color: var(--text);
   color: var(--text);
+  transform: translateY(calc(var(--motion-translate-xs) * -1));
 }
 
 .mini-day.done {
@@ -3254,6 +3709,7 @@ input:focus, select:focus, textarea:focus { border-color: var(--text); }
   color: var(--bg);
   border-color: var(--text);
   font-weight: 700;
+  animation: calendar-select var(--duration-slow) var(--easing-emphasized) both;
 }
 
 .chart-top {
@@ -3507,5 +3963,46 @@ canvas {
   }
   .workout-day-tab {
     min-height: 76px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :root {
+    --duration-fast: var(--motion-reduced-duration);
+    --duration-normal: var(--motion-reduced-duration);
+    --duration-slow: var(--motion-reduced-duration);
+    --motion-translate-xs: 0px;
+    --motion-translate-sm: 0px;
+    --motion-translate-md: 0px;
+    --motion-scale-press: 1;
+    --motion-scale-lift: 1;
+    --motion-scale-check: 1;
+  }
+
+  *,
+  *::before,
+  *::after {
+    animation: none !important;
+    scroll-behavior: auto !important;
+    transition-duration: var(--motion-reduced-duration) !important;
+    transition-delay: 0ms !important;
+  }
+
+  button,
+  .card,
+  .quest-item,
+  .goal-item,
+  .deadline-day,
+  .mini-day,
+  .workout-day-tab,
+  .workout-exercise-card,
+  .goal-task-item,
+  .goal-mini-item,
+  .modal-panel {
+    transform: none !important;
+  }
+
+  .goal-confetti-layer span {
+    display: none;
   }
 }
