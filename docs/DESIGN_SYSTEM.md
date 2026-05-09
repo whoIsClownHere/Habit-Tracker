@@ -63,12 +63,12 @@ Amber is rare. Use it for the logo dot, today/focus highlights, and small pins.
 Do not use amber as a page-wide theme.
 
 ```css
---amber-50: #fef9ec;
---amber-100: #fdecc4;
---amber-300: #fcd163;
---amber-500: #f59e0b;
---amber-600: #c97f08;
---amber-700: #8a560b;
+--amber-50: #fbf4ea;
+--amber-100: #f4dfc6;
+--amber-300: #e8bd83;
+--amber-500: #d99d62;
+--amber-600: #ad7440;
+--amber-700: #775136;
 ```
 
 Green is progress only.
@@ -113,7 +113,7 @@ cream text, and brighter legacy success/warning/danger states.
 --layer-4: #cfc2aa;
 --layer-5: #f5f1e8;
 
---amber-500: #f59b12;
+--amber-500: #d99d62;
 --success: #7ccf8a;
 --success-soft: rgba(124, 207, 138, 0.12);
 --warning: #ffc46b;

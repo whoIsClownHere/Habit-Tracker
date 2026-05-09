@@ -14,12 +14,12 @@
   --layer-5: #1c1712;
   --subtle-tan: #b5a48e;
 
-  --amber-50: #fef9ec;
-  --amber-100: #fdecc4;
-  --amber-300: #fcd163;
-  --amber-500: #f59e0b;
-  --amber-600: #c97f08;
-  --amber-700: #8a560b;
+  --amber-50: #fbf4ea;
+  --amber-100: #f4dfc6;
+  --amber-300: #e8bd83;
+  --amber-500: #d99d62;
+  --amber-600: #ad7440;
+  --amber-700: #775136;
   --on-amber: #1c1712;
 
   --green-50: #eef3e6;
@@ -107,12 +107,12 @@ body.dark {
   --layer-5: #f5f1e8;
   --subtle-tan: #8b806d;
 
-  --amber-50: #251d10;
-  --amber-100: #3a2a12;
-  --amber-300: #ffc46b;
-  --amber-500: #f59b12;
-  --amber-600: #ffc46b;
-  --amber-700: #ffd996;
+  --amber-50: #241d16;
+  --amber-100: #38291c;
+  --amber-300: #e7bd86;
+  --amber-500: #d99d62;
+  --amber-600: #e7bd86;
+  --amber-700: #f1d5ae;
 
   --green-50: #182018;
   --green-100: #223326;
@@ -2373,6 +2373,476 @@ input:focus, select:focus, textarea:focus {
   background: var(--card);
 }
 
+.planner-hero h2 {
+  font-size: 44px;
+}
+
+.planner-date-label {
+  color: var(--muted);
+  font-size: 14px;
+  margin-top: var(--space-2);
+}
+
+.planner-hero-actions {
+  display: flex;
+  align-items: flex-start;
+  justify-content: flex-end;
+  gap: var(--space-3);
+  flex-wrap: wrap;
+}
+
+.planner-date-nav {
+  width: auto;
+}
+
+.planner-summary {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  border-top: var(--rule);
+  border-left: var(--rule);
+}
+
+.planner-summary-item {
+  min-width: 0;
+  border-right: var(--rule);
+  border-bottom: var(--rule);
+  padding: var(--space-6);
+  background: var(--card);
+}
+
+.planner-summary-item span:first-child {
+  display: block;
+  font-family: var(--font-display);
+  font-size: 34px;
+  line-height: 1;
+  letter-spacing: 0;
+}
+
+.planner-summary-item span:last-child {
+  display: block;
+  color: var(--muted);
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  margin-top: var(--space-2);
+  overflow-wrap: anywhere;
+}
+
+.planner-board {
+  display: grid;
+  grid-template-columns: minmax(0, 1.35fr) minmax(300px, 0.65fr);
+  gap: 22px;
+  align-items: start;
+}
+
+.planner-timeline,
+.planner-recurring-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+.planner-block-item {
+  display: grid;
+  grid-template-columns: 86px minmax(0, 1fr) minmax(154px, auto) auto;
+  gap: var(--space-4);
+  align-items: stretch;
+  border: var(--rule);
+  background: var(--card);
+  padding: var(--space-5);
+  transform: translateZ(0);
+  transition:
+    background-color var(--motion-base),
+    border-color var(--motion-base),
+    opacity var(--motion-base),
+    transform var(--motion-base);
+}
+
+.planner-block-item:hover {
+  border-color: color-mix(in srgb, var(--layer-2), var(--line) 55%);
+  transform: translateY(calc(var(--motion-translate-xs) * -1));
+}
+
+.planner-block-item.done {
+  border-color: color-mix(in srgb, var(--success), transparent 55%);
+  background: var(--success-soft);
+}
+
+.planner-block-item.skipped,
+.planner-block-item.moved {
+  border-color: color-mix(in srgb, var(--warning), transparent 55%);
+  background: var(--warning-soft);
+}
+
+.planner-block-item.virtual {
+  border-style: dashed;
+}
+
+.planner-block-item.is-completing {
+  background: var(--success-soft);
+  animation: milestone-complete var(--duration-slow) var(--easing-emphasized) both;
+}
+
+.planner-time {
+  display: grid;
+  align-content: center;
+  gap: var(--space-1);
+  border-right: var(--rule);
+  padding-right: var(--space-5);
+  color: var(--muted);
+}
+
+.planner-time strong {
+  color: var(--text);
+  font-family: var(--font-display);
+  font-size: 25px;
+  line-height: 1;
+  letter-spacing: 0;
+}
+
+.planner-time span {
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.planner-block-main {
+  min-width: 0;
+}
+
+.planner-block-badges {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  flex-wrap: wrap;
+  margin-bottom: var(--space-2);
+}
+
+.planner-block-badges .deadline-pill,
+.planner-block-badges .goal-type {
+  margin-bottom: 0;
+}
+
+.planner-block-title {
+  font-family: var(--font-display);
+  font-size: 26px;
+  line-height: 1.08;
+  letter-spacing: 0;
+  overflow-wrap: anywhere;
+}
+
+.planner-block-link,
+.planner-block-note {
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.4;
+  margin-top: var(--space-2);
+  overflow-wrap: anywhere;
+}
+
+.planner-block-note {
+  color: var(--text);
+}
+
+.planner-block-note.muted {
+  color: var(--muted);
+}
+
+.planner-block-actions {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: var(--space-2);
+  align-content: center;
+}
+
+.planner-block-actions button {
+  min-height: 36px;
+  padding: 7px 10px;
+  font-size: 13px;
+  white-space: nowrap;
+}
+
+.planner-rule-item {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto auto;
+  gap: var(--space-3);
+  align-items: center;
+  border: var(--rule);
+  background: var(--card);
+  padding: var(--space-5);
+  transition:
+    background-color var(--motion-base),
+    border-color var(--motion-base),
+    opacity var(--motion-base),
+    transform var(--motion-base);
+}
+
+.planner-rule-item:hover {
+  border-color: color-mix(in srgb, var(--layer-2), var(--line) 55%);
+  transform: translateY(calc(var(--motion-translate-xs) * -1));
+}
+
+.planner-rule-item.paused {
+  opacity: 0.66;
+  background: var(--card-2);
+}
+
+.planner-rule-title {
+  font-family: var(--font-display);
+  font-size: 22px;
+  line-height: 1.08;
+  letter-spacing: 0;
+  overflow-wrap: anywhere;
+}
+
+.planner-rule-meta {
+  color: var(--muted);
+  font-size: 13px;
+  margin-top: var(--space-1);
+}
+
+.planner-rule-actions button {
+  min-height: 36px;
+  padding: 7px 10px;
+  font-size: 13px;
+}
+
+.planner-modal-panel {
+  width: min(900px, 100%);
+}
+
+.planner-form {
+  display: grid;
+  gap: var(--space-5);
+  padding-top: var(--space-7);
+  overflow: auto;
+  min-height: 0;
+}
+
+.planner-choice {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--space-2);
+}
+
+.planner-choice-btn {
+  min-height: 58px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  background: var(--card);
+  color: var(--muted);
+}
+
+.planner-choice-btn.active {
+  color: var(--bg);
+  border-color: var(--text);
+  background: var(--text);
+}
+
+.planner-form-grid,
+.planner-link-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: var(--space-3);
+}
+
+.planner-link-grid {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.planner-field {
+  display: grid;
+  gap: var(--space-2);
+  min-width: 0;
+  color: var(--muted);
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.planner-field[hidden] {
+  display: none;
+}
+
+.planner-field input,
+.planner-field select,
+.planner-field textarea {
+  color: var(--text);
+  font-size: 14px;
+  text-transform: none;
+  letter-spacing: 0;
+}
+
+.planner-title-field {
+  grid-column: 1 / -1;
+}
+
+.planner-weekday-field {
+  border: var(--rule);
+  background: var(--card-2);
+  padding: var(--space-5);
+}
+
+.planner-weekday-choices {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: var(--space-2);
+}
+
+.planner-weekday-choice {
+  min-width: 0;
+}
+
+.planner-weekday-choice input {
+  position: absolute;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.planner-weekday-choice span {
+  display: grid;
+  min-height: 38px;
+  place-items: center;
+  border: var(--rule);
+  background: var(--card);
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  cursor: pointer;
+}
+
+.planner-weekday-choice input:checked + span {
+  color: var(--bg);
+  border-color: var(--text);
+  background: var(--text);
+}
+
+.planner-weekday-choice input:focus-visible + span {
+  outline: 2px solid color-mix(in srgb, var(--amber-500), transparent 45%);
+  outline-offset: 2px;
+}
+
+.planner-modal-actions {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--space-3);
+  padding-top: var(--space-2);
+}
+
+.goal-execution-section {
+  border: var(--rule);
+  background: var(--card-2);
+  padding: var(--space-5);
+  margin-bottom: var(--space-6);
+}
+
+.goal-execution-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+  gap: var(--space-4);
+  margin-bottom: var(--space-4);
+}
+
+.goal-execution-head h3 {
+  font-size: 22px;
+  line-height: 1.05;
+}
+
+.goal-execution-metrics {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+.goal-execution-metrics span {
+  border: var(--rule);
+  background: var(--card);
+  color: var(--muted);
+  padding: var(--space-2) var(--space-3);
+  font-size: 12px;
+}
+
+.goal-execution-grid {
+  display: grid;
+  grid-template-columns: minmax(190px, 0.45fr) minmax(0, 1fr);
+  gap: var(--space-3);
+}
+
+.goal-execution-next {
+  border: var(--rule);
+  background: var(--card);
+  padding: var(--space-5);
+  min-width: 0;
+}
+
+.goal-execution-next span,
+.goal-execution-next small {
+  display: block;
+  color: var(--muted);
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.goal-execution-next strong {
+  display: block;
+  font-family: var(--font-display);
+  font-size: 22px;
+  line-height: 1.08;
+  letter-spacing: 0;
+  margin: var(--space-2) 0;
+  overflow-wrap: anywhere;
+}
+
+.goal-execution-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.goal-execution-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: var(--space-3);
+  align-items: center;
+  border: var(--rule);
+  background: var(--card);
+  padding: var(--space-4);
+}
+
+.goal-execution-row.done {
+  border-color: color-mix(in srgb, var(--success), transparent 55%);
+  background: var(--success-soft);
+}
+
+.goal-execution-row.skipped,
+.goal-execution-row.moved {
+  border-color: color-mix(in srgb, var(--warning), transparent 55%);
+  background: var(--warning-soft);
+}
+
+.goal-execution-row strong,
+.goal-execution-row span {
+  display: block;
+  overflow-wrap: anywhere;
+}
+
+.goal-execution-row strong {
+  font-size: 14px;
+}
+
+.goal-execution-row span {
+  color: var(--muted);
+  font-size: 12px;
+  margin-top: var(--space-1);
+}
+
 .deadline-planner {
   display: grid;
   grid-template-columns: minmax(0, 1.35fr) minmax(300px, 0.65fr);
@@ -3745,6 +4215,8 @@ canvas {
   .hero-grid,
   .progress-grid,
   .day-review-grid,
+  .planner-board,
+  .goal-execution-grid,
   .deadline-planner,
   .goals-hero,
   .goal-archive-list,
@@ -3769,7 +4241,9 @@ canvas {
   }
   .habit-manager-item { grid-template-columns: 1fr; }
   .workout-control-row,
-  .workout-principles-grid {
+  .workout-principles-grid,
+  .planner-form-grid,
+  .planner-link-grid {
     grid-template-columns: 1fr;
   }
   .workout-plan-editor-grid,
@@ -3785,8 +4259,25 @@ canvas {
   .quest-item { grid-template-columns: 42px 1fr; }
   .quest-value { grid-column: 1 / -1; }
   .goal-task-item,
-  .goal-archive-task-item {
+  .goal-archive-task-item,
+  .planner-block-item {
     grid-template-columns: 42px minmax(0, 1fr) auto;
+  }
+  .planner-time {
+    border-right: 0;
+    padding-right: 0;
+  }
+  .planner-block-main,
+  .planner-block-actions,
+  .planner-block-item > .action-menu {
+    grid-column: 1 / -1;
+  }
+  .planner-block-actions {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+  .planner-rule-item > .action-menu {
+    grid-column: 3;
+    grid-row: 1;
   }
   .deadline-pill,
   .goal-task-workspace-meta,
@@ -3932,6 +4423,7 @@ canvas {
   }
   .period-stats,
   .workout-summary,
+  .planner-summary,
   .goal-stats,
   .chart-metrics,
   .chart-metrics.two-cols,
@@ -3952,7 +4444,27 @@ canvas {
     justify-self: start;
   }
   .workout-day-tabs,
-  .workout-set-grid {
+  .workout-set-grid,
+  .planner-weekday-choices {
+    grid-template-columns: 1fr;
+  }
+  .planner-choice,
+  .planner-modal-actions,
+  .goal-execution-head,
+  .goal-execution-row {
+    grid-template-columns: 1fr;
+    flex-direction: column;
+    align-items: stretch;
+  }
+  .planner-hero-actions {
+    justify-content: stretch;
+    display: grid;
+    grid-template-columns: 1fr;
+  }
+  .planner-date-nav {
+    width: 100%;
+  }
+  .planner-block-actions {
     grid-template-columns: 1fr;
   }
   .workout-exercise-top {
@@ -3996,6 +4508,8 @@ canvas {
   .mini-day,
   .workout-day-tab,
   .workout-exercise-card,
+  .planner-block-item,
+  .planner-rule-item,
   .goal-task-item,
   .goal-mini-item,
   .modal-panel {

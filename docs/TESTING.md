@@ -15,6 +15,7 @@ The QA account loads a realistic dataset:
 - eight daily habits, enough to exercise pagination and completed/open states;
 - past, current, and incomplete records for streak, day review, chart, and projection checks;
 - active, completed, and failed goals;
+- planner blocks for a standalone activity, a goal-linked work session, completed execution history, and a weekday recurring rule;
 - deadline calendar items for today, tomorrow, and next week;
 - task workspace notes and mini-goals.
 
@@ -34,10 +35,13 @@ Use the QA panel at the top of the app to reload seed data or reset the local te
 4. Goals and deadlines
    Switch month/week/day calendar modes, add a task with a deadline, complete a task, and inspect completed/failed archives.
 
-5. Workspace
+5. Planner
+   Open Planner, add a standalone block, add a goal-linked block, mark it done, create a Monday/Wednesday/Friday recurring block, and disable the rule.
+
+6. Workspace
    Open a task workspace, add a mini-goal, edit notes, mark a mini-goal done, then return to goals.
 
-6. Localization
+7. Localization
    Switch English, Russian, German, Spanish, and French. Verify the same screens remain usable and labels fit.
 
 ## Automated QA Check

@@ -47,9 +47,14 @@ The app keeps habit data in a single object:
 ```js
 {
   habits: [],
-  records: {}
+  records: {},
+  goals: [],
+  plannerBlocks: [],
+  recurringRules: []
 }
 ```
+
+`plannerBlocks` are dated one-off schedule blocks. `recurringRules` generate virtual planner blocks for matching weekdays; when a generated block is completed, skipped, or moved, the app creates a real `plannerBlocks` instance for that date and leaves the rule unchanged.
 
 When the user is signed in, the data is saved in Firestore at:
 

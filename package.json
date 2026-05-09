@@ -6,8 +6,8 @@
     "qa": "node scripts/qa-check.mjs"
   },
   "dependencies": {
-    "@vitejs/plugin-react": "latest",
-    "vite": "latest",
+    "@vitejs/plugin-react": "^4.3.4",
+    "vite": "^4.5.14",
     "react": "latest",
     "react-dom": "latest",
     "firebase": "latest",

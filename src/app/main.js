@@ -77,6 +77,18 @@ const WORKOUT_RESULT_UNIT_OPTIONS = [
   "workouts.minutesUnit",
   "workouts.passUnit"
 ];
+const PLANNER_BLOCK_TYPES = [
+  "goal",
+  "habit",
+  "custom",
+  "interest",
+  "admin",
+  "rest",
+  "study",
+  "deepWork",
+  "workout"
+];
+const PLANNER_BLOCK_STATUSES = ["planned", "done", "skipped", "moved"];
 const TEST_ACCOUNT = {
   uid: "local-test-account",
   email: "test@hendle.local",
@@ -98,6 +110,12 @@ let visibleMonthDate = new Date();
 let todayPageIndex = 0;
 let todaySearchQuery = "";
 let activeView = getInitialView();
+let plannerSelectedDate = toDateInputValue(new Date());
+let isPlannerModalOpen = false;
+let plannerModalMode = "block";
+let plannerEditingBlockId = null;
+let plannerEditingRuleId = null;
+let plannerLinkMode = "standalone";
 let isGoalModalOpen = false;
 let editingGoalId = null;
 let goalsCalendarMode = "month";
@@ -130,6 +148,8 @@ let data = {
   habits: [],
   records: {},
   goals: [],
+  plannerBlocks: [],
+  recurringRules: [],
   workoutSettings: { progressionWeeks: 1, weightUnit: "kg" },
   workoutPlan: [],
   workoutLogs: {},
@@ -172,11 +192,46 @@ const testingSeedBtn = document.getElementById("testingSeedBtn");
 const testingResetBtn = document.getElementById("testingResetBtn");
 const habitsTabBtn = document.getElementById("habitsTabBtn");
 const workoutsTabBtn = document.getElementById("workoutsTabBtn");
+const plannerTabBtn = document.getElementById("plannerTabBtn");
 const goalsTabBtn = document.getElementById("goalsTabBtn");
 const habitsView = document.getElementById("habitsView");
 const workoutsView = document.getElementById("workoutsView");
+const plannerView = document.getElementById("plannerView");
 const goalsView = document.getElementById("goalsView");
 const goalWorkspaceView = document.getElementById("goalWorkspaceView");
+const plannerDateLabel = document.getElementById("plannerDateLabel");
+const plannerPrevDayBtn = document.getElementById("plannerPrevDayBtn");
+const plannerTodayBtn = document.getElementById("plannerTodayBtn");
+const plannerNextDayBtn = document.getElementById("plannerNextDayBtn");
+const plannerAddBlockBtn = document.getElementById("plannerAddBlockBtn");
+const plannerAddRecurringBtn = document.getElementById("plannerAddRecurringBtn");
+const plannerPlannedCount = document.getElementById("plannerPlannedCount");
+const plannerDoneCount = document.getElementById("plannerDoneCount");
+const plannerSkippedCount = document.getElementById("plannerSkippedCount");
+const plannerGoalCount = document.getElementById("plannerGoalCount");
+const plannerTimeline = document.getElementById("plannerTimeline");
+const plannerRecurringList = document.getElementById("plannerRecurringList");
+const plannerBlockModal = document.getElementById("plannerBlockModal");
+const plannerModalCloseBtn = document.getElementById("plannerModalCloseBtn");
+const plannerModalTitle = document.getElementById("plannerModalTitle");
+const plannerChoiceGoalBtn = document.getElementById("plannerChoiceGoalBtn");
+const plannerChoiceStandaloneBtn = document.getElementById("plannerChoiceStandaloneBtn");
+const plannerDateField = document.getElementById("plannerDateField");
+const plannerDateInput = document.getElementById("plannerDateInput");
+const plannerStartInput = document.getElementById("plannerStartInput");
+const plannerEndInput = document.getElementById("plannerEndInput");
+const plannerTypeSelect = document.getElementById("plannerTypeSelect");
+const plannerGoalSelect = document.getElementById("plannerGoalSelect");
+const plannerMilestoneSelect = document.getElementById("plannerMilestoneSelect");
+const plannerHabitSelect = document.getElementById("plannerHabitSelect");
+const plannerTitleInput = document.getElementById("plannerTitleInput");
+const plannerWeekdayField = document.getElementById("plannerWeekdayField");
+const plannerWeekdayChoices = document.getElementById("plannerWeekdayChoices");
+const plannerDoneInput = document.getElementById("plannerDoneInput");
+const plannerNotesField = document.getElementById("plannerNotesField");
+const plannerNotesInput = document.getElementById("plannerNotesInput");
+const plannerDeleteBtn = document.getElementById("plannerDeleteBtn");
+const plannerSaveBtn = document.getElementById("plannerSaveBtn");
 const activeList = document.getElementById("activeList");
 const todayHabitSearch = document.getElementById("todayHabitSearch");
 const todayListMeta = document.getElementById("todayListMeta");
@@ -302,6 +357,7 @@ signOutBtn.hidden = true;
 
 habitsTabBtn.addEventListener("click", () => switchView("habits"));
 workoutsTabBtn.addEventListener("click", () => switchView("workouts"));
+plannerTabBtn.addEventListener("click", () => switchView("planner"));
 goalsTabBtn.addEventListener("click", () => switchView("goals"));
 homeBrandBtn.addEventListener("click", handleHomeBrandClick);
 accountMenu.addEventListener("click", (event) => event.stopPropagation());
@@ -340,6 +396,22 @@ document.getElementById("addHabitBtn").addEventListener("click", addHabit);
 addGoalOpenBtn.addEventListener("click", () => openGoalModal());
 goalModalCloseBtn.addEventListener("click", closeGoalModal);
 goalSaveBtn.addEventListener("click", saveGoalFromModal);
+plannerPrevDayBtn.addEventListener("click", () => changePlannerDate(-1));
+plannerTodayBtn.addEventListener("click", goToTodayPlannerDate);
+plannerNextDayBtn.addEventListener("click", () => changePlannerDate(1));
+plannerAddBlockBtn.addEventListener("click", () => openPlannerBlockModal({ mode: "block" }));
+plannerAddRecurringBtn.addEventListener("click", () => openPlannerBlockModal({ mode: "rule" }));
+plannerModalCloseBtn.addEventListener("click", closePlannerModal);
+plannerChoiceGoalBtn.addEventListener("click", () => setPlannerLinkMode("goal"));
+plannerChoiceStandaloneBtn.addEventListener("click", () => setPlannerLinkMode("standalone"));
+plannerGoalSelect.addEventListener("change", () => {
+  populatePlannerMilestoneSelect(plannerGoalSelect.value);
+  syncPlannerTitleFromSelectedTask();
+});
+plannerMilestoneSelect.addEventListener("change", syncPlannerTitleFromSelectedTask);
+plannerTypeSelect.addEventListener("change", syncPlannerModalVisibility);
+plannerSaveBtn.addEventListener("click", savePlannerFromModal);
+plannerDeleteBtn.addEventListener("click", deletePlannerFromModal);
 openGoalArchiveBtn.addEventListener("click", openGoalArchiveModal);
 toggleHabitManagerBtn.addEventListener("click", toggleHabitManager);
 document.getElementById("todayBtn").addEventListener("click", goToToday);
@@ -371,6 +443,9 @@ authModal.addEventListener("click", (event) => {
 goalModal.addEventListener("click", (event) => {
   if (event.target === goalModal) closeGoalModal();
 });
+plannerBlockModal.addEventListener("click", (event) => {
+  if (event.target === plannerBlockModal) closePlannerModal();
+});
 goalArchiveModal.addEventListener("click", (event) => {
   if (event.target === goalArchiveModal) closeGoalArchiveModal();
 });
@@ -381,6 +456,7 @@ document.addEventListener("keydown", (event) => {
   }
   if (event.key === "Escape" && isAuthModalOpen) closeAuthModal();
   if (event.key === "Escape" && isCompletedModalOpen) closeCompletedModal();
+  if (event.key === "Escape" && isPlannerModalOpen) closePlannerModal();
   if (event.key === "Escape" && isGoalModalOpen) closeGoalModal();
   if (event.key === "Escape" && isGoalArchiveModalOpen) closeGoalArchiveModal();
   if (event.key === "Escape" && isGoalResultModalOpen) closeGoalResultModal();
@@ -508,6 +584,7 @@ render();
 
 function getInitialView() {
   if (getWorkspaceRoute()) return "workspace";
+  if (window.location.hash === "#planner") return "planner";
   if (window.location.hash === "#workouts") return "workouts";
   return window.location.hash === "#goals" ? "goals" : "habits";
 }
@@ -515,36 +592,43 @@ function getInitialView() {
 function switchView(view, options = {}) {
   closeActionMenu();
   closeAccountMenu();
-  const previousView = [habitsView, workoutsView, goalsView, goalWorkspaceView].find(item => !item.hidden);
+  const previousView = [habitsView, workoutsView, plannerView, goalsView, goalWorkspaceView].find(item => !item.hidden);
   activeView = view === "workspace"
     ? "workspace"
     : view === "goals"
       ? "goals"
-      : view === "workouts"
-        ? "workouts"
-        : "habits";
+      : view === "planner"
+        ? "planner"
+        : view === "workouts"
+          ? "workouts"
+          : "habits";
   const isGoals = activeView === "goals";
+  const isPlanner = activeView === "planner";
   const isWorkouts = activeView === "workouts";
   const isWorkspace = activeView === "workspace";
 
-  habitsView.hidden = isGoals || isWorkouts || isWorkspace;
+  habitsView.hidden = isGoals || isPlanner || isWorkouts || isWorkspace;
   workoutsView.hidden = !isWorkouts;
+  plannerView.hidden = !isPlanner;
   goalsView.hidden = !isGoals;
   goalWorkspaceView.hidden = !isWorkspace;
   habitsTabBtn.classList.toggle("active", activeView === "habits");
   workoutsTabBtn.classList.toggle("active", isWorkouts);
+  plannerTabBtn.classList.toggle("active", isPlanner);
   goalsTabBtn.classList.toggle("active", isGoals);
   habitsTabBtn.setAttribute("aria-selected", String(activeView === "habits"));
   workoutsTabBtn.setAttribute("aria-selected", String(isWorkouts));
+  plannerTabBtn.setAttribute("aria-selected", String(isPlanner));
   goalsTabBtn.setAttribute("aria-selected", String(isGoals));
 
   if (options.updateHash !== false) {
-    history.replaceState(null, "", isWorkspace ? window.location.hash : isGoals ? "#goals" : isWorkouts ? "#workouts" : "#habits");
+    history.replaceState(null, "", isWorkspace ? window.location.hash : isGoals ? "#goals" : isPlanner ? "#planner" : isWorkouts ? "#workouts" : "#habits");
   }
 
   if (isWorkspace) renderGoalWorkspacePage();
   if (isWorkouts) renderWorkouts();
-  const nextView = isWorkspace ? goalWorkspaceView : isGoals ? goalsView : isWorkouts ? workoutsView : habitsView;
+  if (isPlanner) renderPlanner();
+  const nextView = isWorkspace ? goalWorkspaceView : isGoals ? goalsView : isPlanner ? plannerView : isWorkouts ? workoutsView : habitsView;
   if (previousView !== nextView) animateSectionEnter(nextView);
 }
 
@@ -727,7 +811,7 @@ function closeActionMenu(menu = activeActionMenu) {
 function syncModalOpenState() {
   document.body.classList.toggle(
     "modal-open",
-    isAuthModalOpen || isCompletedModalOpen || isGoalModalOpen || isGoalArchiveModalOpen || isGoalResultModalOpen
+    isAuthModalOpen || isCompletedModalOpen || isPlannerModalOpen || isGoalModalOpen || isGoalArchiveModalOpen || isGoalResultModalOpen
   );
 }
 
@@ -799,6 +883,7 @@ function refreshLocalizedUi() {
   initTheme();
   refreshStatusText();
   setAuthMode(authMode, { clearMessage: false });
+  syncPlannerModalText();
   syncGoalModalText();
   syncGoalResultModalText();
   render();
@@ -1172,6 +1257,8 @@ function createEmptyData() {
     habits: [],
     records: {},
     goals: [],
+    plannerBlocks: [],
+    recurringRules: [],
     workoutSettings: createDefaultWorkoutSettings(),
     workoutPlan: createDefaultWorkoutPlan(),
     workoutLogs: {},
@@ -1187,6 +1274,8 @@ function createStarterData() {
     ],
     records: {},
     goals: [],
+    plannerBlocks: [],
+    recurringRules: [],
     workoutSettings: createDefaultWorkoutSettings(),
     workoutPlan: createDefaultWorkoutPlan(),
     workoutLogs: {},
@@ -1460,6 +1549,73 @@ function createTestingData() {
         tasks: []
       }
     ],
+    plannerBlocks: [
+      {
+        id: "qa-planner-statistics",
+        date: today,
+        startTime: "10:00",
+        endTime: "11:30",
+        title: "Verify auth smoke scenario",
+        type: "goal",
+        linkedGoalId: "qa-goal-launch",
+        linkedMilestoneId: "qa-task-auth",
+        linkedHabitId: null,
+        status: "planned",
+        definitionOfDone: "Run the auth session checks and note anything broken.",
+        notes: "Planner QA seed linked to an active goal.",
+        createdAt: Date.now() - 86400000,
+        updatedAt: Date.now() - 86400000
+      },
+      {
+        id: "qa-planner-chess",
+        date: today,
+        startTime: "18:00",
+        endTime: "18:45",
+        title: "Play chess",
+        type: "interest",
+        linkedGoalId: null,
+        linkedMilestoneId: null,
+        linkedHabitId: null,
+        status: "planned",
+        definitionOfDone: "Play one focused game and review one mistake.",
+        notes: "",
+        createdAt: Date.now() - 43200000,
+        updatedAt: Date.now() - 43200000
+      },
+      {
+        id: "qa-planner-completed",
+        date: yesterday,
+        startTime: "09:00",
+        endTime: "09:45",
+        title: "Read QA docs",
+        type: "goal",
+        linkedGoalId: "qa-goal-launch",
+        linkedMilestoneId: "qa-task-docs",
+        linkedHabitId: null,
+        status: "done",
+        definitionOfDone: "Docs reviewed and smoke list checked.",
+        notes: "",
+        createdAt: Date.now() - 172800000,
+        updatedAt: Date.now() - 86400000
+      }
+    ],
+    recurringRules: [
+      {
+        id: "qa-rule-deep-work",
+        title: "Deep Work",
+        weekdays: [1, 3, 5],
+        startTime: "10:00",
+        endTime: "12:00",
+        type: "deepWork",
+        linkedGoalId: null,
+        linkedMilestoneId: null,
+        linkedHabitId: null,
+        definitionOfDone: "Protect the block and ship one meaningful piece.",
+        active: true,
+        createdAt: Date.now() - 86400000,
+        updatedAt: Date.now() - 86400000
+      }
+    ],
     workoutSettings: createDefaultWorkoutSettings(),
     workoutPlan: createDefaultWorkoutPlan(),
     workoutLogs: {
@@ -1608,16 +1764,102 @@ function applyStatusDotClass(dot) {
 }
 
 function normalizeData(input) {
-  const records = input.records && typeof input.records === "object" ? input.records : {};
+  const source = input && typeof input === "object" ? input : {};
+  const records = source.records && typeof source.records === "object" ? source.records : {};
   return {
-    habits: Array.isArray(input.habits) ? input.habits.map(habit => normalizeHabit(habit, records)) : [],
+    habits: Array.isArray(source.habits) ? source.habits.map(habit => normalizeHabit(habit, records)) : [],
     records,
-    goals: Array.isArray(input.goals) ? input.goals.map(normalizeGoal) : [],
-    workoutSettings: normalizeWorkoutSettings(input.workoutSettings),
-    workoutPlan: normalizeWorkoutPlan(input.workoutPlan),
-    workoutLogs: normalizeWorkoutStore(input.workoutLogs),
-    workoutTargets: normalizeWorkoutStore(input.workoutTargets)
+    goals: Array.isArray(source.goals) ? source.goals.map(normalizeGoal) : [],
+    plannerBlocks: Array.isArray(source.plannerBlocks) ? source.plannerBlocks.map(normalizePlannerBlock).filter(Boolean) : [],
+    recurringRules: Array.isArray(source.recurringRules) ? source.recurringRules.map(normalizeRecurringRule).filter(Boolean) : [],
+    workoutSettings: normalizeWorkoutSettings(source.workoutSettings),
+    workoutPlan: normalizeWorkoutPlan(source.workoutPlan),
+    workoutLogs: normalizeWorkoutStore(source.workoutLogs),
+    workoutTargets: normalizeWorkoutStore(source.workoutTargets)
   };
+}
+
+function normalizePlannerBlock(block = {}) {
+  const safeBlock = block && typeof block === "object" ? block : {};
+  const date = isDateKey(safeBlock.date) ? safeBlock.date : toDateInputValue(new Date());
+  const startTime = normalizePlannerTime(safeBlock.startTime, "09:00");
+  const endTime = normalizePlannerTime(safeBlock.endTime, getDefaultPlannerEndTime(startTime));
+  const linkedGoalId = normalizeNullableId(safeBlock.linkedGoalId);
+  const linkedMilestoneId = normalizeNullableId(safeBlock.linkedMilestoneId ?? safeBlock.linkedTaskId);
+  const linkedHabitId = normalizeNullableId(safeBlock.linkedHabitId);
+  const type = normalizePlannerType(safeBlock.type || (linkedGoalId ? "goal" : linkedHabitId ? "habit" : "custom"));
+  const now = Date.now();
+
+  return {
+    id: safeBlock.id || crypto.randomUUID(),
+    date,
+    startTime,
+    endTime,
+    title: typeof safeBlock.title === "string" && safeBlock.title.trim() ? safeBlock.title.trim() : t("planner.untitledBlock"),
+    type,
+    linkedGoalId,
+    linkedMilestoneId,
+    linkedHabitId,
+    status: PLANNER_BLOCK_STATUSES.includes(safeBlock.status) ? safeBlock.status : "planned",
+    definitionOfDone: typeof safeBlock.definitionOfDone === "string" ? safeBlock.definitionOfDone : "",
+    notes: typeof safeBlock.notes === "string" ? safeBlock.notes : "",
+    createdAt: normalizePlannerTimestamp(safeBlock.createdAt, now),
+    updatedAt: normalizePlannerTimestamp(safeBlock.updatedAt, safeBlock.createdAt || now)
+  };
+}
+
+function normalizeRecurringRule(rule = {}) {
+  const safeRule = rule && typeof rule === "object" ? rule : {};
+  const startTime = normalizePlannerTime(safeRule.startTime, "09:00");
+  const endTime = normalizePlannerTime(safeRule.endTime, getDefaultPlannerEndTime(startTime));
+  const linkedGoalId = normalizeNullableId(safeRule.linkedGoalId);
+  const linkedMilestoneId = normalizeNullableId(safeRule.linkedMilestoneId ?? safeRule.linkedTaskId);
+  const linkedHabitId = normalizeNullableId(safeRule.linkedHabitId);
+  const type = normalizePlannerType(safeRule.type || (linkedGoalId ? "goal" : linkedHabitId ? "habit" : "custom"));
+  const weekdays = Array.isArray(safeRule.weekdays)
+    ? [...new Set(safeRule.weekdays.map(Number).filter(day => Number.isInteger(day) && day >= 0 && day <= 6))].sort((a, b) => a - b)
+    : [];
+  const now = Date.now();
+
+  return {
+    id: safeRule.id || crypto.randomUUID(),
+    title: typeof safeRule.title === "string" && safeRule.title.trim() ? safeRule.title.trim() : t("planner.untitledBlock"),
+    weekdays,
+    startTime,
+    endTime,
+    type,
+    linkedGoalId,
+    linkedMilestoneId,
+    linkedHabitId,
+    definitionOfDone: typeof safeRule.definitionOfDone === "string" ? safeRule.definitionOfDone : "",
+    active: safeRule.active !== false,
+    createdAt: normalizePlannerTimestamp(safeRule.createdAt, now),
+    updatedAt: normalizePlannerTimestamp(safeRule.updatedAt, safeRule.createdAt || now)
+  };
+}
+
+function normalizePlannerType(type) {
+  return PLANNER_BLOCK_TYPES.includes(type) ? type : "custom";
+}
+
+function normalizePlannerTime(value, fallback) {
+  return typeof value === "string" && /^([01]\d|2[0-3]):[0-5]\d$/.test(value) ? value : fallback;
+}
+
+function normalizePlannerTimestamp(value, fallback) {
+  const timestamp = Number(value);
+  return Number.isFinite(timestamp) && timestamp > 0 ? timestamp : Number(fallback) || Date.now();
+}
+
+function normalizeNullableId(value) {
+  return typeof value === "string" && value.trim() ? value.trim() : null;
+}
+
+function getDefaultPlannerEndTime(startTime = "09:00") {
+  const [hours, minutes] = startTime.split(":").map(Number);
+  const date = new Date(2000, 0, 1, hours || 9, minutes || 0);
+  date.setMinutes(date.getMinutes() + 60);
+  return `${String(date.getHours()).padStart(2, "0")}:${String(date.getMinutes()).padStart(2, "0")}`;
 }
 
 function normalizeHabit(habit = {}, records) {
@@ -1857,6 +2099,7 @@ function render() {
   renderRewardState();
   renderHabitManager();
   renderWorkouts();
+  renderPlanner();
   renderGoals();
   renderGoalWorkspacePage();
   renderDayReview();
@@ -3310,6 +3553,734 @@ function roundWorkoutNumber(value) {
   return Number.isFinite(number) ? Number(number.toFixed(2)) : "";
 }
 
+function renderPlanner() {
+  plannerDateLabel.textContent = formatPlannerDateLabel(plannerSelectedDate);
+  plannerAddBlockBtn.disabled = !currentUser;
+  plannerAddRecurringBtn.disabled = !currentUser;
+  renderPlannerSummary();
+  renderPlannerTimeline();
+  renderPlannerRecurringRules();
+}
+
+function renderPlannerSummary() {
+  const entries = getPlannerEntriesForDate(plannerSelectedDate);
+  plannerPlannedCount.textContent = entries.filter(entry => entry.block.status === "planned").length;
+  plannerDoneCount.textContent = entries.filter(entry => entry.block.status === "done").length;
+  plannerSkippedCount.textContent = entries.filter(entry => entry.block.status === "skipped").length;
+  plannerGoalCount.textContent = entries.filter(entry => entry.block.linkedGoalId).length;
+}
+
+function renderPlannerTimeline() {
+  plannerTimeline.innerHTML = "";
+
+  if (!currentUser) {
+    plannerTimeline.innerHTML = `<div class="empty">${t("planner.signInEmpty")}</div>`;
+    animateRenderedChildren(plannerTimeline);
+    return;
+  }
+
+  const entries = getPlannerEntriesForDate(plannerSelectedDate);
+
+  if (entries.length === 0) {
+    plannerTimeline.innerHTML = `<div class="empty">${t("planner.emptyDay")}</div>`;
+    animateRenderedChildren(plannerTimeline);
+    return;
+  }
+
+  entries.forEach(entry => plannerTimeline.appendChild(makePlannerBlockItem(entry)));
+  animateRenderedChildren(plannerTimeline);
+}
+
+function makePlannerBlockItem(entry) {
+  const { block, isVirtual } = entry;
+  const item = document.createElement("article");
+  const linkedLabel = getPlannerLinkedLabel(block);
+  const definition = block.definitionOfDone ? `<div class="planner-block-note">${escapeHtml(block.definitionOfDone)}</div>` : "";
+  const notes = block.notes ? `<div class="planner-block-note muted">${escapeHtml(block.notes)}</div>` : "";
+
+  item.className = `planner-block-item ${block.status}`;
+  if (isVirtual) item.classList.add("virtual");
+  item.innerHTML = `
+    <div class="planner-time">
+      <strong>${escapeHtml(block.startTime)}</strong>
+      <span>${escapeHtml(block.endTime)}</span>
+    </div>
+    <div class="planner-block-main">
+      <div class="planner-block-badges">
+        <span class="deadline-pill ${getPlannerStatusClass(block.status)}">${escapeHtml(getPlannerStatusLabel(block.status))}</span>
+        <span class="goal-type">${escapeHtml(getPlannerTypeLabel(block.type))}</span>
+        ${isVirtual ? `<span class="goal-type">${t("planner.recurringBadge")}</span>` : ""}
+      </div>
+      <div class="planner-block-title">${escapeHtml(block.title)}</div>
+      ${linkedLabel ? `<div class="planner-block-link">${escapeHtml(linkedLabel)}</div>` : ""}
+      ${definition}
+      ${notes}
+    </div>
+    <div class="planner-block-actions">
+      <button class="success planner-done-btn" type="button">${t("planner.markDone")}</button>
+      <button class="secondary planner-skip-btn" type="button">${t("planner.markSkipped")}</button>
+      <button class="secondary planner-move-btn" type="button">${t("planner.move")}</button>
+    </div>
+  `;
+
+  item.querySelector(".planner-done-btn").disabled = block.status === "done";
+  item.querySelector(".planner-skip-btn").disabled = block.status === "skipped";
+  item.querySelector(".planner-done-btn").addEventListener("click", () => setPlannerEntryStatus(entry, "done", item));
+  item.querySelector(".planner-skip-btn").addEventListener("click", () => setPlannerEntryStatus(entry, "skipped", item));
+  item.querySelector(".planner-move-btn").addEventListener("click", () => movePlannerEntry(entry));
+  const menuActions = [
+    {
+      label: t("actions.edit"),
+      onSelect: () => editPlannerEntry(entry)
+    }
+  ];
+  if (!isVirtual) {
+    menuActions.push(
+    {
+      label: t("actions.delete"),
+      danger: true,
+      onSelect: () => deletePlannerEntry(entry)
+    }
+    );
+  }
+  item.appendChild(makeActionMenu(menuActions, t("planner.menuBlockLabel", { name: block.title || t("planner.untitledBlock") })));
+
+  return item;
+}
+
+function renderPlannerRecurringRules() {
+  plannerRecurringList.innerHTML = "";
+
+  if (!currentUser) {
+    plannerRecurringList.innerHTML = `<div class="empty">${t("planner.signInRecurringEmpty")}</div>`;
+    animateRenderedChildren(plannerRecurringList);
+    return;
+  }
+
+  if (!data.recurringRules.length) {
+    plannerRecurringList.innerHTML = `<div class="empty">${t("planner.emptyRules")}</div>`;
+    animateRenderedChildren(plannerRecurringList);
+    return;
+  }
+
+  getSortedPlannerRules().forEach(rule => plannerRecurringList.appendChild(makePlannerRuleItem(rule)));
+  animateRenderedChildren(plannerRecurringList);
+}
+
+function makePlannerRuleItem(rule) {
+  const item = document.createElement("article");
+  const linkedLabel = getPlannerLinkedLabel(rule);
+  const weekdayText = rule.weekdays.length
+    ? rule.weekdays.map(getPlannerWeekdayLabel).join(", ")
+    : t("planner.noWeekdays");
+
+  item.className = "planner-rule-item" + (rule.active ? "" : " paused");
+  item.innerHTML = `
+    <div>
+      <div class="planner-rule-title">${escapeHtml(rule.title)}</div>
+      <div class="planner-rule-meta">${escapeHtml(`${weekdayText} · ${formatPlannerTimeRange(rule)}`)}</div>
+      ${linkedLabel ? `<div class="planner-block-link">${escapeHtml(linkedLabel)}</div>` : ""}
+    </div>
+    <div class="planner-rule-actions">
+      <button class="secondary planner-rule-toggle" type="button">${rule.active ? t("planner.disableRule") : t("planner.enableRule")}</button>
+    </div>
+  `;
+
+  item.querySelector(".planner-rule-toggle").addEventListener("click", () => togglePlannerRule(rule.id));
+  item.appendChild(makeActionMenu([
+    {
+      label: t("actions.edit"),
+      onSelect: () => openPlannerBlockModal({ mode: "rule", ruleId: rule.id })
+    },
+    {
+      label: t("actions.delete"),
+      danger: true,
+      onSelect: () => deletePlannerRule(rule.id)
+    }
+  ], t("planner.menuRuleLabel", { name: rule.title || t("planner.untitledBlock") })));
+
+  return item;
+}
+
+function openPlannerBlockModal(options = {}) {
+  if (!currentUser) {
+    alert(t("planner.signInRequired"));
+    return;
+  }
+
+  plannerModalMode = options.mode === "rule" ? "rule" : "block";
+  plannerEditingBlockId = options.blockId || null;
+  plannerEditingRuleId = options.ruleId || null;
+  const block = plannerEditingBlockId ? findPlannerBlockById(plannerEditingBlockId) : null;
+  const rule = plannerEditingRuleId ? data.recurringRules.find(item => item.id === plannerEditingRuleId) : null;
+  const source = rule || block || {};
+  const preselectedGoalId = options.goalId || source.linkedGoalId || "";
+  const preselectedTaskId = options.linkedMilestoneId || source.linkedMilestoneId || "";
+  const preselectedHabitId = options.linkedHabitId || source.linkedHabitId || "";
+  const startTime = source.startTime || "09:00";
+
+  plannerLinkMode = preselectedGoalId ? "goal" : "standalone";
+  populatePlannerTypeSelect(source.type || (preselectedGoalId ? "goal" : "custom"));
+  populatePlannerGoalSelect(preselectedGoalId);
+  populatePlannerMilestoneSelect(preselectedGoalId, preselectedTaskId);
+  populatePlannerHabitSelect(preselectedHabitId);
+  renderPlannerWeekdayChoices(rule?.weekdays || [1, 2, 3, 4, 5]);
+
+  plannerDateInput.value = options.date || block?.date || plannerSelectedDate;
+  plannerStartInput.value = startTime;
+  plannerEndInput.value = source.endTime || getDefaultPlannerEndTime(startTime);
+  plannerTitleInput.value = options.title || source.title || getDefaultPlannerTitle(preselectedGoalId, preselectedTaskId, preselectedHabitId);
+  plannerDoneInput.value = source.definitionOfDone || "";
+  plannerNotesInput.value = block?.notes || "";
+
+  isPlannerModalOpen = true;
+  syncPlannerModalText();
+  syncPlannerModalVisibility();
+  revealFloatingElement(plannerBlockModal);
+  syncModalOpenState();
+  requestAnimationFrame(() => {
+    if (plannerLinkMode === "goal" && plannerGoalSelect.value) plannerTitleInput.focus();
+    else plannerTitleInput.focus();
+  });
+}
+
+function closePlannerModal() {
+  isPlannerModalOpen = false;
+  plannerEditingBlockId = null;
+  plannerEditingRuleId = null;
+  hideFloatingElement(plannerBlockModal);
+  syncModalOpenState();
+}
+
+function syncPlannerModalText() {
+  if (!plannerModalTitle || !plannerSaveBtn) return;
+  const isRule = plannerModalMode === "rule";
+  const isEditing = isRule ? Boolean(plannerEditingRuleId) : Boolean(plannerEditingBlockId);
+  plannerModalTitle.textContent = isRule
+    ? isEditing ? t("planner.editRuleTitle") : t("planner.newRuleTitle")
+    : isEditing ? t("planner.editBlockTitle") : t("planner.newBlockTitle");
+  plannerSaveBtn.textContent = isRule
+    ? isEditing ? t("planner.updateRule") : t("planner.saveRule")
+    : isEditing ? t("planner.updateBlock") : t("planner.saveBlock");
+}
+
+function setPlannerLinkMode(mode) {
+  plannerLinkMode = mode === "goal" ? "goal" : "standalone";
+  if (plannerLinkMode === "goal") {
+    plannerTypeSelect.value = "goal";
+    if (!plannerGoalSelect.value && data.goals[0]) {
+      plannerGoalSelect.value = data.goals[0].id;
+      populatePlannerMilestoneSelect(plannerGoalSelect.value);
+    }
+  }
+  syncPlannerModalVisibility();
+}
+
+function syncPlannerModalVisibility() {
+  const isRule = plannerModalMode === "rule";
+  const isGoalLink = plannerLinkMode === "goal";
+  const isHabitLink = !isGoalLink && plannerTypeSelect.value === "habit";
+
+  plannerDateField.hidden = isRule;
+  plannerWeekdayField.hidden = !isRule;
+  plannerNotesField.hidden = isRule;
+  plannerChoiceGoalBtn.classList.toggle("active", isGoalLink);
+  plannerChoiceStandaloneBtn.classList.toggle("active", !isGoalLink);
+  plannerTypeSelect.disabled = isGoalLink;
+  if (isGoalLink) plannerTypeSelect.value = "goal";
+
+  plannerGoalSelect.closest(".planner-field").hidden = !isGoalLink;
+  plannerMilestoneSelect.closest(".planner-field").hidden = !isGoalLink;
+  plannerHabitSelect.closest(".planner-field").hidden = !isHabitLink;
+  plannerDeleteBtn.hidden = isRule ? !plannerEditingRuleId : !plannerEditingBlockId;
+}
+
+function populatePlannerTypeSelect(selectedType = "custom") {
+  plannerTypeSelect.innerHTML = "";
+  PLANNER_BLOCK_TYPES.forEach(type => {
+    const option = document.createElement("option");
+    option.value = type;
+    option.textContent = getPlannerTypeLabel(type);
+    plannerTypeSelect.appendChild(option);
+  });
+  plannerTypeSelect.value = normalizePlannerType(selectedType);
+}
+
+function populatePlannerGoalSelect(selectedGoalId = "") {
+  plannerGoalSelect.innerHTML = "";
+  const emptyOption = document.createElement("option");
+  emptyOption.value = "";
+  emptyOption.textContent = data.goals.length ? t("planner.goalPlaceholder") : t("planner.noGoalOptions");
+  plannerGoalSelect.appendChild(emptyOption);
+
+  data.goals.forEach(goal => {
+    const option = document.createElement("option");
+    option.value = goal.id;
+    option.textContent = goal.name || t("data.goalFallback");
+    plannerGoalSelect.appendChild(option);
+  });
+
+  plannerGoalSelect.value = selectedGoalId && data.goals.some(goal => goal.id === selectedGoalId) ? selectedGoalId : "";
+}
+
+function populatePlannerMilestoneSelect(goalId, selectedTaskId = "") {
+  plannerMilestoneSelect.innerHTML = "";
+  const goal = data.goals.find(item => item.id === goalId);
+  const emptyOption = document.createElement("option");
+  emptyOption.value = "";
+  emptyOption.textContent = goal?.tasks?.length ? t("planner.manualTitle") : t("planner.noMilestones");
+  plannerMilestoneSelect.appendChild(emptyOption);
+
+  (goal?.tasks || []).forEach(task => {
+    const option = document.createElement("option");
+    option.value = task.id;
+    option.textContent = task.title || t("data.taskFallback");
+    plannerMilestoneSelect.appendChild(option);
+  });
+
+  plannerMilestoneSelect.value = selectedTaskId && goal?.tasks?.some(task => task.id === selectedTaskId) ? selectedTaskId : "";
+}
+
+function populatePlannerHabitSelect(selectedHabitId = "") {
+  plannerHabitSelect.innerHTML = "";
+  const emptyOption = document.createElement("option");
+  emptyOption.value = "";
+  emptyOption.textContent = data.habits.length ? t("planner.habitPlaceholder") : t("planner.noHabitOptions");
+  plannerHabitSelect.appendChild(emptyOption);
+
+  data.habits.forEach(habit => {
+    const option = document.createElement("option");
+    option.value = habit.id;
+    option.textContent = habit.name || t("habit.fallback");
+    plannerHabitSelect.appendChild(option);
+  });
+
+  plannerHabitSelect.value = selectedHabitId && data.habits.some(habit => habit.id === selectedHabitId) ? selectedHabitId : "";
+}
+
+function renderPlannerWeekdayChoices(selectedWeekdays = []) {
+  const selected = new Set(selectedWeekdays.map(Number));
+  plannerWeekdayChoices.innerHTML = "";
+
+  [1, 2, 3, 4, 5, 6, 0].forEach(day => {
+    const label = document.createElement("label");
+    label.className = "planner-weekday-choice";
+    label.innerHTML = `
+      <input type="checkbox" value="${day}" ${selected.has(day) ? "checked" : ""} />
+      <span>${escapeHtml(getPlannerWeekdayLabel(day))}</span>
+    `;
+    plannerWeekdayChoices.appendChild(label);
+  });
+}
+
+function syncPlannerTitleFromSelectedTask() {
+  if (plannerTitleInput.value.trim()) return;
+  const title = getDefaultPlannerTitle(plannerGoalSelect.value, plannerMilestoneSelect.value, plannerHabitSelect.value);
+  if (title) plannerTitleInput.value = title;
+}
+
+function savePlannerFromModal() {
+  if (!currentUser) {
+    alert(t("planner.signInRequired"));
+    return;
+  }
+
+  const payload = readPlannerFormPayload();
+  if (!payload) return;
+
+  if (plannerModalMode === "rule") {
+    savePlannerRule(payload);
+  } else {
+    savePlannerBlock(payload);
+  }
+
+  markDirty();
+  closePlannerModal();
+  renderPlanner();
+  renderGoals();
+}
+
+function readPlannerFormPayload() {
+  const isRule = plannerModalMode === "rule";
+  const isGoalLink = plannerLinkMode === "goal";
+  const type = isGoalLink ? "goal" : normalizePlannerType(plannerTypeSelect.value);
+  const linkedGoalId = isGoalLink ? normalizeNullableId(plannerGoalSelect.value) : null;
+  const linkedMilestoneId = isGoalLink ? normalizeNullableId(plannerMilestoneSelect.value) : null;
+  const linkedHabitId = type === "habit" ? normalizeNullableId(plannerHabitSelect.value) : null;
+  const title = plannerTitleInput.value.trim() || getDefaultPlannerTitle(linkedGoalId, linkedMilestoneId, linkedHabitId);
+  const startTime = normalizePlannerTime(plannerStartInput.value, "");
+  const endTime = normalizePlannerTime(plannerEndInput.value, "");
+
+  if (!startTime || !endTime) {
+    alert(t("planner.timeRequired"));
+    return null;
+  }
+
+  if (startTime >= endTime) {
+    alert(t("planner.timeOrder"));
+    return null;
+  }
+
+  if (isGoalLink && !linkedGoalId) {
+    alert(t("planner.goalRequired"));
+    return null;
+  }
+
+  if (!title) {
+    alert(t("planner.titleRequired"));
+    return null;
+  }
+
+  if (isRule) {
+    const weekdays = getPlannerFormWeekdays();
+    if (weekdays.length === 0) {
+      alert(t("planner.weekdaysRequired"));
+      return null;
+    }
+
+    return {
+      title,
+      weekdays,
+      startTime,
+      endTime,
+      type,
+      linkedGoalId,
+      linkedMilestoneId,
+      linkedHabitId,
+      definitionOfDone: plannerDoneInput.value.trim()
+    };
+  }
+
+  if (!isDateKey(plannerDateInput.value)) {
+    alert(t("planner.dateRequired"));
+    return null;
+  }
+
+  return {
+    date: plannerDateInput.value,
+    startTime,
+    endTime,
+    title,
+    type,
+    linkedGoalId,
+    linkedMilestoneId,
+    linkedHabitId,
+    status: "planned",
+    definitionOfDone: plannerDoneInput.value.trim(),
+    notes: plannerNotesInput.value.trim()
+  };
+}
+
+function savePlannerBlock(payload) {
+  const now = Date.now();
+  const existing = plannerEditingBlockId ? findPlannerBlockById(plannerEditingBlockId) : null;
+
+  if (existing) {
+    Object.assign(existing, payload, {
+      status: existing.status || "planned",
+      updatedAt: now
+    });
+    plannerSelectedDate = existing.date;
+    return;
+  }
+
+  data.plannerBlocks.push(normalizePlannerBlock({
+    id: crypto.randomUUID(),
+    ...payload,
+    createdAt: now,
+    updatedAt: now
+  }));
+  plannerSelectedDate = payload.date;
+}
+
+function savePlannerRule(payload) {
+  const now = Date.now();
+  const existing = plannerEditingRuleId ? data.recurringRules.find(rule => rule.id === plannerEditingRuleId) : null;
+
+  if (existing) {
+    Object.assign(existing, payload, { updatedAt: now });
+    return;
+  }
+
+  data.recurringRules.push(normalizeRecurringRule({
+    id: crypto.randomUUID(),
+    ...payload,
+    active: true,
+    createdAt: now,
+    updatedAt: now
+  }));
+}
+
+function deletePlannerFromModal() {
+  if (plannerModalMode === "rule" && plannerEditingRuleId) {
+    deletePlannerRule(plannerEditingRuleId, { closeModal: true });
+    return;
+  }
+
+  if (plannerEditingBlockId) {
+    const block = findPlannerBlockById(plannerEditingBlockId);
+    if (!block || !confirm(t("planner.confirmDeleteBlock", { title: block.title }))) return;
+    data.plannerBlocks = data.plannerBlocks.filter(item => item.id !== block.id);
+    markDirty();
+    closePlannerModal();
+    renderPlanner();
+    renderGoals();
+  }
+}
+
+function getPlannerFormWeekdays() {
+  return [...plannerWeekdayChoices.querySelectorAll("input[type='checkbox']:checked")]
+    .map(input => Number(input.value))
+    .filter(day => Number.isInteger(day) && day >= 0 && day <= 6)
+    .sort((a, b) => a - b);
+}
+
+function setPlannerEntryStatus(entry, status, source) {
+  const block = ensureRealPlannerBlock(entry, status);
+  if (!block) return;
+
+  block.status = status;
+  block.updatedAt = Date.now();
+  markDirty();
+  const rerender = () => {
+    renderPlanner();
+    renderGoals();
+  };
+
+  if (status === "done" && source) {
+    source.classList.add("is-completing");
+    animateCompletion(source, rerender);
+  } else {
+    rerender();
+  }
+}
+
+function movePlannerEntry(entry) {
+  const block = ensureRealPlannerBlock(entry, "moved");
+  if (!block) return;
+
+  const targetDate = prompt(t("planner.movePrompt"), shiftDateKey(block.date, 1));
+  if (!targetDate) return;
+  if (!isDateKey(targetDate)) {
+    alert(t("planner.moveInvalid"));
+    return;
+  }
+
+  const now = Date.now();
+  block.status = "moved";
+  block.updatedAt = now;
+  data.plannerBlocks.push(normalizePlannerBlock({
+    ...block,
+    id: crypto.randomUUID(),
+    date: targetDate,
+    status: "planned",
+    createdAt: now,
+    updatedAt: now
+  }));
+  plannerSelectedDate = targetDate;
+  markDirty();
+  renderPlanner();
+  renderGoals();
+}
+
+function editPlannerEntry(entry) {
+  const block = ensureRealPlannerBlock(entry, entry.block.status || "planned");
+  if (!block) return;
+  markDirty();
+  openPlannerBlockModal({ mode: "block", blockId: block.id });
+}
+
+function deletePlannerEntry(entry) {
+  if (entry.isVirtual) return;
+  const block = findPlannerBlockById(entry.block.id);
+  if (!block || !confirm(t("planner.confirmDeleteBlock", { title: block.title }))) return;
+  data.plannerBlocks = data.plannerBlocks.filter(item => item.id !== block.id);
+  markDirty();
+  renderPlanner();
+  renderGoals();
+}
+
+function ensureRealPlannerBlock(entry, status = "planned") {
+  if (!entry) return null;
+  if (!entry.isVirtual) return findPlannerBlockById(entry.block.id);
+  return instantiateRecurringRuleForDate(entry.rule, entry.block.date, status);
+}
+
+function instantiateRecurringRuleForDate(rule, dateKey, status = "planned") {
+  if (!rule) return null;
+  const id = getRecurringInstanceId(rule.id, dateKey);
+  const existing = findPlannerBlockById(id);
+  if (existing) return existing;
+
+  const now = Date.now();
+  const block = normalizePlannerBlock({
+    id,
+    date: dateKey,
+    startTime: rule.startTime,
+    endTime: rule.endTime,
+    title: rule.title,
+    type: rule.type,
+    linkedGoalId: rule.linkedGoalId,
+    linkedMilestoneId: rule.linkedMilestoneId,
+    linkedHabitId: rule.linkedHabitId,
+    status,
+    definitionOfDone: rule.definitionOfDone,
+    notes: "",
+    createdAt: now,
+    updatedAt: now
+  });
+  data.plannerBlocks.push(block);
+  return block;
+}
+
+function togglePlannerRule(ruleId) {
+  const rule = data.recurringRules.find(item => item.id === ruleId);
+  if (!rule) return;
+  rule.active = !rule.active;
+  rule.updatedAt = Date.now();
+  markDirty();
+  renderPlanner();
+  renderGoals();
+}
+
+function deletePlannerRule(ruleId, options = {}) {
+  const rule = data.recurringRules.find(item => item.id === ruleId);
+  if (!rule || !confirm(t("planner.confirmDeleteRule", { title: rule.title }))) return;
+  data.recurringRules = data.recurringRules.filter(item => item.id !== ruleId);
+  markDirty();
+  if (options.closeModal) closePlannerModal();
+  renderPlanner();
+  renderGoals();
+}
+
+function changePlannerDate(delta) {
+  plannerSelectedDate = shiftDateKey(plannerSelectedDate, delta);
+  renderPlanner();
+}
+
+function goToTodayPlannerDate() {
+  plannerSelectedDate = toDateInputValue(new Date());
+  renderPlanner();
+}
+
+function getPlannerEntriesForDate(dateKey) {
+  const realEntries = data.plannerBlocks
+    .filter(block => block.date === dateKey)
+    .map(block => ({ block, isVirtual: false, rule: null }));
+  const virtualEntries = data.recurringRules
+    .filter(rule => shouldShowRecurringRuleOnDate(rule, dateKey))
+    .map(rule => ({ block: createVirtualPlannerBlock(rule, dateKey), isVirtual: true, rule }));
+
+  return [...realEntries, ...virtualEntries].sort(sortPlannerEntries);
+}
+
+function shouldShowRecurringRuleOnDate(rule, dateKey) {
+  if (!rule.active) return false;
+  if (!rule.weekdays.includes(parseDateKey(dateKey).getDay())) return false;
+  return !findPlannerBlockById(getRecurringInstanceId(rule.id, dateKey));
+}
+
+function createVirtualPlannerBlock(rule, dateKey) {
+  return {
+    id: getRecurringInstanceId(rule.id, dateKey),
+    date: dateKey,
+    startTime: rule.startTime,
+    endTime: rule.endTime,
+    title: rule.title,
+    type: rule.type,
+    linkedGoalId: rule.linkedGoalId,
+    linkedMilestoneId: rule.linkedMilestoneId,
+    linkedHabitId: rule.linkedHabitId,
+    status: "planned",
+    definitionOfDone: rule.definitionOfDone,
+    notes: "",
+    createdAt: rule.createdAt,
+    updatedAt: rule.updatedAt
+  };
+}
+
+function getRecurringInstanceId(ruleId, dateKey) {
+  return `recurring-${ruleId}-${dateKey}`;
+}
+
+function sortPlannerEntries(a, b) {
+  if (a.block.startTime !== b.block.startTime) return a.block.startTime.localeCompare(b.block.startTime);
+  if (a.block.endTime !== b.block.endTime) return a.block.endTime.localeCompare(b.block.endTime);
+  return String(a.block.title || "").localeCompare(String(b.block.title || ""));
+}
+
+function getSortedPlannerRules() {
+  return [...data.recurringRules].sort((a, b) => {
+    if (a.active !== b.active) return Number(b.active) - Number(a.active);
+    if (a.startTime !== b.startTime) return a.startTime.localeCompare(b.startTime);
+    return String(a.title || "").localeCompare(String(b.title || ""));
+  });
+}
+
+function findPlannerBlockById(blockId) {
+  return data.plannerBlocks.find(block => block.id === blockId) || null;
+}
+
+function getDefaultPlannerTitle(goalId, taskId, habitId) {
+  const task = goalId && taskId ? findGoalTask(goalId, taskId) : null;
+  if (task?.title) return task.title;
+  const goal = goalId ? data.goals.find(item => item.id === goalId) : null;
+  if (goal?.name) return goal.name;
+  const habit = habitId ? findHabitById(habitId) : null;
+  if (habit?.name) return habit.name;
+  return "";
+}
+
+function getPlannerLinkedLabel(block) {
+  if (block.linkedGoalId) {
+    const goal = data.goals.find(item => item.id === block.linkedGoalId);
+    const task = block.linkedMilestoneId ? findGoalTask(block.linkedGoalId, block.linkedMilestoneId) : null;
+    const goalName = goal?.name || t("data.goalFallback");
+    return task?.title
+      ? t("planner.linkedToTask", { goal: goalName, task: task.title })
+      : t("planner.linkedTo", { name: goalName });
+  }
+
+  if (block.linkedHabitId) {
+    const habit = findHabitById(block.linkedHabitId);
+    return t("planner.linkedTo", { name: habit?.name || t("habit.fallback") });
+  }
+
+  return "";
+}
+
+function getPlannerStatusClass(status) {
+  if (status === "done") return "done";
+  if (status === "skipped" || status === "moved") return "warning";
+  return "info";
+}
+
+function getPlannerStatusLabel(status) {
+  return t(`planner.status.${PLANNER_BLOCK_STATUSES.includes(status) ? status : "planned"}`);
+}
+
+function getPlannerTypeLabel(type) {
+  return t(`planner.type.${normalizePlannerType(type)}`);
+}
+
+function getPlannerWeekdayLabel(day) {
+  const keys = ["calendar.weekday.sun", "calendar.weekday.mon", "calendar.weekday.tue", "calendar.weekday.wed", "calendar.weekday.thu", "calendar.weekday.fri", "calendar.weekday.sat"];
+  return t(keys[day] || keys[0]);
+}
+
+function formatPlannerTimeRange(block) {
+  return `${block.startTime}-${block.endTime}`;
+}
+
+function formatPlannerDateLabel(dateKey) {
+  return parseDateKey(dateKey).toLocaleDateString(getDateLocale(), {
+    weekday: "long",
+    day: "numeric",
+    month: "long",
+    year: "numeric"
+  });
+}
+
 function renderDayReview() {
   reviewDateInput.value = reviewDate;
   const date = parseDateKey(reviewDate);
@@ -4233,6 +5204,7 @@ function makeGoalCard(goal) {
       <div class="goal-card-toolbar">
         <div class="goal-type">${escapeHtml(typeLabel)}</div>
         <div class="goal-card-actions">
+          <button class="secondary goal-plan-session" type="button">${t("goals.planWorkSession")}</button>
           <button class="primary goal-result" type="button">${t("goals.finishGoal")}</button>
         </div>
       </div>
@@ -4266,6 +5238,8 @@ function makeGoalCard(goal) {
           <span>${t("goals.nextDeadline")}</span>
         </div>
       </div>
+
+      <section class="goal-execution-section"></section>
 
       <section class="goal-work-section">
         <div class="goal-work-section-head">
@@ -4304,6 +5278,12 @@ function makeGoalCard(goal) {
   `;
 
   card.querySelector(".goal-collapse-trigger").onclick = () => toggleGoalCard(goal.id);
+  card.querySelector(".goal-plan-session").onclick = () => openPlannerBlockModal({
+    mode: "block",
+    goalId: goal.id,
+    linkedMilestoneId: nextTask?.id || "",
+    title: nextTask?.title || goal.name
+  });
   card.querySelector(".goal-result").onclick = () => openGoalResultModal(goal.id);
   card.querySelector(".goal-card-actions").appendChild(makeActionMenu([
     {
@@ -4329,8 +5309,100 @@ function makeGoalCard(goal) {
   }
   animateRenderedChildren(taskList);
   renderGoalTaskArchive(goal, card.querySelector(".goal-task-archive-list"));
+  renderGoalExecutionSummary(goal, card.querySelector(".goal-execution-section"));
 
   return card;
+}
+
+function renderGoalExecutionSummary(goal, container) {
+  const blocks = getGoalPlannerBlocks(goal.id);
+  const nextSession = getNextGoalPlannerSession(goal.id);
+  const doneBlocks = blocks.filter(block => block.status === "done");
+  const skippedBlocks = blocks.filter(block => block.status === "skipped");
+  const recentBlocks = blocks
+    .filter(block => block.status === "done" || block.status === "skipped" || block.status === "moved")
+    .slice(0, 4);
+
+  container.innerHTML = `
+    <div class="goal-execution-head">
+      <div>
+        <div class="section-kicker">${t("goals.executionKicker")}</div>
+        <h3>${t("goals.executionTitle")}</h3>
+      </div>
+      <div class="goal-execution-metrics">
+        <span>${doneBlocks.length} ${t("planner.summaryDone")}</span>
+        <span>${skippedBlocks.length} ${t("planner.summarySkipped")}</span>
+      </div>
+    </div>
+    <div class="goal-execution-grid">
+      <div class="goal-execution-next">
+        <span>${t("goals.nextPlannedSession")}</span>
+        <strong>${nextSession ? escapeHtml(nextSession.title) : t("goals.noPlannedSessions")}</strong>
+        <small>${nextSession ? escapeHtml(formatGoalPlannerSessionMeta(nextSession)) : ""}</small>
+      </div>
+      <div class="goal-execution-list"></div>
+    </div>
+  `;
+
+  const list = container.querySelector(".goal-execution-list");
+  if (recentBlocks.length === 0) {
+    list.innerHTML = `<div class="empty goal-task-empty">${t("goals.noExecutionYet")}</div>`;
+    return;
+  }
+
+  recentBlocks.forEach(block => {
+    const row = document.createElement("div");
+    row.className = `goal-execution-row ${block.status}`;
+    row.innerHTML = `
+      <div>
+        <strong>${escapeHtml(block.title)}</strong>
+        <span>${escapeHtml(formatGoalPlannerSessionMeta(block))}</span>
+      </div>
+      <div class="deadline-pill ${getPlannerStatusClass(block.status)}">${escapeHtml(getPlannerStatusLabel(block.status))}</div>
+    `;
+    list.appendChild(row);
+  });
+}
+
+function getGoalPlannerBlocks(goalId) {
+  return [...(data.plannerBlocks || [])]
+    .filter(block => block.linkedGoalId === goalId)
+    .sort((a, b) => {
+      if (a.date !== b.date) return String(b.date).localeCompare(String(a.date));
+      if (a.startTime !== b.startTime) return String(b.startTime).localeCompare(String(a.startTime));
+      return String(a.title || "").localeCompare(String(b.title || ""));
+    });
+}
+
+function getNextGoalPlannerSession(goalId) {
+  const todayKey = toDateInputValue(new Date());
+  const plannedBlocks = (data.plannerBlocks || [])
+    .filter(block => block.linkedGoalId === goalId && block.status === "planned" && block.date >= todayKey);
+  const recurringSessions = getUpcomingGoalRecurringSessions(goalId, todayKey, 60);
+
+  return [...plannedBlocks, ...recurringSessions]
+    .sort((a, b) => {
+      if (a.date !== b.date) return String(a.date).localeCompare(String(b.date));
+      if (a.startTime !== b.startTime) return String(a.startTime).localeCompare(String(b.startTime));
+      return String(a.title || "").localeCompare(String(b.title || ""));
+    })[0] || null;
+}
+
+function getUpcomingGoalRecurringSessions(goalId, startDateKey, daysAhead) {
+  const sessions = [];
+  for (let offset = 0; offset <= daysAhead; offset++) {
+    const dateKey = shiftDateKey(startDateKey, offset);
+    data.recurringRules.forEach(rule => {
+      if (rule.linkedGoalId !== goalId) return;
+      if (!shouldShowRecurringRuleOnDate(rule, dateKey)) return;
+      sessions.push(createVirtualPlannerBlock(rule, dateKey));
+    });
+  }
+  return sessions;
+}
+
+function formatGoalPlannerSessionMeta(block) {
+  return `${formatDeadlineShort(block.date)} · ${formatPlannerTimeRange(block)}`;
 }
 
 function toggleGoalCard(goalId) {

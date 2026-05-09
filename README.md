@@ -13,8 +13,11 @@ Live demo: https://whoisclownhere.github.io/Habit-Tracker/
 - Lets you inspect any past day in a read-only daily review.
 - Projects future progress based on habit targets.
 - Draws a progress chart for each habit with Chart.js.
+- Adds a standalone Planner for daily schedule blocks, goal-linked work sessions, and custom activities.
+- Supports recurring planner rules that generate virtual weekday blocks until completed, skipped, or moved.
 - Supports long-term goals from point A to point B.
 - Splits goals into milestones with evidence, metric values, deadlines, and completion status.
+- Shows lightweight goal execution history from linked planner blocks.
 - Saves user data in Firebase Firestore after email/password or Google sign-in.
 - Supports English as the primary language plus Russian, German, Spanish, and French.
 - Includes a local QA account with seed data for repeatable manual testing.
@@ -124,7 +127,9 @@ The document contains:
   data: {
     habits: [],
     records: {},
-    goals: []
+    goals: [],
+    plannerBlocks: [],
+    recurringRules: []
   },
   updatedAt,
   ownerUid,
@@ -174,6 +179,17 @@ The goals view is for longer routes:
 - milestone deadlines
 - active, urgent, and completed goal state
 
+### Planner
+
+The planner view is the daily execution layer:
+
+- date-by-date vertical schedule
+- standalone custom, interest, admin, rest, study, deep work, workout, and habit-style blocks
+- goal-linked blocks that can optionally point at an existing goal task
+- status actions for done, skipped, and moved blocks
+- recurring weekday rules that create virtual blocks until acted on
+- goal cards can start a linked work session and show recent execution
+
 ## Testing
 
 Use the local-only QA account for repeatable checks without touching Firebase. On a local development host, open the app with `?qa=1`, then click `Use test account` in the sign-in modal. The QA panel includes seed-data reset controls and scenario prompts. See `docs/TESTING.md`.
@@ -210,6 +226,32 @@ Goals contain their own milestone list:
   currentMetric: 3,
   targetMetric: 30,
   milestones: []
+}
+```
+
+Planner blocks and recurring rules are stored next to habits, records, and goals:
+
+```js
+{
+  plannerBlocks: [
+    {
+      id: "block-id",
+      date: "2026-05-09",
+      startTime: "10:00",
+      endTime: "12:00",
+      title: "Deep Work",
+      type: "deepWork",
+      linkedGoalId: null,
+      linkedMilestoneId: null,
+      linkedHabitId: null,
+      status: "planned",
+      definitionOfDone: "",
+      notes: "",
+      createdAt: 1778328000000,
+      updatedAt: 1778328000000
+    }
+  ],
+  recurringRules: []
 }
 ```
 
