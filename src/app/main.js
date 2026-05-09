@@ -33,6 +33,11 @@ import {
   parseDateKey,
   toDateInputValue
 } from "./utils/dates.js";
+import {
+  getCachedDailyQuote,
+  getDailyQuote,
+  getLocalQuoteDate
+} from "./services/dailyQuote.js";
 import { escapeHtml } from "./utils/html.js";
 import {
   applyStaticTranslations,
@@ -55,6 +60,7 @@ const HABIT_MANAGER_LIMIT = 80;
 const PROGRESS_OPTION_LIMIT = 200;
 const PROJECTION_LIMIT = 80;
 const TODAY_SEARCH_SCAN_LIMIT = 5000;
+const DAILY_QUOTE_LANGUAGE = "en";
 const WORKOUT_DAY_ID_BY_INDEX = [
   "sun-rest",
   "mon-upper-a",
@@ -249,6 +255,12 @@ const todayPager = document.getElementById("todayPager");
 const todayPrevPageBtn = document.getElementById("todayPrevPageBtn");
 const todayNextPageBtn = document.getElementById("todayNextPageBtn");
 const todayPageMeta = document.getElementById("todayPageMeta");
+const dailyQuoteSection = document.getElementById("dailyQuoteSection");
+const dailyQuoteBlockquote = document.getElementById("dailyQuoteBlockquote");
+const dailyQuoteSkeleton = document.getElementById("dailyQuoteSkeleton");
+const dailyQuoteText = document.getElementById("dailyQuoteText");
+const dailyQuoteCredit = document.getElementById("dailyQuoteCredit");
+const dailyQuoteAuthor = document.getElementById("dailyQuoteAuthor");
 const todayDateLabel = document.getElementById("todayDateLabel");
 const heroStreak = document.getElementById("heroStreak");
 const dailyRingFill = document.getElementById("dailyRingFill");
@@ -350,6 +362,13 @@ let progressChartInstance = null;
 const statusDot = document.getElementById("statusDot");
 const statusText = document.getElementById("statusText");
 let currentStatus = { key: "status.signedOut", mode: "off", params: {} };
+let dailyQuoteDate = getLocalQuoteDate();
+let dailyQuote = getCachedDailyQuote({
+  date: dailyQuoteDate,
+  language: DAILY_QUOTE_LANGUAGE
+});
+let isDailyQuoteLoading = false;
+let dailyQuoteRequestToken = 0;
 
 initLocale();
 languageSelect.value = getLocale();
@@ -2094,6 +2113,7 @@ function isDateKey(value) {
 
 function render() {
   renderTestingPanel();
+  renderDailyQuote();
   renderTodayHeader();
   renderTodayLists();
   renderRewardState();
@@ -2138,6 +2158,82 @@ function getTestingScenarios() {
     { titleKey: "testing.scenario.workspaceTitle", textKey: "testing.scenario.workspaceText" },
     { titleKey: "testing.scenario.localeTitle", textKey: "testing.scenario.localeText" }
   ];
+}
+
+function renderDailyQuote() {
+  const todayKey = syncDailyQuoteDate();
+  dailyQuoteSection.hidden = !currentUser;
+  dailyQuoteSection.style.display = currentUser ? "" : "none";
+  if (!currentUser) return;
+
+  if (!dailyQuote) {
+    setDailyQuoteLoadingState(true);
+    requestDailyQuote(todayKey);
+    return;
+  }
+
+  setDailyQuoteLoadingState(false);
+  dailyQuoteText.textContent = dailyQuote.text;
+
+  const credit = getDailyQuoteCredit(dailyQuote);
+  dailyQuoteCredit.hidden = !credit;
+  dailyQuoteCredit.style.display = credit ? "" : "none";
+  dailyQuoteAuthor.textContent = credit;
+}
+
+function syncDailyQuoteDate() {
+  const todayKey = getLocalQuoteDate();
+  if (dailyQuoteDate === todayKey) return todayKey;
+
+  dailyQuoteDate = todayKey;
+  dailyQuoteRequestToken += 1;
+  isDailyQuoteLoading = false;
+  dailyQuote = getCachedDailyQuote({
+    date: todayKey,
+    language: DAILY_QUOTE_LANGUAGE
+  });
+  return todayKey;
+}
+
+function setDailyQuoteLoadingState(isLoading) {
+  dailyQuoteSection.classList.toggle("is-loading", isLoading);
+  dailyQuoteBlockquote.setAttribute("aria-busy", String(isLoading));
+  dailyQuoteSkeleton.hidden = !isLoading;
+  dailyQuoteSkeleton.style.display = isLoading ? "" : "none";
+  dailyQuoteText.hidden = isLoading;
+  dailyQuoteText.style.display = isLoading ? "none" : "";
+  if (isLoading) {
+    dailyQuoteText.textContent = "";
+    dailyQuoteCredit.hidden = true;
+    dailyQuoteCredit.style.display = "none";
+    dailyQuoteAuthor.textContent = "";
+  }
+}
+
+function requestDailyQuote(date) {
+  if (isDailyQuoteLoading) return;
+
+  isDailyQuoteLoading = true;
+  const token = ++dailyQuoteRequestToken;
+
+  getDailyQuote({ date, language: DAILY_QUOTE_LANGUAGE })
+    .then(quote => {
+      if (token !== dailyQuoteRequestToken) return;
+      dailyQuote = quote;
+    })
+    .catch(() => {
+      // The quote service already falls back; visible errors do not belong here.
+    })
+    .finally(() => {
+      if (token !== dailyQuoteRequestToken) return;
+      isDailyQuoteLoading = false;
+      renderDailyQuote();
+    });
+}
+
+function getDailyQuoteCredit(quote) {
+  if (quote.author) return quote.author;
+  return quote.source && quote.source !== "Quotable" ? quote.source : "";
 }
 
 function renderTodayHeader() {

@@ -8,7 +8,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,700;9..144,900&family=DM+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="./src/styles/main.css?v=20260509-planner" />
+  <link rel="stylesheet" href="./src/styles/main.css?v=20260509-daily-quote" />
 </head>
 <body>
   <div class="app">
@@ -92,6 +92,35 @@
       </section>
 
       <div id="habitsView" class="layout app-view">
+      <section id="dailyQuoteSection" class="daily-quote-card" data-i18n-aria-label="quote.ariaLabel" aria-label="Daily quote" hidden>
+        <div class="daily-quote-rail" aria-hidden="true">
+          <span class="daily-quote-dot"></span>
+          <span class="daily-quote-stack">
+            <span class="daily-quote-bar daily-quote-bar-1"></span>
+            <span class="daily-quote-bar daily-quote-bar-2"></span>
+            <span class="daily-quote-bar daily-quote-bar-3"></span>
+            <span class="daily-quote-bar daily-quote-bar-4"></span>
+            <span class="daily-quote-bar daily-quote-bar-5"></span>
+          </span>
+        </div>
+        <div class="daily-quote-content">
+          <div class="daily-quote-head">
+            <div id="dailyQuoteLabel" class="section-kicker" data-i18n="quote.kicker">Daily note</div>
+            <span class="daily-quote-line" aria-hidden="true"></span>
+          </div>
+          <blockquote id="dailyQuoteBlockquote" class="daily-quote-blockquote" aria-busy="true">
+            <div id="dailyQuoteSkeleton" class="daily-quote-skeleton" aria-hidden="true">
+              <span></span>
+              <span></span>
+            </div>
+            <p id="dailyQuoteText" class="daily-quote-text" hidden></p>
+            <footer id="dailyQuoteCredit" class="daily-quote-credit" hidden>
+              <cite id="dailyQuoteAuthor"></cite>
+            </footer>
+          </blockquote>
+        </div>
+      </section>
+
       <section class="hero-grid">
         <div class="card today-card">
           <div class="section-top">
@@ -792,6 +821,6 @@
   <div id="goalToast" class="goal-toast" role="status" aria-live="polite" hidden></div>
 
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.5.0/dist/chart.umd.min.js"></script>
-  <script type="module" src="./src/app/main.js?v=20260509-planner"></script>
+  <script type="module" src="./src/app/main.js?v=20260509-daily-quote"></script>
 </body>
 </html>

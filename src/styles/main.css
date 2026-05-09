@@ -173,6 +173,10 @@ body.modal-open {
   display: none;
 }
 
+[hidden] {
+  display: none !important;
+}
+
 .app-view.is-entering {
   animation: app-view-enter var(--motion-slow) both;
 }
@@ -946,6 +950,176 @@ body.dark .theme-toggle-icon::after {
 .app-tab.active::after {
   opacity: 1;
   transform: scaleX(1);
+}
+
+.daily-quote-card {
+  position: relative;
+  isolation: isolate;
+  display: grid;
+  grid-template-columns: 72px minmax(0, 1fr);
+  min-height: 132px;
+  overflow: hidden;
+  background: var(--card);
+  border: var(--rule);
+  border-radius: var(--radius);
+  transition:
+    background-color var(--motion-base),
+    border-color var(--motion-base);
+}
+
+.daily-quote-card::before {
+  content: "\201C";
+  position: absolute;
+  top: 2px;
+  right: var(--space-9);
+  z-index: -1;
+  color: color-mix(in srgb, var(--layer-1), transparent 45%);
+  font-family: var(--font-display);
+  font-size: 118px;
+  line-height: 0.9;
+  pointer-events: none;
+}
+
+.daily-quote-rail {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-3);
+  border-right: var(--rule);
+  background: var(--card-2);
+}
+
+.daily-quote-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--amber-500);
+}
+
+.daily-quote-stack {
+  width: 36px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+}
+
+.daily-quote-bar {
+  display: block;
+  height: 4px;
+  border-radius: 1px;
+}
+
+.daily-quote-bar-1 {
+  width: 12px;
+  background: var(--layer-5);
+}
+
+.daily-quote-bar-2 {
+  width: 18px;
+  background: var(--layer-4);
+}
+
+.daily-quote-bar-3 {
+  width: 24px;
+  background: var(--layer-3);
+}
+
+.daily-quote-bar-4 {
+  width: 30px;
+  background: var(--layer-2);
+}
+
+.daily-quote-bar-5 {
+  width: 36px;
+  background: var(--layer-1);
+}
+
+.daily-quote-content {
+  position: relative;
+  z-index: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  padding: var(--space-8) var(--space-9);
+}
+
+.daily-quote-head {
+  display: flex;
+  align-items: center;
+  gap: var(--space-7);
+  margin-bottom: var(--space-5);
+}
+
+.daily-quote-head .section-kicker {
+  flex: 0 0 auto;
+  margin-bottom: 0;
+}
+
+.daily-quote-line {
+  height: 1px;
+  flex: 1 1 auto;
+  background: var(--line);
+}
+
+.daily-quote-blockquote {
+  min-width: 0;
+  margin: 0;
+}
+
+.daily-quote-text {
+  max-width: 850px;
+  margin: 0;
+  color: var(--text);
+  font-family: var(--font-display);
+  font-size: 27px;
+  font-weight: 500;
+  line-height: 1.16;
+  letter-spacing: 0;
+}
+
+.daily-quote-credit {
+  display: flex;
+  align-items: center;
+  gap: var(--space-5);
+  margin-top: var(--space-5);
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.daily-quote-credit::before {
+  content: "";
+  width: 22px;
+  height: 1px;
+  background: var(--line);
+}
+
+.daily-quote-credit cite {
+  font-style: normal;
+}
+
+.daily-quote-skeleton {
+  display: grid;
+  gap: var(--space-3);
+  width: 100%;
+  max-width: 720px;
+}
+
+.daily-quote-skeleton span {
+  display: block;
+  height: 18px;
+  border: var(--rule);
+  background: color-mix(in srgb, var(--card-2), var(--line) 42%);
+}
+
+.daily-quote-skeleton span:first-child {
+  width: 88%;
+}
+
+.daily-quote-skeleton span:last-child {
+  width: 62%;
 }
 
 .hero-grid {
@@ -4339,6 +4513,31 @@ canvas {
   .language-control {
     grid-template-columns: 1fr auto;
     width: 100%;
+  }
+  .daily-quote-card {
+    grid-template-columns: 1fr;
+    min-height: 164px;
+  }
+  .daily-quote-card::before {
+    top: var(--space-3);
+    right: var(--space-5);
+    font-size: 92px;
+  }
+  .daily-quote-rail {
+    display: none;
+  }
+  .daily-quote-content {
+    padding: var(--space-8) var(--space-7);
+  }
+  .daily-quote-head {
+    gap: var(--space-5);
+  }
+  .daily-quote-text {
+    font-size: 22px;
+    line-height: 1.2;
+  }
+  .daily-quote-skeleton span {
+    height: 16px;
   }
   .subtitle {
     font-size: 12px;
