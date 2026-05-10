@@ -545,13 +545,17 @@ button.danger:hover {
 
 .action-menu-panel {
   position: fixed;
-  z-index: 45;
+  z-index: 75;
   min-width: 156px;
+  max-width: calc(100vw - 24px);
+  max-height: calc(100vh - 24px);
   display: grid;
   gap: var(--space-1);
   border: var(--rule);
   background: var(--card);
   padding: var(--space-1);
+  overflow-y: auto;
+  overscroll-behavior: contain;
   opacity: 0;
   pointer-events: none;
   transform: translateY(calc(var(--motion-translate-sm) * -1)) scale(0.98);
@@ -563,9 +567,19 @@ button.danger:hover {
     background-color var(--motion-fast);
 }
 
-.action-menu.open .action-menu-panel {
+.action-menu.open .action-menu-panel,
+.action-menu-panel.open {
   opacity: 1;
   pointer-events: auto;
+  transform: translateY(0) scale(1);
+}
+
+.action-menu-panel.is-above {
+  transform: translateY(var(--motion-translate-sm)) scale(0.98);
+  transform-origin: bottom right;
+}
+
+.action-menu-panel.open.is-above {
   transform: translateY(0) scale(1);
 }
 
@@ -599,6 +613,43 @@ button.danger:hover {
 
 .action-menu-item.danger:hover {
   background: color-mix(in srgb, var(--danger), transparent 90%);
+}
+
+.action-menu-cancel {
+  display: none;
+}
+
+.action-menu-panel.action-menu-sheet {
+  left: max(12px, env(safe-area-inset-left));
+  right: max(12px, env(safe-area-inset-right));
+  bottom: calc(12px + env(safe-area-inset-bottom));
+  top: auto;
+  width: auto;
+  min-width: 0;
+  max-width: none;
+  max-height: min(70vh, 420px);
+  padding: var(--space-2);
+  transform: translateY(16px);
+  transform-origin: bottom center;
+}
+
+.action-menu-panel.action-menu-sheet.open {
+  transform: translateY(0);
+}
+
+.action-menu-panel.action-menu-sheet .action-menu-item {
+  min-height: 48px;
+  justify-content: center;
+  font-size: 16px;
+  text-align: center;
+  white-space: normal;
+}
+
+.action-menu-panel.action-menu-sheet .action-menu-cancel {
+  display: flex;
+  margin-top: var(--space-2);
+  background: var(--card-2);
+  color: var(--text);
 }
 
 .top-actions {
@@ -2848,6 +2899,11 @@ input:focus, select:focus, textarea:focus {
   letter-spacing: 0;
 }
 
+.planner-field.locked input {
+  background: var(--card-2);
+  color: var(--muted);
+}
+
 .planner-title-field {
   grid-column: 1 / -1;
 }
@@ -4668,6 +4724,12 @@ canvas {
   }
   .workout-exercise-top {
     grid-template-columns: 38px minmax(0, 1fr) 38px;
+  }
+  .action-menu-trigger {
+    width: var(--control-height);
+    min-width: var(--control-height);
+    height: var(--control-height);
+    min-height: var(--control-height);
   }
   .workout-set-head {
     display: none;

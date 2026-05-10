@@ -142,6 +142,7 @@ let isWorkoutPlanEditorOpen = false;
 const expandedGoalIds = new Set();
 const expandedWorkoutExerciseKeys = new Set();
 let activeActionMenu = null;
+let actionMenuPositionFrame = null;
 let authMode = "login";
 let isAuthModalOpen = false;
 let isAuthBusy = false;
@@ -425,10 +426,14 @@ plannerChoiceGoalBtn.addEventListener("click", () => setPlannerLinkMode("goal"))
 plannerChoiceStandaloneBtn.addEventListener("click", () => setPlannerLinkMode("standalone"));
 plannerGoalSelect.addEventListener("change", () => {
   populatePlannerMilestoneSelect(plannerGoalSelect.value);
+  syncPlannerTitleFromSelectedTask({ clearUnlockedTitle: true });
+});
+plannerMilestoneSelect.addEventListener("change", () => syncPlannerTitleFromSelectedTask({ clearUnlockedTitle: true }));
+plannerTypeSelect.addEventListener("change", () => {
+  syncPlannerModalVisibility();
   syncPlannerTitleFromSelectedTask();
 });
-plannerMilestoneSelect.addEventListener("change", syncPlannerTitleFromSelectedTask);
-plannerTypeSelect.addEventListener("change", syncPlannerModalVisibility);
+plannerHabitSelect.addEventListener("change", () => syncPlannerTitleFromSelectedTask({ clearUnlockedTitle: true }));
 plannerSaveBtn.addEventListener("click", savePlannerFromModal);
 plannerDeleteBtn.addEventListener("click", deletePlannerFromModal);
 openGoalArchiveBtn.addEventListener("click", openGoalArchiveModal);
@@ -470,7 +475,7 @@ goalArchiveModal.addEventListener("click", (event) => {
 });
 document.addEventListener("keydown", (event) => {
   if (event.key === "Escape") {
-    closeActionMenu();
+    closeActionMenu(undefined, { returnFocus: true });
     closeAccountMenu();
   }
   if (event.key === "Escape" && isAuthModalOpen) closeAuthModal();
@@ -489,9 +494,11 @@ window.addEventListener("resize", () => {
   closeAccountMenu();
 });
 window.addEventListener("scroll", () => {
-  closeActionMenu();
+  requestActionMenuPosition();
   closeAccountMenu();
 }, true);
+window.visualViewport?.addEventListener("resize", requestActionMenuPosition);
+window.visualViewport?.addEventListener("scroll", requestActionMenuPosition);
 goalModeMonthBtn.addEventListener("click", () => setGoalsCalendarMode("month"));
 goalModeWeekBtn.addEventListener("click", () => setGoalsCalendarMode("week"));
 goalModeDayBtn.addEventListener("click", () => setGoalsCalendarMode("day"));
@@ -757,16 +764,20 @@ function makeActionMenu(actions, label = t("actions.menu")) {
   menu.className = "action-menu";
 
   const trigger = document.createElement("button");
+  const panelId = `action-menu-panel-${crypto.randomUUID()}`;
   trigger.className = "action-menu-trigger";
   trigger.type = "button";
   trigger.textContent = "⋯";
   trigger.setAttribute("aria-label", label);
   trigger.setAttribute("aria-haspopup", "menu");
   trigger.setAttribute("aria-expanded", "false");
+  trigger.setAttribute("aria-controls", panelId);
 
   const panel = document.createElement("div");
   panel.className = "action-menu-panel";
+  panel.id = panelId;
   panel.setAttribute("role", "menu");
+  panel.setAttribute("aria-label", label);
   panel.hidden = true;
 
   actions.forEach(action => {
@@ -776,18 +787,33 @@ function makeActionMenu(actions, label = t("actions.menu")) {
     item.textContent = action.label;
     item.setAttribute("role", "menuitem");
     item.addEventListener("click", (event) => {
+      event.preventDefault();
       event.stopPropagation();
-      closeActionMenu(menu);
+      closeActionMenu(menu, { immediate: true });
       action.onSelect();
     });
     panel.appendChild(item);
   });
 
+  const cancelItem = document.createElement("button");
+  cancelItem.className = "action-menu-item action-menu-cancel";
+  cancelItem.type = "button";
+  cancelItem.textContent = t("actions.cancel");
+  cancelItem.setAttribute("role", "menuitem");
+  cancelItem.addEventListener("click", (event) => {
+    event.preventDefault();
+    event.stopPropagation();
+    closeActionMenu(menu, { returnFocus: true });
+  });
+  panel.appendChild(cancelItem);
+
   trigger.addEventListener("click", (event) => {
+    event.preventDefault();
     event.stopPropagation();
     toggleActionMenu(menu);
   });
 
+  panel.addEventListener("click", (event) => event.stopPropagation());
   menu.addEventListener("click", (event) => event.stopPropagation());
   menu.appendChild(trigger);
   menu.appendChild(panel);
@@ -795,8 +821,8 @@ function makeActionMenu(actions, label = t("actions.menu")) {
 }
 
 function toggleActionMenu(menu) {
-  const panel = menu.querySelector(".action-menu-panel");
-  const trigger = menu.querySelector(".action-menu-trigger");
+  const { panel, trigger } = getActionMenuParts(menu);
+  if (!panel || !trigger) return;
   const shouldOpen = panel.hidden || !menu.classList.contains("open");
 
   if (activeActionMenu && activeActionMenu !== menu) closeActionMenu(activeActionMenu);
@@ -805,25 +831,37 @@ function toggleActionMenu(menu) {
     return;
   }
 
+  document.body.appendChild(panel);
   panel.hidden = false;
-  menu.classList.add("open");
-  trigger.setAttribute("aria-expanded", "true");
   activeActionMenu = menu;
   positionActionMenu(menu);
+  menu.classList.add("open");
+  panel.classList.add("open");
+  trigger.setAttribute("aria-expanded", "true");
 }
 
-function closeActionMenu(menu = activeActionMenu) {
+function closeActionMenu(menu = activeActionMenu, options = {}) {
   if (!menu) return;
 
-  const panel = menu.querySelector(".action-menu-panel");
-  const trigger = menu.querySelector(".action-menu-trigger");
+  const { panel, trigger } = getActionMenuParts(menu);
   if (trigger) trigger.setAttribute("aria-expanded", "false");
   menu.classList.remove("open");
+  panel?.classList.remove("open");
   if (activeActionMenu === menu) activeActionMenu = null;
   if (panel) {
-    afterMotion(() => {
-      if (!menu.classList.contains("open")) panel.hidden = true;
-    }, MOTION_FAST_MS);
+    const cleanup = () => {
+      if (menu.classList.contains("open")) return;
+      panel.hidden = true;
+      panel.classList.remove("action-menu-sheet", "is-above");
+      panel.removeAttribute("style");
+      if (menu.isConnected) menu.appendChild(panel);
+      else panel.remove();
+    };
+    if (options.immediate) cleanup();
+    else afterMotion(cleanup, MOTION_FAST_MS);
+  }
+  if (options.returnFocus && trigger?.isConnected) {
+    trigger.focus({ preventScroll: true });
   }
 }
 
@@ -835,24 +873,63 @@ function syncModalOpenState() {
 }
 
 function positionActionMenu(menu) {
-  const panel = menu.querySelector(".action-menu-panel");
-  const trigger = menu.querySelector(".action-menu-trigger");
-  if (!panel || !trigger) return;
+  const { panel, trigger } = getActionMenuParts(menu);
+  if (!panel || !trigger || !trigger.isConnected) {
+    closeActionMenu(menu, { immediate: true });
+    return;
+  }
 
   const gap = 6;
   const margin = 12;
+  const viewport = window.visualViewport;
+  const viewportLeft = viewport?.offsetLeft || 0;
+  const viewportTop = viewport?.offsetTop || 0;
+  const viewportWidth = viewport?.width || window.innerWidth;
+  const viewportHeight = viewport?.height || window.innerHeight;
+  const viewportRight = viewportLeft + viewportWidth;
+  const viewportBottom = viewportTop + viewportHeight;
+
+  panel.classList.toggle("action-menu-sheet", isMobileActionMenu());
+  panel.classList.remove("is-above");
+  panel.removeAttribute("style");
+
+  if (panel.classList.contains("action-menu-sheet")) return;
+
   const triggerRect = trigger.getBoundingClientRect();
   const panelRect = panel.getBoundingClientRect();
-  const maxLeft = Math.max(margin, window.innerWidth - panelRect.width - margin);
-  const left = Math.min(maxLeft, Math.max(margin, triggerRect.right - panelRect.width));
+  const maxLeft = Math.max(viewportLeft + margin, viewportRight - panelRect.width - margin);
+  const left = Math.min(maxLeft, Math.max(viewportLeft + margin, triggerRect.right - panelRect.width));
   const belowTop = triggerRect.bottom + gap;
   const aboveTop = triggerRect.top - panelRect.height - gap;
-  const top = belowTop + panelRect.height > window.innerHeight - margin
-    ? Math.max(margin, aboveTop)
-    : belowTop;
+  const top = belowTop + panelRect.height > viewportBottom - margin
+    ? Math.max(viewportTop + margin, aboveTop)
+    : Math.min(belowTop, viewportBottom - panelRect.height - margin);
 
   panel.style.left = `${left}px`;
   panel.style.top = `${top}px`;
+  panel.classList.toggle("is-above", top < triggerRect.top);
+}
+
+function isMobileActionMenu() {
+  return window.matchMedia("(max-width: 640px)").matches;
+}
+
+function requestActionMenuPosition() {
+  if (!activeActionMenu || actionMenuPositionFrame) return;
+  actionMenuPositionFrame = window.requestAnimationFrame(() => {
+    actionMenuPositionFrame = null;
+    if (activeActionMenu) positionActionMenu(activeActionMenu);
+  });
+}
+
+function getActionMenuParts(menu) {
+  if (!menu) return { panel: null, trigger: null };
+  const trigger = menu.querySelector(".action-menu-trigger");
+  const panelId = trigger?.getAttribute("aria-controls");
+  return {
+    trigger,
+    panel: panelId ? document.getElementById(panelId) : menu.querySelector(".action-menu-panel")
+  };
 }
 
 function toggleAccountMenu(forceOpen) {
@@ -1576,9 +1653,9 @@ function createTestingData() {
         endTime: "11:30",
         title: "Verify auth smoke scenario",
         type: "goal",
-        linkedGoalId: "qa-goal-launch",
-        linkedMilestoneId: "qa-task-auth",
-        linkedHabitId: null,
+        goalId: "qa-goal-launch",
+        goalTaskId: "qa-task-auth",
+        habitId: null,
         status: "planned",
         definitionOfDone: "Run the auth session checks and note anything broken.",
         notes: "Planner QA seed linked to an active goal.",
@@ -1592,9 +1669,9 @@ function createTestingData() {
         endTime: "18:45",
         title: "Play chess",
         type: "interest",
-        linkedGoalId: null,
-        linkedMilestoneId: null,
-        linkedHabitId: null,
+        goalId: null,
+        goalTaskId: null,
+        habitId: null,
         status: "planned",
         definitionOfDone: "Play one focused game and review one mistake.",
         notes: "",
@@ -1608,9 +1685,9 @@ function createTestingData() {
         endTime: "09:45",
         title: "Read QA docs",
         type: "goal",
-        linkedGoalId: "qa-goal-launch",
-        linkedMilestoneId: "qa-task-docs",
-        linkedHabitId: null,
+        goalId: "qa-goal-launch",
+        goalTaskId: "qa-task-docs",
+        habitId: null,
         status: "done",
         definitionOfDone: "Docs reviewed and smoke list checked.",
         notes: "",
@@ -1626,9 +1703,9 @@ function createTestingData() {
         startTime: "10:00",
         endTime: "12:00",
         type: "deepWork",
-        linkedGoalId: null,
-        linkedMilestoneId: null,
-        linkedHabitId: null,
+        goalId: null,
+        goalTaskId: null,
+        habitId: null,
         definitionOfDone: "Protect the block and ship one meaningful piece.",
         active: true,
         createdAt: Date.now() - 86400000,
@@ -1785,12 +1862,18 @@ function applyStatusDotClass(dot) {
 function normalizeData(input) {
   const source = input && typeof input === "object" ? input : {};
   const records = source.records && typeof source.records === "object" ? source.records : {};
+  const goals = Array.isArray(source.goals) ? source.goals.map(normalizeGoal) : [];
+  const plannerBlocks = Array.isArray(source.plannerBlocks) ? source.plannerBlocks.map(normalizePlannerBlock).filter(Boolean) : [];
+  const recurringRules = Array.isArray(source.recurringRules) ? source.recurringRules.map(normalizeRecurringRule).filter(Boolean) : [];
+  backfillPlannerGoalTaskLinks(plannerBlocks, goals);
+  backfillPlannerGoalTaskLinks(recurringRules, goals);
+
   return {
     habits: Array.isArray(source.habits) ? source.habits.map(habit => normalizeHabit(habit, records)) : [],
     records,
-    goals: Array.isArray(source.goals) ? source.goals.map(normalizeGoal) : [],
-    plannerBlocks: Array.isArray(source.plannerBlocks) ? source.plannerBlocks.map(normalizePlannerBlock).filter(Boolean) : [],
-    recurringRules: Array.isArray(source.recurringRules) ? source.recurringRules.map(normalizeRecurringRule).filter(Boolean) : [],
+    goals,
+    plannerBlocks,
+    recurringRules,
     workoutSettings: normalizeWorkoutSettings(source.workoutSettings),
     workoutPlan: normalizeWorkoutPlan(source.workoutPlan),
     workoutLogs: normalizeWorkoutStore(source.workoutLogs),
@@ -1803,10 +1886,10 @@ function normalizePlannerBlock(block = {}) {
   const date = isDateKey(safeBlock.date) ? safeBlock.date : toDateInputValue(new Date());
   const startTime = normalizePlannerTime(safeBlock.startTime, "09:00");
   const endTime = normalizePlannerTime(safeBlock.endTime, getDefaultPlannerEndTime(startTime));
-  const linkedGoalId = normalizeNullableId(safeBlock.linkedGoalId);
-  const linkedMilestoneId = normalizeNullableId(safeBlock.linkedMilestoneId ?? safeBlock.linkedTaskId);
-  const linkedHabitId = normalizeNullableId(safeBlock.linkedHabitId);
-  const type = normalizePlannerType(safeBlock.type || (linkedGoalId ? "goal" : linkedHabitId ? "habit" : "custom"));
+  const goalId = normalizeNullableId(safeBlock.goalId ?? safeBlock.linkedGoalId);
+  const goalTaskId = normalizeNullableId(safeBlock.goalTaskId ?? safeBlock.linkedMilestoneId ?? safeBlock.linkedTaskId);
+  const habitId = normalizeNullableId(safeBlock.habitId ?? safeBlock.linkedHabitId);
+  const type = normalizePlannerType(safeBlock.type || (goalId ? "goal" : habitId ? "habit" : "custom"));
   const now = Date.now();
 
   return {
@@ -1816,9 +1899,9 @@ function normalizePlannerBlock(block = {}) {
     endTime,
     title: typeof safeBlock.title === "string" && safeBlock.title.trim() ? safeBlock.title.trim() : t("planner.untitledBlock"),
     type,
-    linkedGoalId,
-    linkedMilestoneId,
-    linkedHabitId,
+    goalId,
+    goalTaskId,
+    habitId,
     status: PLANNER_BLOCK_STATUSES.includes(safeBlock.status) ? safeBlock.status : "planned",
     definitionOfDone: typeof safeBlock.definitionOfDone === "string" ? safeBlock.definitionOfDone : "",
     notes: typeof safeBlock.notes === "string" ? safeBlock.notes : "",
@@ -1831,10 +1914,10 @@ function normalizeRecurringRule(rule = {}) {
   const safeRule = rule && typeof rule === "object" ? rule : {};
   const startTime = normalizePlannerTime(safeRule.startTime, "09:00");
   const endTime = normalizePlannerTime(safeRule.endTime, getDefaultPlannerEndTime(startTime));
-  const linkedGoalId = normalizeNullableId(safeRule.linkedGoalId);
-  const linkedMilestoneId = normalizeNullableId(safeRule.linkedMilestoneId ?? safeRule.linkedTaskId);
-  const linkedHabitId = normalizeNullableId(safeRule.linkedHabitId);
-  const type = normalizePlannerType(safeRule.type || (linkedGoalId ? "goal" : linkedHabitId ? "habit" : "custom"));
+  const goalId = normalizeNullableId(safeRule.goalId ?? safeRule.linkedGoalId);
+  const goalTaskId = normalizeNullableId(safeRule.goalTaskId ?? safeRule.linkedMilestoneId ?? safeRule.linkedTaskId);
+  const habitId = normalizeNullableId(safeRule.habitId ?? safeRule.linkedHabitId);
+  const type = normalizePlannerType(safeRule.type || (goalId ? "goal" : habitId ? "habit" : "custom"));
   const weekdays = Array.isArray(safeRule.weekdays)
     ? [...new Set(safeRule.weekdays.map(Number).filter(day => Number.isInteger(day) && day >= 0 && day <= 6))].sort((a, b) => a - b)
     : [];
@@ -1847,14 +1930,32 @@ function normalizeRecurringRule(rule = {}) {
     startTime,
     endTime,
     type,
-    linkedGoalId,
-    linkedMilestoneId,
-    linkedHabitId,
+    goalId,
+    goalTaskId,
+    habitId,
     definitionOfDone: typeof safeRule.definitionOfDone === "string" ? safeRule.definitionOfDone : "",
     active: safeRule.active !== false,
     createdAt: normalizePlannerTimestamp(safeRule.createdAt, now),
     updatedAt: normalizePlannerTimestamp(safeRule.updatedAt, safeRule.createdAt || now)
   };
+}
+
+function backfillPlannerGoalTaskLinks(items, goals) {
+  items.forEach(item => {
+    if (!item.goalId) return;
+    const goal = goals.find(candidate => candidate.id === item.goalId);
+    if (!goal) return;
+    goal.tasks ||= [];
+
+    const linkedTask = item.goalTaskId
+      ? goal.tasks.find(task => task.id === item.goalTaskId)
+      : null;
+    const matchedTask = linkedTask || findGoalTaskByTitle(goal, item.title);
+
+    if (!matchedTask) return;
+    item.goalTaskId = matchedTask.id;
+    item.title = matchedTask.title || item.title;
+  });
 }
 
 function normalizePlannerType(type) {
@@ -2644,7 +2745,7 @@ function renderHabitManager() {
       {
         label: t("actions.delete"),
         danger: true,
-        onSelect: () => deleteHabit(habit)
+        onSelect: () => deleteHabit(habit.id)
       }
     ], t("habit.menuLabel", { name: habit.name || t("habit.unnamed") }));
 
@@ -3012,7 +3113,7 @@ function makeWorkoutExerciseEditor(day, exercise) {
   deleteBtn.type = "button";
   deleteBtn.className = "danger";
   deleteBtn.textContent = t("actions.delete");
-  deleteBtn.addEventListener("click", () => deleteWorkoutExercise(day.id, exercise));
+  deleteBtn.addEventListener("click", () => deleteWorkoutExercise(day.id, exercise.id));
 
   editor.appendChild(makeWorkoutEditorField(t("workouts.exerciseName"), nameInput));
   editor.appendChild(makeWorkoutEditorField(t("workouts.sets"), setsInput));
@@ -3227,12 +3328,13 @@ function addWorkoutExercise() {
   renderWorkouts();
 }
 
-function deleteWorkoutExercise(dayId, exercise) {
+function deleteWorkoutExercise(dayId, exerciseId) {
   if (!currentUser) return;
-  if (!confirm(t("workouts.confirmDeleteExercise", { name: exercise.name || t("workouts.fallbackExercise") }))) return;
-
   const day = getWorkoutDay(dayId);
   if (!day) return;
+  const exercise = day.exercises.find(item => item.id === exerciseId || item.id === exerciseId?.id);
+  if (!exercise) return;
+  if (!confirm(t("workouts.confirmDeleteExercise", { name: exercise.name || t("workouts.fallbackExercise") }))) return;
 
   day.exercises = day.exercises.filter(item => item.id !== exercise.id);
   deleteWorkoutExerciseStoreEntries(dayId, exercise.id);
@@ -3663,7 +3765,7 @@ function renderPlannerSummary() {
   plannerPlannedCount.textContent = entries.filter(entry => entry.block.status === "planned").length;
   plannerDoneCount.textContent = entries.filter(entry => entry.block.status === "done").length;
   plannerSkippedCount.textContent = entries.filter(entry => entry.block.status === "skipped").length;
-  plannerGoalCount.textContent = entries.filter(entry => entry.block.linkedGoalId).length;
+  plannerGoalCount.textContent = entries.filter(entry => entry.block.goalId).length;
 }
 
 function renderPlannerTimeline() {
@@ -3689,6 +3791,7 @@ function renderPlannerTimeline() {
 
 function makePlannerBlockItem(entry) {
   const { block, isVirtual } = entry;
+  const title = getPlannerDisplayTitle(block);
   const item = document.createElement("article");
   const linkedLabel = getPlannerLinkedLabel(block);
   const definition = block.definitionOfDone ? `<div class="planner-block-note">${escapeHtml(block.definitionOfDone)}</div>` : "";
@@ -3707,7 +3810,7 @@ function makePlannerBlockItem(entry) {
         <span class="goal-type">${escapeHtml(getPlannerTypeLabel(block.type))}</span>
         ${isVirtual ? `<span class="goal-type">${t("planner.recurringBadge")}</span>` : ""}
       </div>
-      <div class="planner-block-title">${escapeHtml(block.title)}</div>
+      <div class="planner-block-title">${escapeHtml(title)}</div>
       ${linkedLabel ? `<div class="planner-block-link">${escapeHtml(linkedLabel)}</div>` : ""}
       ${definition}
       ${notes}
@@ -3739,7 +3842,7 @@ function makePlannerBlockItem(entry) {
     }
     );
   }
-  item.appendChild(makeActionMenu(menuActions, t("planner.menuBlockLabel", { name: block.title || t("planner.untitledBlock") })));
+  item.appendChild(makeActionMenu(menuActions, t("planner.menuBlockLabel", { name: title || t("planner.untitledBlock") })));
 
   return item;
 }
@@ -3766,6 +3869,7 @@ function renderPlannerRecurringRules() {
 function makePlannerRuleItem(rule) {
   const item = document.createElement("article");
   const linkedLabel = getPlannerLinkedLabel(rule);
+  const title = getPlannerDisplayTitle(rule);
   const weekdayText = rule.weekdays.length
     ? rule.weekdays.map(getPlannerWeekdayLabel).join(", ")
     : t("planner.noWeekdays");
@@ -3773,7 +3877,7 @@ function makePlannerRuleItem(rule) {
   item.className = "planner-rule-item" + (rule.active ? "" : " paused");
   item.innerHTML = `
     <div>
-      <div class="planner-rule-title">${escapeHtml(rule.title)}</div>
+      <div class="planner-rule-title">${escapeHtml(title)}</div>
       <div class="planner-rule-meta">${escapeHtml(`${weekdayText} · ${formatPlannerTimeRange(rule)}`)}</div>
       ${linkedLabel ? `<div class="planner-block-link">${escapeHtml(linkedLabel)}</div>` : ""}
     </div>
@@ -3793,7 +3897,7 @@ function makePlannerRuleItem(rule) {
       danger: true,
       onSelect: () => deletePlannerRule(rule.id)
     }
-  ], t("planner.menuRuleLabel", { name: rule.title || t("planner.untitledBlock") })));
+  ], t("planner.menuRuleLabel", { name: title || t("planner.untitledBlock") })));
 
   return item;
 }
@@ -3810,10 +3914,14 @@ function openPlannerBlockModal(options = {}) {
   const block = plannerEditingBlockId ? findPlannerBlockById(plannerEditingBlockId) : null;
   const rule = plannerEditingRuleId ? data.recurringRules.find(item => item.id === plannerEditingRuleId) : null;
   const source = rule || block || {};
-  const preselectedGoalId = options.goalId || source.linkedGoalId || "";
-  const preselectedTaskId = options.linkedMilestoneId || source.linkedMilestoneId || "";
-  const preselectedHabitId = options.linkedHabitId || source.linkedHabitId || "";
+  const preselectedGoalId = options.goalId || options.linkedGoalId || source.goalId || source.linkedGoalId || "";
+  const preselectedTaskId = options.goalTaskId || options.linkedMilestoneId || source.goalTaskId || source.linkedMilestoneId || "";
+  const preselectedHabitId = options.habitId || options.linkedHabitId || source.habitId || source.linkedHabitId || "";
   const startTime = source.startTime || "09:00";
+  const hasOptionTitle = Object.prototype.hasOwnProperty.call(options, "title");
+  const initialTitle = hasOptionTitle
+    ? options.title
+    : source.title ?? (preselectedGoalId && !preselectedTaskId ? "" : getDefaultPlannerTitle(preselectedGoalId, preselectedTaskId, preselectedHabitId));
 
   plannerLinkMode = preselectedGoalId ? "goal" : "standalone";
   populatePlannerTypeSelect(source.type || (preselectedGoalId ? "goal" : "custom"));
@@ -3825,17 +3933,18 @@ function openPlannerBlockModal(options = {}) {
   plannerDateInput.value = options.date || block?.date || plannerSelectedDate;
   plannerStartInput.value = startTime;
   plannerEndInput.value = source.endTime || getDefaultPlannerEndTime(startTime);
-  plannerTitleInput.value = options.title || source.title || getDefaultPlannerTitle(preselectedGoalId, preselectedTaskId, preselectedHabitId);
+  plannerTitleInput.value = initialTitle || "";
   plannerDoneInput.value = source.definitionOfDone || "";
   plannerNotesInput.value = block?.notes || "";
 
   isPlannerModalOpen = true;
   syncPlannerModalText();
   syncPlannerModalVisibility();
+  syncPlannerTitleFromSelectedTask();
   revealFloatingElement(plannerBlockModal);
   syncModalOpenState();
   requestAnimationFrame(() => {
-    if (plannerLinkMode === "goal" && plannerGoalSelect.value) plannerTitleInput.focus();
+    if (plannerLinkMode === "goal" && plannerMilestoneSelect.value) plannerStartInput.focus();
     else plannerTitleInput.focus();
   });
 }
@@ -3868,8 +3977,11 @@ function setPlannerLinkMode(mode) {
       plannerGoalSelect.value = data.goals[0].id;
       populatePlannerMilestoneSelect(plannerGoalSelect.value);
     }
+  } else if (plannerTitleInput.disabled) {
+    plannerTitleInput.value = "";
   }
   syncPlannerModalVisibility();
+  syncPlannerTitleFromSelectedTask();
 }
 
 function syncPlannerModalVisibility() {
@@ -3888,6 +4000,7 @@ function syncPlannerModalVisibility() {
   plannerGoalSelect.closest(".planner-field").hidden = !isGoalLink;
   plannerMilestoneSelect.closest(".planner-field").hidden = !isGoalLink;
   plannerHabitSelect.closest(".planner-field").hidden = !isHabitLink;
+  plannerTitleInput.closest(".planner-field").classList.toggle("locked", plannerTitleInput.disabled);
   plannerDeleteBtn.hidden = isRule ? !plannerEditingRuleId : !plannerEditingBlockId;
 }
 
@@ -3969,9 +4082,30 @@ function renderPlannerWeekdayChoices(selectedWeekdays = []) {
   });
 }
 
-function syncPlannerTitleFromSelectedTask() {
+function syncPlannerTitleFromSelectedTask(options = {}) {
+  const task = plannerLinkMode === "goal" && plannerGoalSelect.value && plannerMilestoneSelect.value
+    ? findGoalTask(plannerGoalSelect.value, plannerMilestoneSelect.value)
+    : null;
+  const wasLocked = plannerTitleInput.disabled;
+
+  if (task) {
+    plannerTitleInput.value = task.title || t("data.taskFallback");
+    plannerTitleInput.disabled = true;
+    plannerTitleInput.closest(".planner-field").classList.add("locked");
+    return;
+  }
+
+  plannerTitleInput.disabled = false;
+  plannerTitleInput.closest(".planner-field").classList.remove("locked");
+
+  if (options.clearUnlockedTitle || wasLocked) {
+    plannerTitleInput.value = "";
+  }
+
   if (plannerTitleInput.value.trim()) return;
-  const title = getDefaultPlannerTitle(plannerGoalSelect.value, plannerMilestoneSelect.value, plannerHabitSelect.value);
+  const title = plannerLinkMode === "goal"
+    ? ""
+    : getDefaultPlannerTitle("", "", plannerHabitSelect.value);
   if (title) plannerTitleInput.value = title;
 }
 
@@ -3983,6 +4117,7 @@ function savePlannerFromModal() {
 
   const payload = readPlannerFormPayload();
   if (!payload) return;
+  resolvePlannerGoalTaskPayload(payload);
 
   if (plannerModalMode === "rule") {
     savePlannerRule(payload);
@@ -4000,10 +4135,11 @@ function readPlannerFormPayload() {
   const isRule = plannerModalMode === "rule";
   const isGoalLink = plannerLinkMode === "goal";
   const type = isGoalLink ? "goal" : normalizePlannerType(plannerTypeSelect.value);
-  const linkedGoalId = isGoalLink ? normalizeNullableId(plannerGoalSelect.value) : null;
-  const linkedMilestoneId = isGoalLink ? normalizeNullableId(plannerMilestoneSelect.value) : null;
-  const linkedHabitId = type === "habit" ? normalizeNullableId(plannerHabitSelect.value) : null;
-  const title = plannerTitleInput.value.trim() || getDefaultPlannerTitle(linkedGoalId, linkedMilestoneId, linkedHabitId);
+  const goalId = isGoalLink ? normalizeNullableId(plannerGoalSelect.value) : null;
+  const goalTaskId = isGoalLink ? normalizeNullableId(plannerMilestoneSelect.value) : null;
+  const habitId = type === "habit" ? normalizeNullableId(plannerHabitSelect.value) : null;
+  const selectedGoalTask = goalId && goalTaskId ? findGoalTask(goalId, goalTaskId) : null;
+  const title = selectedGoalTask?.title || plannerTitleInput.value.trim() || (isGoalLink ? "" : getDefaultPlannerTitle("", "", habitId));
   const startTime = normalizePlannerTime(plannerStartInput.value, "");
   const endTime = normalizePlannerTime(plannerEndInput.value, "");
 
@@ -4017,7 +4153,7 @@ function readPlannerFormPayload() {
     return null;
   }
 
-  if (isGoalLink && !linkedGoalId) {
+  if (isGoalLink && !goalId) {
     alert(t("planner.goalRequired"));
     return null;
   }
@@ -4040,9 +4176,9 @@ function readPlannerFormPayload() {
       startTime,
       endTime,
       type,
-      linkedGoalId,
-      linkedMilestoneId,
-      linkedHabitId,
+      goalId,
+      goalTaskId,
+      habitId,
       definitionOfDone: plannerDoneInput.value.trim()
     };
   }
@@ -4058,13 +4194,41 @@ function readPlannerFormPayload() {
     endTime,
     title,
     type,
-    linkedGoalId,
-    linkedMilestoneId,
-    linkedHabitId,
+    goalId,
+    goalTaskId,
+    habitId,
     status: "planned",
     definitionOfDone: plannerDoneInput.value.trim(),
     notes: plannerNotesInput.value.trim()
   };
+}
+
+function resolvePlannerGoalTaskPayload(payload) {
+  if (!payload.goalId) return payload;
+
+  const goal = data.goals.find(item => item.id === payload.goalId);
+  if (!goal) return payload;
+  goal.tasks ||= [];
+
+  let task = payload.goalTaskId
+    ? goal.tasks.find(item => item.id === payload.goalTaskId)
+    : null;
+
+  if (!task && payload.title) {
+    task = findGoalTaskByTitle(goal, payload.title);
+  }
+
+  if (!task && payload.title) {
+    task = createGoalTaskFromPlanner(payload.title, payload.date || "");
+    goal.tasks.push(task);
+  }
+
+  if (!task) return payload;
+
+  if (!task.deadline && payload.date) task.deadline = payload.date;
+  payload.goalTaskId = task.id;
+  payload.title = task.title || payload.title;
+  return payload;
 }
 
 function savePlannerBlock(payload) {
@@ -4072,10 +4236,16 @@ function savePlannerBlock(payload) {
   const existing = plannerEditingBlockId ? findPlannerBlockById(plannerEditingBlockId) : null;
 
   if (existing) {
+    const previousDate = existing.date;
+    const previousGoalId = existing.goalId;
+    const previousGoalTaskId = existing.goalTaskId;
     Object.assign(existing, payload, {
       status: existing.status || "planned",
       updatedAt: now
     });
+    if (existing.date !== previousDate && existing.goalId === previousGoalId && existing.goalTaskId === previousGoalTaskId) {
+      syncMovedPlannerGoalTaskDeadline(existing, previousDate, existing.date);
+    }
     plannerSelectedDate = existing.date;
     return;
   }
@@ -4163,20 +4333,29 @@ function movePlannerEntry(entry) {
   }
 
   const now = Date.now();
-  block.status = "moved";
+  const previousDate = block.date;
+  block.date = targetDate;
+  block.status = "planned";
   block.updatedAt = now;
-  data.plannerBlocks.push(normalizePlannerBlock({
-    ...block,
-    id: crypto.randomUUID(),
-    date: targetDate,
-    status: "planned",
-    createdAt: now,
-    updatedAt: now
-  }));
+  syncMovedPlannerGoalTaskDeadline(block, previousDate, targetDate);
   plannerSelectedDate = targetDate;
   markDirty();
   renderPlanner();
   renderGoals();
+}
+
+function syncMovedPlannerGoalTaskDeadline(block, previousDate, targetDate) {
+  const task = getPlannerLinkedGoalTask(block);
+  if (!task || task.deadline !== previousDate) return;
+
+  const hasOtherPlannerBlockOnPreviousDate = data.plannerBlocks.some(item => {
+    return item.id !== block.id
+      && item.goalId === block.goalId
+      && item.goalTaskId === block.goalTaskId
+      && item.date === previousDate;
+  });
+
+  if (!hasOtherPlannerBlockOnPreviousDate) task.deadline = targetDate;
 }
 
 function editPlannerEntry(entry) {
@@ -4216,9 +4395,9 @@ function instantiateRecurringRuleForDate(rule, dateKey, status = "planned") {
     endTime: rule.endTime,
     title: rule.title,
     type: rule.type,
-    linkedGoalId: rule.linkedGoalId,
-    linkedMilestoneId: rule.linkedMilestoneId,
-    linkedHabitId: rule.linkedHabitId,
+    goalId: rule.goalId,
+    goalTaskId: rule.goalTaskId,
+    habitId: rule.habitId,
     status,
     definitionOfDone: rule.definitionOfDone,
     notes: "",
@@ -4284,9 +4463,9 @@ function createVirtualPlannerBlock(rule, dateKey) {
     endTime: rule.endTime,
     title: rule.title,
     type: rule.type,
-    linkedGoalId: rule.linkedGoalId,
-    linkedMilestoneId: rule.linkedMilestoneId,
-    linkedHabitId: rule.linkedHabitId,
+    goalId: rule.goalId,
+    goalTaskId: rule.goalTaskId,
+    habitId: rule.habitId,
     status: "planned",
     definitionOfDone: rule.definitionOfDone,
     notes: "",
@@ -4302,14 +4481,14 @@ function getRecurringInstanceId(ruleId, dateKey) {
 function sortPlannerEntries(a, b) {
   if (a.block.startTime !== b.block.startTime) return a.block.startTime.localeCompare(b.block.startTime);
   if (a.block.endTime !== b.block.endTime) return a.block.endTime.localeCompare(b.block.endTime);
-  return String(a.block.title || "").localeCompare(String(b.block.title || ""));
+  return String(getPlannerDisplayTitle(a.block) || "").localeCompare(String(getPlannerDisplayTitle(b.block) || ""));
 }
 
 function getSortedPlannerRules() {
   return [...data.recurringRules].sort((a, b) => {
     if (a.active !== b.active) return Number(b.active) - Number(a.active);
     if (a.startTime !== b.startTime) return a.startTime.localeCompare(b.startTime);
-    return String(a.title || "").localeCompare(String(b.title || ""));
+    return String(getPlannerDisplayTitle(a) || "").localeCompare(String(getPlannerDisplayTitle(b) || ""));
   });
 }
 
@@ -4327,18 +4506,31 @@ function getDefaultPlannerTitle(goalId, taskId, habitId) {
   return "";
 }
 
+function getPlannerDisplayTitle(block) {
+  const task = getPlannerLinkedGoalTask(block);
+  return task?.title || block.title || t("planner.untitledBlock");
+}
+
+function getPlannerLinkedGoal(block) {
+  return block?.goalId ? data.goals.find(item => item.id === block.goalId) || null : null;
+}
+
+function getPlannerLinkedGoalTask(block) {
+  return block?.goalId && block?.goalTaskId ? findGoalTask(block.goalId, block.goalTaskId) : null;
+}
+
 function getPlannerLinkedLabel(block) {
-  if (block.linkedGoalId) {
-    const goal = data.goals.find(item => item.id === block.linkedGoalId);
-    const task = block.linkedMilestoneId ? findGoalTask(block.linkedGoalId, block.linkedMilestoneId) : null;
+  if (block.goalId) {
+    const goal = getPlannerLinkedGoal(block);
+    const task = getPlannerLinkedGoalTask(block);
     const goalName = goal?.name || t("data.goalFallback");
     return task?.title
       ? t("planner.linkedToTask", { goal: goalName, task: task.title })
       : t("planner.linkedTo", { name: goalName });
   }
 
-  if (block.linkedHabitId) {
-    const habit = findHabitById(block.linkedHabitId);
+  if (block.habitId) {
+    const habit = findHabitById(block.habitId);
     return t("planner.linkedTo", { name: habit?.name || t("habit.fallback") });
   }
 
@@ -5255,12 +5447,12 @@ function makeGoalArchiveCard(goal) {
     },
     {
       label: t("actions.returnToWork"),
-      onSelect: () => restoreGoal(goal)
+      onSelect: () => restoreGoal(goal.id)
     },
     {
       label: t("actions.delete"),
       danger: true,
-      onSelect: () => deleteGoal(goal)
+      onSelect: () => deleteGoal(goal.id)
     }
   ], t("goals.menuArchiveLabel", { name: goal.name || t("habit.unnamed") })));
   renderGoalTaskArchive(goal, card.querySelector(".goal-task-archive-list"), {
@@ -5335,8 +5527,6 @@ function makeGoalCard(goal) {
         </div>
       </div>
 
-      <section class="goal-execution-section"></section>
-
       <section class="goal-work-section">
         <div class="goal-work-section-head">
           <div>
@@ -5377,8 +5567,8 @@ function makeGoalCard(goal) {
   card.querySelector(".goal-plan-session").onclick = () => openPlannerBlockModal({
     mode: "block",
     goalId: goal.id,
-    linkedMilestoneId: nextTask?.id || "",
-    title: nextTask?.title || goal.name
+    goalTaskId: nextTask?.id || "",
+    title: nextTask?.title || ""
   });
   card.querySelector(".goal-result").onclick = () => openGoalResultModal(goal.id);
   card.querySelector(".goal-card-actions").appendChild(makeActionMenu([
@@ -5389,7 +5579,7 @@ function makeGoalCard(goal) {
     {
       label: t("actions.delete"),
       danger: true,
-      onSelect: () => deleteGoal(goal)
+      onSelect: () => deleteGoal(goal.id)
     }
   ], t("goals.menuGoalLabel", { name: goal.name || t("habit.unnamed") })));
   card.querySelector(".add-goal-task-btn").onclick = () => addGoalTask(goal.id, card);
@@ -5405,100 +5595,8 @@ function makeGoalCard(goal) {
   }
   animateRenderedChildren(taskList);
   renderGoalTaskArchive(goal, card.querySelector(".goal-task-archive-list"));
-  renderGoalExecutionSummary(goal, card.querySelector(".goal-execution-section"));
 
   return card;
-}
-
-function renderGoalExecutionSummary(goal, container) {
-  const blocks = getGoalPlannerBlocks(goal.id);
-  const nextSession = getNextGoalPlannerSession(goal.id);
-  const doneBlocks = blocks.filter(block => block.status === "done");
-  const skippedBlocks = blocks.filter(block => block.status === "skipped");
-  const recentBlocks = blocks
-    .filter(block => block.status === "done" || block.status === "skipped" || block.status === "moved")
-    .slice(0, 4);
-
-  container.innerHTML = `
-    <div class="goal-execution-head">
-      <div>
-        <div class="section-kicker">${t("goals.executionKicker")}</div>
-        <h3>${t("goals.executionTitle")}</h3>
-      </div>
-      <div class="goal-execution-metrics">
-        <span>${doneBlocks.length} ${t("planner.summaryDone")}</span>
-        <span>${skippedBlocks.length} ${t("planner.summarySkipped")}</span>
-      </div>
-    </div>
-    <div class="goal-execution-grid">
-      <div class="goal-execution-next">
-        <span>${t("goals.nextPlannedSession")}</span>
-        <strong>${nextSession ? escapeHtml(nextSession.title) : t("goals.noPlannedSessions")}</strong>
-        <small>${nextSession ? escapeHtml(formatGoalPlannerSessionMeta(nextSession)) : ""}</small>
-      </div>
-      <div class="goal-execution-list"></div>
-    </div>
-  `;
-
-  const list = container.querySelector(".goal-execution-list");
-  if (recentBlocks.length === 0) {
-    list.innerHTML = `<div class="empty goal-task-empty">${t("goals.noExecutionYet")}</div>`;
-    return;
-  }
-
-  recentBlocks.forEach(block => {
-    const row = document.createElement("div");
-    row.className = `goal-execution-row ${block.status}`;
-    row.innerHTML = `
-      <div>
-        <strong>${escapeHtml(block.title)}</strong>
-        <span>${escapeHtml(formatGoalPlannerSessionMeta(block))}</span>
-      </div>
-      <div class="deadline-pill ${getPlannerStatusClass(block.status)}">${escapeHtml(getPlannerStatusLabel(block.status))}</div>
-    `;
-    list.appendChild(row);
-  });
-}
-
-function getGoalPlannerBlocks(goalId) {
-  return [...(data.plannerBlocks || [])]
-    .filter(block => block.linkedGoalId === goalId)
-    .sort((a, b) => {
-      if (a.date !== b.date) return String(b.date).localeCompare(String(a.date));
-      if (a.startTime !== b.startTime) return String(b.startTime).localeCompare(String(a.startTime));
-      return String(a.title || "").localeCompare(String(b.title || ""));
-    });
-}
-
-function getNextGoalPlannerSession(goalId) {
-  const todayKey = toDateInputValue(new Date());
-  const plannedBlocks = (data.plannerBlocks || [])
-    .filter(block => block.linkedGoalId === goalId && block.status === "planned" && block.date >= todayKey);
-  const recurringSessions = getUpcomingGoalRecurringSessions(goalId, todayKey, 60);
-
-  return [...plannedBlocks, ...recurringSessions]
-    .sort((a, b) => {
-      if (a.date !== b.date) return String(a.date).localeCompare(String(b.date));
-      if (a.startTime !== b.startTime) return String(a.startTime).localeCompare(String(b.startTime));
-      return String(a.title || "").localeCompare(String(b.title || ""));
-    })[0] || null;
-}
-
-function getUpcomingGoalRecurringSessions(goalId, startDateKey, daysAhead) {
-  const sessions = [];
-  for (let offset = 0; offset <= daysAhead; offset++) {
-    const dateKey = shiftDateKey(startDateKey, offset);
-    data.recurringRules.forEach(rule => {
-      if (rule.linkedGoalId !== goalId) return;
-      if (!shouldShowRecurringRuleOnDate(rule, dateKey)) return;
-      sessions.push(createVirtualPlannerBlock(rule, dateKey));
-    });
-  }
-  return sessions;
-}
-
-function formatGoalPlannerSessionMeta(block) {
-  return `${formatDeadlineShort(block.date)} · ${formatPlannerTimeRange(block)}`;
 }
 
 function toggleGoalCard(goalId) {
@@ -5698,6 +5796,8 @@ function deleteGoalTask(goalId, taskId) {
 }
 
 function deleteGoal(goal) {
+  goal = data.goals.find(item => item.id === goal || item.id === goal?.id);
+  if (!goal) return;
   if (!confirm(t("goals.confirmDeleteGoal", { name: goal.name }))) return;
   data.goals = data.goals.filter(item => item.id !== goal.id);
   hasManualGoalDateSelection = false;
@@ -5777,6 +5877,8 @@ function failGoal(goal) {
 }
 
 function restoreGoal(goal) {
+  goal = data.goals.find(item => item.id === goal || item.id === goal?.id);
+  if (!goal) return;
   goal.status = "active";
   goal.completedAt = "";
   goal.failedAt = "";
@@ -6035,6 +6137,30 @@ function findGoalTask(goalId, taskId) {
   return goal?.tasks.find(task => task.id === taskId) || null;
 }
 
+function findGoalTaskByTitle(goal, title) {
+  const titleKey = getTaskTitleKey(title);
+  if (!goal || !titleKey) return null;
+  return (goal.tasks || []).find(task => getTaskTitleKey(task.title) === titleKey) || null;
+}
+
+function createGoalTaskFromPlanner(title, deadline = "") {
+  return normalizeGoalTask({
+    id: crypto.randomUUID(),
+    title,
+    deadline,
+    done: false,
+    completedAt: "",
+    workspace: {
+      notes: "",
+      miniGoals: []
+    }
+  });
+}
+
+function getTaskTitleKey(title) {
+  return String(title || "").trim().replace(/\s+/g, " ").toLocaleLowerCase();
+}
+
 function getSortedGoalTasks(goal) {
   return [...(goal.tasks || [])].sort((a, b) => {
     if (a.done !== b.done) return Number(a.done) - Number(b.done);
@@ -6152,7 +6278,7 @@ function renderDeadlineCalendar() {
       </div>
       <div class="deadline-day-items">
         ${items.slice(0, goalsCalendarMode === "day" ? 12 : 3).map(item => `
-          <div class="deadline-chip ${item.task.done ? "done" : ""}">${escapeHtml(item.task.title)}</div>
+          <div class="deadline-chip ${isDeadlineItemDone(item) ? "done" : ""}">${escapeHtml(item.title)}</div>
         `).join("")}
         ${items.length > (goalsCalendarMode === "day" ? 12 : 3) ? `<div class="deadline-more">+${items.length - (goalsCalendarMode === "day" ? 12 : 3)}</div>` : ""}
       </div>
@@ -6203,19 +6329,20 @@ function renderDeadlineFocus() {
 
 function makeDeadlineFocusItem(item) {
   const el = document.createElement("div");
-  el.className = "deadline-focus-item" + (item.task.done ? " done" : "");
-  const state = getTaskDeadlineState(item.task);
+  el.className = "deadline-focus-item" + (isDeadlineItemDone(item) ? " done" : "");
+  const state = getDeadlineItemState(item);
+  const goalLabel = item.goal?.name || t("planner.justDay");
 
   el.innerHTML = `
-    <button class="quest-check ${item.task.done ? "quest-check-done" : ""}" type="button">✓</button>
+    <button class="quest-check ${isDeadlineItemDone(item) ? "quest-check-done" : ""}" type="button">✓</button>
     <div>
-      <div class="deadline-focus-task">${escapeHtml(item.task.title)}</div>
-      <div class="deadline-focus-goal">${escapeHtml(item.goal.name)}</div>
+      <div class="deadline-focus-task">${escapeHtml(item.title)}</div>
+      <div class="deadline-focus-goal">${escapeHtml(goalLabel)}</div>
     </div>
     <div class="deadline-pill ${state.className}">${escapeHtml(state.text)}</div>
   `;
 
-  el.querySelector(".quest-check").onclick = () => toggleGoalTask(item.goal.id, item.task.id, { source: el });
+  el.querySelector(".quest-check").onclick = () => toggleDeadlineItem(item, el);
   return el;
 }
 
@@ -6234,29 +6361,115 @@ function ensureSelectedGoalDate() {
 }
 
 function getAllDeadlineItems() {
-  return getActiveGoals().flatMap(goal => {
-    return (goal.tasks || [])
-      .filter(task => task.deadline)
-      .map(task => ({ goal, task }));
-  }).sort((a, b) => {
-    if (a.task.deadline !== b.task.deadline) return a.task.deadline.localeCompare(b.task.deadline);
-    if (a.task.done !== b.task.done) return Number(a.task.done) - Number(b.task.done);
-    return a.task.title.localeCompare(b.task.title);
+  const plannerItems = (data.plannerBlocks || [])
+    .filter(block => block.date)
+    .map(makePlannerDeadlineItem)
+    .filter(Boolean);
+  const plannerGoalTaskDateKeys = new Set(
+    plannerItems
+      .filter(item => item.goal?.id && item.goalTask?.id)
+      .map(item => getGoalTaskDateKey(item.goal.id, item.goalTask.id, item.date))
+  );
+  const goalTaskItems = [];
+  getActiveGoals().forEach(goal => {
+    (goal.tasks || []).forEach(goalTask => {
+      if (!goalTask.deadline) return;
+      const item = makeGoalTaskDeadlineItem(goal, goalTask);
+      if (plannerGoalTaskDateKeys.has(getGoalTaskDateKey(goal.id, goalTask.id, item.date))) return;
+      goalTaskItems.push(item);
+    });
   });
+
+  return [...plannerItems, ...goalTaskItems].sort(sortDeadlineItems);
+}
+
+function makeGoalTaskDeadlineItem(goal, goalTask) {
+  return {
+    id: `goal-task:${goal.id}:${goalTask.id}`,
+    source: "goal-task",
+    date: goalTask.deadline,
+    title: goalTask.title || t("data.taskFallback"),
+    goal,
+    task: goalTask,
+    goalTask,
+    plannerBlock: null
+  };
+}
+
+function makePlannerDeadlineItem(block) {
+  if (!block?.date) return null;
+  const goal = getPlannerLinkedGoal(block);
+  const goalTask = getPlannerLinkedGoalTask(block);
+  const title = getPlannerDisplayTitle(block);
+
+  return {
+    id: `planner:${block.id}`,
+    source: "planner",
+    date: block.date,
+    title,
+    goal,
+    task: {
+      id: block.goalTaskId || block.id,
+      title,
+      deadline: block.date,
+      done: block.status === "done"
+    },
+    goalTask,
+    plannerBlock: block
+  };
+}
+
+function sortDeadlineItems(a, b) {
+  if (a.date !== b.date) return String(a.date).localeCompare(String(b.date));
+  if (isDeadlineItemDone(a) !== isDeadlineItemDone(b)) return Number(isDeadlineItemDone(a)) - Number(isDeadlineItemDone(b));
+  if (a.source !== b.source) return a.source === "planner" ? -1 : 1;
+  if (a.task.deadline !== b.task.deadline) return String(a.task.deadline).localeCompare(String(b.task.deadline));
+  return String(a.title || "").localeCompare(String(b.title || ""));
+}
+
+function isDeadlineItemDone(item) {
+  if (item.source === "planner") return item.plannerBlock?.status === "done";
+  return Boolean(item.task?.done);
+}
+
+function getDeadlineItemState(item) {
+  if (item.source === "planner" && item.plannerBlock) {
+    return {
+      text: getPlannerStatusLabel(item.plannerBlock.status),
+      className: getPlannerStatusClass(item.plannerBlock.status)
+    };
+  }
+  return getTaskDeadlineState(item.task);
+}
+
+function toggleDeadlineItem(item, source) {
+  if (item.source === "planner" && item.plannerBlock) {
+    const nextStatus = item.plannerBlock.status === "done" ? "planned" : "done";
+    setPlannerEntryStatus({ block: item.plannerBlock, isVirtual: false, rule: null }, nextStatus, source);
+    return;
+  }
+
+  if (item.goal?.id && item.task?.id) {
+    toggleGoalTask(item.goal.id, item.task.id, { source });
+  }
+}
+
+function getGoalTaskDateKey(goalId, taskId, dateKey) {
+  return `${goalId}:${taskId}:${dateKey}`;
 }
 
 function getDeadlineItemsForDate(dateKey) {
-  return getAllDeadlineItems().filter(item => item.task.deadline === dateKey);
+  return getAllDeadlineItems().filter(item => item.date === dateKey);
 }
 
 function getDeadlineDates() {
-  return [...new Set(getAllDeadlineItems().map(item => item.task.deadline))].sort();
+  return [...new Set(getAllDeadlineItems().map(item => item.date))].sort();
 }
 
 function findNearestDeadlineDate(deadlines) {
   const todayKey = toDateInputValue(new Date());
-  const future = deadlines.find(item => item.task.deadline >= todayKey);
-  return future?.task.deadline || deadlines[deadlines.length - 1].task.deadline;
+  const future = deadlines.find(item => item.date >= todayKey);
+  return future?.date || deadlines[deadlines.length - 1].date;
 }
 
 function setGoalsCalendarMode(mode) {
@@ -6419,6 +6632,8 @@ function renameHabit(habit) {
 }
 
 function deleteHabit(habit) {
+  habit = data.habits.find(item => item.id === habit || item.id === habit?.id);
+  if (!habit) return;
   if (!confirm(t("habit.confirmDelete", { name: habit.name }))) return;
   data.habits = data.habits.filter(h => h.id !== habit.id);
   Object.values(data.records).forEach(day => delete day[habit.id]);
