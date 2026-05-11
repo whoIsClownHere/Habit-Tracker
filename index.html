@@ -8,7 +8,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,700;9..144,900&family=DM+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="./src/styles/main.css?v=20260510-planner-goals" />
+  <link rel="stylesheet" href="./src/styles/main.css?v=20260511-goal-archive-contrast" />
 </head>
 <body>
   <div class="app">
@@ -770,6 +770,41 @@
     </div>
   </div>
 
+  <div class="modal-backdrop" id="goalCompletedTasksModal" hidden>
+    <div class="modal-panel goal-task-browser-panel" role="dialog" aria-modal="true" aria-labelledby="goalCompletedTasksTitle">
+      <div class="modal-head">
+        <div>
+          <div class="section-kicker" data-i18n="goals.completedTasks">Completed</div>
+          <h2 id="goalCompletedTasksTitle" data-i18n="goals.completedTasks">Completed</h2>
+        </div>
+        <button id="goalCompletedTasksCloseBtn" type="button" data-i18n="auth.close">Close</button>
+      </div>
+      <div class="modal-tools">
+        <input id="goalCompletedTasksSearchInput" type="search" data-i18n-placeholder="goals.completedSearchPlaceholder" placeholder="Search completed tasks" />
+        <div class="list-meta" id="goalCompletedTasksMeta"></div>
+      </div>
+      <div id="goalCompletedTasksSummary" class="goal-completed-archive-summary" hidden></div>
+      <div id="goalCompletedTasksList" class="goal-completed-task-list"></div>
+    </div>
+  </div>
+
+  <div class="modal-backdrop" id="goalTaskCreateModal" hidden>
+    <div class="modal-panel goal-task-create-panel" role="dialog" aria-modal="true" aria-labelledby="goalTaskCreateTitle">
+      <div class="modal-head">
+        <div>
+          <div class="section-kicker" data-i18n="goals.activeWork">Active work</div>
+          <h2 id="goalTaskCreateTitle" data-i18n="goals.addNextTask">Add next task</h2>
+        </div>
+        <button id="goalTaskCreateCloseBtn" type="button" data-i18n="auth.close">Close</button>
+      </div>
+      <div class="goal-task-create-form">
+        <input id="goalTaskCreateTitleInput" data-i18n-placeholder="goals.taskPlaceholder" placeholder="Task: write a paragraph, send a resume, publish an article" />
+        <input id="goalTaskCreateDeadlineInput" type="date" />
+        <button id="goalTaskCreateSaveBtn" class="primary" type="button" data-i18n="goals.addNextTask">Add next task</button>
+      </div>
+    </div>
+  </div>
+
   <div class="modal-backdrop" id="goalModal" hidden>
     <div class="modal-panel goal-modal-panel" role="dialog" aria-modal="true" aria-labelledby="goalModalTitle">
       <div class="modal-head">
@@ -821,6 +856,6 @@
   <div id="goalToast" class="goal-toast" role="status" aria-live="polite" hidden></div>
 
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.5.0/dist/chart.umd.min.js"></script>
-  <script type="module" src="./src/app/main.js?v=20260510-planner-goals"></script>
+  <script type="module" src="./src/app/main.js?v=20260511-goal-archive-contrast"></script>
 </body>
 </html>

@@ -131,6 +131,11 @@ let hasManualGoalDateSelection = false;
 let goalArchiveMode = "completed";
 let isGoalArchiveModalOpen = false;
 let goalArchiveSearchQuery = "";
+let isGoalCompletedTasksModalOpen = false;
+let completedTasksGoalId = null;
+let completedTasksSearchQuery = "";
+let isGoalTaskCreateModalOpen = false;
+let creatingTaskGoalId = null;
 let isGoalResultModalOpen = false;
 let resolvingGoalId = null;
 let goalToastTimer = null;
@@ -318,6 +323,18 @@ const goalArchiveFailedBtn = document.getElementById("goalArchiveFailedBtn");
 const goalArchiveCompletedCount = document.getElementById("goalArchiveCompletedCount");
 const goalArchiveFailedCount = document.getElementById("goalArchiveFailedCount");
 const goalArchiveList = document.getElementById("goalArchiveList");
+const goalCompletedTasksModal = document.getElementById("goalCompletedTasksModal");
+const goalCompletedTasksCloseBtn = document.getElementById("goalCompletedTasksCloseBtn");
+const goalCompletedTasksTitle = document.getElementById("goalCompletedTasksTitle");
+const goalCompletedTasksSearchInput = document.getElementById("goalCompletedTasksSearchInput");
+const goalCompletedTasksMeta = document.getElementById("goalCompletedTasksMeta");
+const goalCompletedTasksSummary = document.getElementById("goalCompletedTasksSummary");
+const goalCompletedTasksList = document.getElementById("goalCompletedTasksList");
+const goalTaskCreateModal = document.getElementById("goalTaskCreateModal");
+const goalTaskCreateCloseBtn = document.getElementById("goalTaskCreateCloseBtn");
+const goalTaskCreateTitleInput = document.getElementById("goalTaskCreateTitleInput");
+const goalTaskCreateDeadlineInput = document.getElementById("goalTaskCreateDeadlineInput");
+const goalTaskCreateSaveBtn = document.getElementById("goalTaskCreateSaveBtn");
 const goalResultModal = document.getElementById("goalResultModal");
 const goalResultCloseBtn = document.getElementById("goalResultCloseBtn");
 const goalResultName = document.getElementById("goalResultName");
@@ -483,6 +500,8 @@ document.addEventListener("keydown", (event) => {
   if (event.key === "Escape" && isPlannerModalOpen) closePlannerModal();
   if (event.key === "Escape" && isGoalModalOpen) closeGoalModal();
   if (event.key === "Escape" && isGoalArchiveModalOpen) closeGoalArchiveModal();
+  if (event.key === "Escape" && isGoalCompletedTasksModalOpen) closeGoalCompletedTasksModal();
+  if (event.key === "Escape" && isGoalTaskCreateModalOpen) closeGoalTaskCreateModal();
   if (event.key === "Escape" && isGoalResultModalOpen) closeGoalResultModal();
 });
 document.addEventListener("click", () => {
@@ -514,6 +533,25 @@ goalArchiveSearchInput.addEventListener("input", (event) => {
 });
 goalArchiveCompletedBtn.addEventListener("click", () => setGoalArchiveMode("completed"));
 goalArchiveFailedBtn.addEventListener("click", () => setGoalArchiveMode("failed"));
+goalCompletedTasksCloseBtn.addEventListener("click", closeGoalCompletedTasksModal);
+goalCompletedTasksSearchInput.addEventListener("input", (event) => {
+  completedTasksSearchQuery = event.target.value.trim().toLowerCase();
+  renderGoalCompletedTasksModal();
+});
+goalCompletedTasksModal.addEventListener("click", (event) => {
+  if (event.target === goalCompletedTasksModal) closeGoalCompletedTasksModal();
+});
+goalTaskCreateCloseBtn.addEventListener("click", closeGoalTaskCreateModal);
+goalTaskCreateSaveBtn.addEventListener("click", saveGoalTaskFromModal);
+goalTaskCreateTitleInput.addEventListener("keydown", (event) => {
+  if (event.key === "Enter") saveGoalTaskFromModal();
+});
+goalTaskCreateDeadlineInput.addEventListener("keydown", (event) => {
+  if (event.key === "Enter") saveGoalTaskFromModal();
+});
+goalTaskCreateModal.addEventListener("click", (event) => {
+  if (event.target === goalTaskCreateModal) closeGoalTaskCreateModal();
+});
 goalResultCloseBtn.addEventListener("click", closeGoalResultModal);
 goalResultCompletedBtn.addEventListener("click", () => resolveGoalResult("completed"));
 goalResultFailedBtn.addEventListener("click", () => resolveGoalResult("failed"));
@@ -868,7 +906,7 @@ function closeActionMenu(menu = activeActionMenu, options = {}) {
 function syncModalOpenState() {
   document.body.classList.toggle(
     "modal-open",
-    isAuthModalOpen || isCompletedModalOpen || isPlannerModalOpen || isGoalModalOpen || isGoalArchiveModalOpen || isGoalResultModalOpen
+    isAuthModalOpen || isCompletedModalOpen || isPlannerModalOpen || isGoalModalOpen || isGoalArchiveModalOpen || isGoalCompletedTasksModalOpen || isGoalTaskCreateModalOpen || isGoalResultModalOpen
   );
 }
 
@@ -5262,6 +5300,7 @@ function renderGoals() {
   renderDeadlineFocus();
   renderGoalsList();
   renderGoalArchive();
+  if (isGoalCompletedTasksModalOpen) renderGoalCompletedTasksModal();
 }
 
 function renderGoalsList() {
@@ -5400,16 +5439,7 @@ function makeGoalArchiveCard(goal) {
       </div>
     </div>
 
-    <div class="goal-route-grid">
-      <div class="goal-route-box">
-        <span>${t("goals.pointA")}</span>
-        <strong>${escapeHtml(goal.pointA || t("goals.notSet"))}</strong>
-      </div>
-      <div class="goal-route-box">
-        <span>${t("goals.pointB")}</span>
-        <strong>${escapeHtml(goal.pointB || t("goals.notSet"))}</strong>
-      </div>
-    </div>
+    ${makeGoalPathHtml(goal)}
 
     <div class="goal-stats">
       <div class="goal-stat">
@@ -5431,8 +5461,8 @@ function makeGoalArchiveCard(goal) {
     <div class="goal-task-archive compact">
       <div class="goal-task-archive-head">
         <div>
-          <div class="section-kicker">${t("goals.taskArchive")}</div>
-          <h3>${t("workspace.label")}</h3>
+          <div class="section-kicker">${t("goals.tasks")}</div>
+          <h3>${t("goals.taskArchive")}</h3>
         </div>
         <span>${(goal.tasks || []).length}</span>
       </div>
@@ -5457,6 +5487,8 @@ function makeGoalArchiveCard(goal) {
   ], t("goals.menuArchiveLabel", { name: goal.name || t("habit.unnamed") })));
   renderGoalTaskArchive(goal, card.querySelector(".goal-task-archive-list"), {
     includeOpen: true,
+    showWorkspaceButton: false,
+    compactRows: true,
     emptyText: t("goals.noTasksInGoal")
   });
   return card;
@@ -5471,7 +5503,6 @@ function getGoalArchiveDate(goal) {
 function makeGoalCard(goal) {
   const card = document.createElement("div");
   const isExpanded = expandedGoalIds.has(goal.id);
-  card.className = "goal-item" + (isExpanded ? "" : " collapsed");
   const progress = getGoalProgress(goal);
   const sortedTasks = getSortedGoalTasks(goal);
   const activeTasks = sortedTasks.filter(task => !task.done);
@@ -5479,91 +5510,72 @@ function makeGoalCard(goal) {
   const nextTask = getNextGoalTask(goal);
   const typeLabel = getGoalTypeLabel(goal.type);
   const canFinish = progress.totalCount > 0 && progress.doneCount === progress.totalCount;
+  const nextDeadlineState = nextTask ? getTaskDeadlineState(nextTask) : null;
+  const supportingActiveTasks = nextTask
+    ? activeTasks.filter(task => task.id !== nextTask.id)
+    : activeTasks;
+  const goalClasses = [
+    "goal-item",
+    isExpanded ? "" : "collapsed",
+    canFinish ? "ready-to-finish" : "",
+    nextDeadlineState?.className === "danger" ? "has-overdue" : ""
+  ].filter(Boolean);
+  card.className = goalClasses.join(" ");
 
   card.innerHTML = `
     <div class="goal-head">
-      <button class="goal-collapse-trigger" type="button" aria-expanded="${String(isExpanded)}">
+      <div class="goal-title-stack">
+        <span class="goal-type">${escapeHtml(typeLabel)}</span>
         <div class="goal-name">${escapeHtml(goal.name)}</div>
-        <span class="goal-collapse-icon" aria-hidden="true">⌄</span>
-      </button>
+      </div>
+      <div class="goal-head-tools">
+        <button class="goal-collapse-button" type="button" aria-expanded="${String(isExpanded)}" aria-label="${escapeHtml(isExpanded ? t("goals.collapseGoal") : t("goals.expandGoal"))}">
+          <span class="goal-collapse-icon" aria-hidden="true">⌄</span>
+        </button>
+        <div class="goal-menu-slot"></div>
+      </div>
     </div>
 
     <div class="goal-card-body">
-      <div class="goal-card-toolbar">
-        <div class="goal-type">${escapeHtml(typeLabel)}</div>
-        <div class="goal-card-actions">
-          <button class="secondary goal-plan-session" type="button">${t("goals.planWorkSession")}</button>
-          <button class="primary goal-result" type="button">${t("goals.finishGoal")}</button>
-        </div>
-      </div>
-
-      <div class="goal-route-grid">
-        <div class="goal-route-box">
-          <span>${t("goals.pointA")}</span>
-          <strong>${escapeHtml(goal.pointA || t("goals.notSet"))}</strong>
-        </div>
-        <div class="goal-route-box">
-          <span>${t("goals.pointB")}</span>
-          <strong>${escapeHtml(goal.pointB || t("goals.notSet"))}</strong>
-        </div>
-      </div>
-
-      <div class="goal-progress-line">
-        <div class="goal-progress-fill"></div>
-      </div>
-
-      <div class="goal-stats">
-        <div class="goal-stat">
-          <span>${Math.round(progress.percent)}%</span>
-          <span>${t("goals.progress")}</span>
-        </div>
-        <div class="goal-stat">
-          <span>${progress.doneCount}/${progress.totalCount}</span>
-          <span>${t("goals.tasksClosed")}</span>
-        </div>
-        <div class="goal-stat">
-          <span>${escapeHtml(nextTask ? formatDeadlineShort(nextTask.deadline) : "—")}</span>
-          <span>${t("goals.nextDeadline")}</span>
-        </div>
-      </div>
+      ${makeGoalPathHtml(goal)}
+      ${makeGoalProgressSummaryHtml(progress, nextTask, canFinish)}
 
       <section class="goal-work-section">
         <div class="goal-work-section-head">
           <div>
-            <div class="section-kicker">${t("goals.deadlinePlanKicker")}</div>
-            <h3>${t("goals.deadlinePlanTitle")}</h3>
+            <div class="section-kicker">${t("goals.activeWork")}</div>
+            <h3>${t("goals.currentTask")}</h3>
           </div>
         </div>
 
-        <div class="goal-task-command-row">
-          <div class="goal-next">
-            ${canFinish ? t("goals.allTasksClosed") : nextTask ? makeNextTaskHtml(nextTask) : t("goals.noNextTask")}
+        ${makeCurrentTaskCardHtml(nextTask, canFinish, sortedTasks.length)}
+
+        <div class="goal-action-strip" aria-label="${escapeHtml(t("goals.goalActions"))}">
+          <div class="goal-action-group">
+            <button class="goal-action-add add-goal-task-btn" type="button">
+              <span aria-hidden="true">+</span>
+              ${t("goals.addNextTask")}
+            </button>
+            <button class="goal-action-plan goal-plan-session" type="button">${t("goals.planWorkSession")}</button>
+            ${archivedTasks.length > 0 ? `<button class="goal-action-archive goal-completed-open-btn" type="button">${escapeHtml(t("goals.completedTasksToggle", { count: archivedTasks.length }))}</button>` : ""}
           </div>
-          <button class="primary add-goal-task-btn" type="button">${t("goals.addTask")}</button>
+          <button class="goal-action-finish ${canFinish ? "is-ready" : ""} goal-result" type="button">${t("goals.finishGoal")}</button>
         </div>
 
-        <div class="goal-task-form">
-          <input class="goal-task-title-input" placeholder="${t("goals.taskPlaceholder")}" />
-          <input class="goal-task-deadline-input" type="date" />
-        </div>
-
-        <div class="goal-task-list"></div>
-
-        <div class="goal-task-archive">
-          <div class="goal-task-archive-head">
-            <div>
-              <div class="section-kicker">${t("goals.taskArchive")}</div>
-              <h3>${t("goals.completedTasks")}</h3>
+        ${supportingActiveTasks.length > 0 ? `
+          <div class="goal-active-tasks">
+            <div class="goal-subsection-head">
+              <span>${t("goals.openTasks")}</span>
+              <strong>${supportingActiveTasks.length}</strong>
             </div>
-            <span>${archivedTasks.length}</span>
+            <div class="goal-task-list"></div>
           </div>
-          <div class="goal-task-archive-list"></div>
-        </div>
+        ` : `<div class="goal-task-list" hidden></div>`}
       </section>
     </div>
   `;
 
-  card.querySelector(".goal-collapse-trigger").onclick = () => toggleGoalCard(goal.id);
+  card.querySelector(".goal-collapse-button").onclick = () => toggleGoalCard(goal.id);
   card.querySelector(".goal-plan-session").onclick = () => openPlannerBlockModal({
     mode: "block",
     goalId: goal.id,
@@ -5571,7 +5583,7 @@ function makeGoalCard(goal) {
     title: nextTask?.title || ""
   });
   card.querySelector(".goal-result").onclick = () => openGoalResultModal(goal.id);
-  card.querySelector(".goal-card-actions").appendChild(makeActionMenu([
+  card.querySelector(".goal-menu-slot").appendChild(makeActionMenu([
     {
       label: t("actions.edit"),
       onSelect: () => openGoalModal(goal.id)
@@ -5582,19 +5594,18 @@ function makeGoalCard(goal) {
       onSelect: () => deleteGoal(goal.id)
     }
   ], t("goals.menuGoalLabel", { name: goal.name || t("habit.unnamed") })));
-  card.querySelector(".add-goal-task-btn").onclick = () => addGoalTask(goal.id, card);
+  card.querySelector(".add-goal-task-btn").onclick = () => openGoalTaskCreateModal(goal.id);
+  card.querySelector(".goal-next-work")?.addEventListener("click", () => openGoalWorkspace(goal.id, nextTask.id));
+  card.querySelector(".goal-completed-open-btn")?.addEventListener("click", () => openGoalCompletedTasksModal(goal.id));
   card.querySelector(".goal-progress-fill").style.width = `${progress.percent}%`;
 
   const taskList = card.querySelector(".goal-task-list");
-  if (activeTasks.length === 0) {
-    taskList.innerHTML = `<div class="empty goal-task-empty">${sortedTasks.length === 0 ? t("goals.noDeadlineTasks") : t("goals.allTasksClosedEmpty")}</div>`;
-  } else {
-    activeTasks.forEach(task => {
+  if (supportingActiveTasks.length > 0) {
+    supportingActiveTasks.forEach(task => {
       taskList.appendChild(makeGoalTaskItem(goal, task));
     });
+    animateRenderedChildren(taskList);
   }
-  animateRenderedChildren(taskList);
-  renderGoalTaskArchive(goal, card.querySelector(".goal-task-archive-list"));
 
   return card;
 }
@@ -5605,18 +5616,126 @@ function toggleGoalCard(goalId) {
   renderGoalsList();
 }
 
-function makeNextTaskHtml(task) {
+function makeGoalPathHtml(goal) {
   return `
-    <span>${t("goals.nextTaskLabel")}</span>
-    <strong>${escapeHtml(task.title || t("data.taskFallback"))}</strong>
-    <small>${escapeHtml(formatDeadlineLong(task.deadline))}</small>
+    <section class="goal-path" aria-label="${escapeHtml(t("goals.path"))}">
+      <div class="goal-route-grid">
+        <div class="goal-route-box">
+          <span>${t("goals.pointA")}</span>
+          <strong>${escapeHtml(goal.pointA || t("goals.notSet"))}</strong>
+        </div>
+        <div class="goal-route-arrow" aria-hidden="true">&rarr;</div>
+        <div class="goal-route-box">
+          <span>${t("goals.pointB")}</span>
+          <strong>${escapeHtml(goal.pointB || t("goals.notSet"))}</strong>
+        </div>
+      </div>
+    </section>
+  `;
+}
+
+function makeGoalProgressSummaryHtml(progress, nextTask, canFinish) {
+  const nextTaskTiming = getGoalNextTaskTimingStat(nextTask, canFinish);
+
+  return `
+    <section class="goal-progress-summary" aria-label="${escapeHtml(t("goals.progress"))}">
+      <div class="goal-progress-line">
+        <div class="goal-progress-fill"></div>
+      </div>
+      <div class="goal-stats">
+        <div class="goal-stat">
+          <span>${Math.round(progress.percent)}%</span>
+          <span>${t("goals.progress")}</span>
+        </div>
+        <div class="goal-stat">
+          <span>${progress.doneCount}/${progress.totalCount}</span>
+          <span>${t("goals.tasksClosed")}</span>
+        </div>
+        <div class="goal-stat goal-next-task-stat ${escapeHtml(nextTaskTiming.className)}">
+          <span>${escapeHtml(nextTaskTiming.value)}</span>
+          <span>${t("goals.nextTaskTiming")}</span>
+        </div>
+      </div>
+    </section>
+  `;
+}
+
+function getGoalNextTaskTimingStat(nextTask, canFinish = false) {
+  if (canFinish) {
+    return { value: t("deadlines.done"), className: "is-complete" };
+  }
+
+  if (!nextTask) {
+    return { value: "—", className: "is-empty" };
+  }
+
+  if (!nextTask.deadline) {
+    return { value: t("deadlines.noDueDate"), className: "is-empty" };
+  }
+
+  const todayKey = toDateInputValue(new Date());
+  const daysUntil = Math.ceil((parseDateKey(nextTask.deadline) - parseDateKey(todayKey)) / 86400000);
+
+  if (daysUntil < 0) {
+    return {
+      value: t("goals.taskOverdueBy", { days: formatDayCount(Math.abs(daysUntil)) }),
+      className: "is-overdue"
+    };
+  }
+
+  if (daysUntil === 0) {
+    return { value: t("deadlines.today"), className: "is-today" };
+  }
+
+  if (daysUntil === 1) {
+    return { value: t("goals.tomorrow"), className: "is-soon" };
+  }
+
+  return {
+    value: t("goals.taskDueIn", { days: formatDayCount(daysUntil) }),
+    className: daysUntil <= 7 ? "is-soon" : ""
+  };
+}
+
+function makeCurrentTaskCardHtml(nextTask, canFinish, taskCount) {
+  if (canFinish) {
+    return `
+      <div class="goal-current-card complete">
+        <div class="goal-current-copy">
+          <span>${t("goals.readyToFinish")}</span>
+          <strong>${t("goals.allTasksClosedEmpty")}</strong>
+          <small>${t("goals.allTasksClosed")}</small>
+        </div>
+      </div>
+    `;
+  }
+
+  if (!nextTask) {
+    return `
+      <div class="goal-current-card empty">
+        <div class="goal-current-copy">
+          <strong>${taskCount > 0 ? t("goals.noActiveTasksTitle") : t("goals.noDeadlineTasks")}</strong>
+          <small>${t("goals.noNextTask")}</small>
+        </div>
+      </div>
+    `;
+  }
+
+  const deadlineState = getTaskDeadlineState(nextTask);
+  return `
+    <div class="goal-current-card ${deadlineState.className === "danger" ? "overdue" : ""}">
+      <div class="goal-current-copy">
+        <strong>${escapeHtml(nextTask.title || t("data.taskFallback"))}</strong>
+        <small>${escapeHtml(formatDeadlineLong(nextTask.deadline))}</small>
+      </div>
+      <button class="primary goal-next-work" type="button">${t("goals.work")}</button>
+    </div>
   `;
 }
 
 function makeGoalTaskItem(goal, task) {
   const item = document.createElement("div");
   item.className = "goal-task-item" + (task.done ? " done" : "");
-  const deadlineState = getTaskDeadlineState(task);
 
   item.innerHTML = `
     <button class="quest-check ${task.done ? "quest-check-done" : ""}" type="button">✓</button>
@@ -5624,7 +5743,6 @@ function makeGoalTaskItem(goal, task) {
       <div class="goal-task-title">${escapeHtml(task.title || t("data.taskFallback"))}</div>
       <div class="goal-task-meta">${escapeHtml(formatDeadlineLong(task.deadline))}</div>
     </div>
-    <div class="deadline-pill ${deadlineState.className}">${escapeHtml(deadlineState.text)}</div>
     <button class="primary goal-task-work" type="button">${t("goals.work")}</button>
   `;
 
@@ -5663,30 +5781,43 @@ function renderGoalTaskArchive(goal, list, options = {}) {
 
 function makeGoalArchiveTaskItem(goal, task, options = {}) {
   const item = document.createElement("div");
-  const workspaceMeta = getTaskWorkspaceMeta(task);
+  const showWorkspaceButton = options.showWorkspaceButton !== false;
   const statusText = task.done
     ? t("goals.taskClosedAt", { date: task.completedAt ? formatDeadlineLong(task.completedAt) : t("goals.noDate") })
     : t("goals.taskNotClosed");
-  const statusClass = task.done ? "done" : "";
+  const compactMeta = options.compactRows ? `
+    <div class="goal-archive-row-meta">
+      <span>
+        <small>${task.done ? t("goals.closed") : t("goals.taskOpen")}</small>
+        <strong>${escapeHtml(task.done ? (task.completedAt ? formatDeadlineLong(task.completedAt) : t("goals.noDate")) : t("goals.taskNotClosed"))}</strong>
+      </span>
+      <span>
+        <small>${t("goals.deadline")}</small>
+        <strong>${escapeHtml(formatDeadlineLong(task.deadline))}</strong>
+      </span>
+    </div>
+  ` : `<div class="goal-task-meta">${escapeHtml(statusText)} · ${escapeHtml(t("goals.deadlineMeta", { date: formatDeadlineLong(task.deadline) }))}</div>`;
 
-  item.className = "goal-archive-task-item" + (task.done ? " done" : "");
+  item.className = "goal-archive-task-item" + (task.done ? " done" : " open") + (options.compactRows ? " compact-row" : "");
   item.innerHTML = `
     <button class="quest-check ${task.done ? "quest-check-done" : ""}" type="button">✓</button>
     <div class="goal-task-main">
       <div class="goal-task-title">${escapeHtml(task.title || t("data.taskFallback"))}</div>
-      <div class="goal-task-meta">${escapeHtml(statusText)} · ${escapeHtml(t("goals.deadlineMeta", { date: formatDeadlineLong(task.deadline) }))}</div>
+      ${compactMeta}
     </div>
-    <div class="deadline-pill ${statusClass}">${task.done ? t("goals.taskInArchive") : t("goals.taskOpen")}</div>
-    <div class="goal-task-workspace-meta">${escapeHtml(workspaceMeta)}</div>
-    <button class="primary goal-task-work" type="button">${t("workspace.label")}</button>
+    ${showWorkspaceButton ? `<button class="secondary goal-task-work" type="button">${t("workspace.label")}</button>` : ""}
   `;
 
   item.querySelector(".quest-check").onclick = () => toggleGoalTask(goal.id, task.id, { source: item });
-  item.querySelector(".goal-task-work").onclick = () => openGoalWorkspace(goal.id, task.id);
+  item.querySelector(".goal-task-work")?.addEventListener("click", () => openGoalWorkspace(goal.id, task.id));
   item.appendChild(makeActionMenu([
     {
       label: t("actions.edit"),
       onSelect: () => editGoalTask(goal.id, task.id)
+    },
+    {
+      label: t("workspace.label"),
+      onSelect: () => openGoalWorkspace(goal.id, task.id)
     },
     {
       label: task.done ? t("actions.returnToWork") : t("actions.closeTask"),
@@ -5706,14 +5837,132 @@ function makeGoalArchiveTaskItem(goal, task, options = {}) {
   return item;
 }
 
-function addGoalTask(goalId, card) {
+function openGoalCompletedTasksModal(goalId) {
   const goal = data.goals.find(item => item.id === goalId);
   if (!goal) return;
 
-  const titleInput = card.querySelector(".goal-task-title-input");
-  const deadlineInput = card.querySelector(".goal-task-deadline-input");
-  const title = titleInput.value.trim();
-  const deadline = deadlineInput.value;
+  completedTasksGoalId = goal.id;
+  completedTasksSearchQuery = "";
+  goalCompletedTasksSearchInput.value = "";
+  isGoalCompletedTasksModalOpen = true;
+  renderGoalCompletedTasksModal();
+  revealFloatingElement(goalCompletedTasksModal);
+  syncModalOpenState();
+  goalCompletedTasksSearchInput.focus();
+}
+
+function closeGoalCompletedTasksModal() {
+  isGoalCompletedTasksModalOpen = false;
+  completedTasksGoalId = null;
+  completedTasksSearchQuery = "";
+  hideFloatingElement(goalCompletedTasksModal);
+  syncModalOpenState();
+}
+
+function renderGoalCompletedTasksModal() {
+  if (!isGoalCompletedTasksModalOpen || !completedTasksGoalId) return;
+
+  const goal = data.goals.find(item => item.id === completedTasksGoalId);
+  if (!goal) {
+    closeGoalCompletedTasksModal();
+    return;
+  }
+
+  const tasks = getArchivedGoalTasks(goal);
+  const searchedTasks = filterGoalTasks(tasks, completedTasksSearchQuery);
+  const latestClosedTask = tasks.find(task => task.completedAt);
+  goalCompletedTasksTitle.textContent = t("goals.completedTasksForGoal", { name: goal.name || t("data.goalFallback") });
+  goalCompletedTasksMeta.textContent = completedTasksSearchQuery
+    ? t("goals.completedTasksMeta", { shown: searchedTasks.length, total: tasks.length })
+    : t("goals.completedTasksMeta", { shown: tasks.length, total: tasks.length });
+  goalCompletedTasksSummary.hidden = tasks.length === 0;
+  goalCompletedTasksSummary.innerHTML = tasks.length === 0 ? "" : `
+    <div>
+      <span>${tasks.length}</span>
+      <small>${t("goals.completedTasks")}</small>
+    </div>
+    <div>
+      <span>${escapeHtml(latestClosedTask?.completedAt ? formatDeadlineShort(latestClosedTask.completedAt) : "—")}</span>
+      <small>${t("goals.lastClosed")}</small>
+    </div>
+    <div>
+      <span>${searchedTasks.length}</span>
+      <small>${completedTasksSearchQuery ? t("goals.searchResults") : t("goals.visibleTasks")}</small>
+    </div>
+  `;
+  goalCompletedTasksList.innerHTML = "";
+
+  if (tasks.length === 0) {
+    goalCompletedTasksList.innerHTML = `<div class="empty goal-task-empty">${t("goals.noCompletedTasks")}</div>`;
+    animateRenderedChildren(goalCompletedTasksList);
+    return;
+  }
+
+  if (searchedTasks.length === 0) {
+    goalCompletedTasksList.innerHTML = `<div class="empty goal-task-empty">${t("goals.completedTasksSearchEmpty")}</div>`;
+    animateRenderedChildren(goalCompletedTasksList);
+    return;
+  }
+
+  searchedTasks.forEach(task => {
+    goalCompletedTasksList.appendChild(makeGoalArchiveTaskItem(goal, task, {
+      showWorkspaceButton: false,
+      compactRows: true
+    }));
+  });
+  animateRenderedChildren(goalCompletedTasksList);
+}
+
+function filterGoalTasks(tasks, query) {
+  if (!query) return tasks;
+
+  return tasks.filter(task => {
+    const workspace = task.workspace || {};
+    const fields = [
+      task.title,
+      task.deadline,
+      task.completedAt,
+      workspace.notes,
+      ...(Array.isArray(workspace.miniGoals) ? workspace.miniGoals.map(item => item.title) : [])
+    ];
+    return fields.some(value => String(value || "").toLowerCase().includes(query));
+  });
+}
+
+function openGoalTaskCreateModal(goalId) {
+  const goal = data.goals.find(item => item.id === goalId);
+  if (!goal) return;
+
+  creatingTaskGoalId = goal.id;
+  isGoalTaskCreateModalOpen = true;
+  goalTaskCreateTitleInput.value = "";
+  goalTaskCreateDeadlineInput.value = "";
+  revealFloatingElement(goalTaskCreateModal);
+  syncModalOpenState();
+  goalTaskCreateTitleInput.focus();
+}
+
+function closeGoalTaskCreateModal() {
+  isGoalTaskCreateModalOpen = false;
+  creatingTaskGoalId = null;
+  hideFloatingElement(goalTaskCreateModal);
+  syncModalOpenState();
+}
+
+function saveGoalTaskFromModal() {
+  if (!creatingTaskGoalId) return;
+
+  const title = goalTaskCreateTitleInput.value.trim();
+  const deadline = goalTaskCreateDeadlineInput.value;
+
+  addGoalTask(creatingTaskGoalId, title, deadline, {
+    onSuccess: closeGoalTaskCreateModal
+  });
+}
+
+function addGoalTask(goalId, title, deadline, options = {}) {
+  const goal = data.goals.find(item => item.id === goalId);
+  if (!goal) return;
 
   if (!title) {
     alert(t("goals.nameTaskRequired"));
@@ -5738,9 +5987,8 @@ function addGoalTask(goalId, card) {
   });
 
   hasManualGoalDateSelection = false;
-  titleInput.value = "";
-  deadlineInput.value = "";
   markDirty();
+  options.onSuccess?.();
   renderGoals();
 }
 
