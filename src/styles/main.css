@@ -1411,19 +1411,14 @@ input:focus, select:focus, textarea:focus {
   text-align: center;
 }
 
+.anti-habit-window {
+  margin-top: 0;
+}
+
 .anti-habit-today-list {
   display: flex;
   flex-direction: column;
   gap: 10px;
-  margin-top: 10px;
-}
-
-.anti-habit-list-heading {
-  color: var(--muted);
-  font-size: 12px;
-  text-transform: uppercase;
-  letter-spacing: 0.08em;
-  margin-top: 4px;
 }
 
 .anti-habit-card {

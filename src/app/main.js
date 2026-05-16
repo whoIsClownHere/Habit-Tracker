@@ -253,6 +253,7 @@ const plannerNotesInput = document.getElementById("plannerNotesInput");
 const plannerDeleteBtn = document.getElementById("plannerDeleteBtn");
 const plannerSaveBtn = document.getElementById("plannerSaveBtn");
 const activeList = document.getElementById("activeList");
+const antiHabitPanel = document.getElementById("antiHabitPanel");
 const antiHabitTodayList = document.getElementById("antiHabitTodayList");
 const todayHabitSearch = document.getElementById("todayHabitSearch");
 const todayListMeta = document.getElementById("todayListMeta");
@@ -2467,7 +2468,7 @@ function renderTodayHeader() {
 function renderTodayLists() {
   activeList.innerHTML = "";
   antiHabitTodayList.innerHTML = "";
-  antiHabitTodayList.hidden = true;
+  antiHabitPanel.hidden = true;
   todayListMeta.textContent = "";
   todayPager.hidden = true;
   const todayKey = toDateInputValue(new Date());
@@ -2506,7 +2507,7 @@ function renderTodayLists() {
   todayListMeta.textContent = getTodayListMeta(visibleHabits);
   renderTodayPager(visibleHabits);
 
-  if (activeHabits.length === 0 && visibleAntiHabits.length === 0) {
+  if (activeHabits.length === 0) {
     const emptyText = todaySearchQuery
       ? t("empty.noActiveResults")
       : t("empty.allDoneToday");
@@ -2575,13 +2576,8 @@ function getVisibleTodayAntiHabits(todayKey) {
 
 function renderAntiHabitTodayList(antiHabits) {
   antiHabitTodayList.innerHTML = "";
-  antiHabitTodayList.hidden = antiHabits.length === 0;
+  antiHabitPanel.hidden = antiHabits.length === 0;
   if (antiHabits.length === 0) return;
-
-  const heading = document.createElement("div");
-  heading.className = "anti-habit-list-heading";
-  heading.textContent = t("antiHabit.todayHeading");
-  antiHabitTodayList.appendChild(heading);
 
   antiHabits.forEach(habit => {
     antiHabitTodayList.appendChild(makeAntiHabitCard(habit));

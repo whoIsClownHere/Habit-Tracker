@@ -153,7 +153,6 @@
           </div>
 
           <div id="activeList" class="active-list"></div>
-          <div id="antiHabitTodayList" class="anti-habit-today-list" hidden></div>
           <button id="completedTodayBtn" class="completed-today-btn" type="button">
             <span data-i18n="today.completedToday">Completed today</span>
             <strong id="completedTodayBtnCount">0</strong>
@@ -186,6 +185,16 @@
           </div>
           <div class="streak-warning" id="streakMessage" data-i18n="streak.defaultWarning">Complete all habits today to keep the streak.</div>
         </div>
+      </section>
+
+      <section id="antiHabitPanel" class="card anti-habit-window" hidden>
+        <div class="section-top">
+          <div>
+            <div class="section-kicker" data-i18n="antiHabit.kicker">Reduction habits</div>
+            <h2 data-i18n="antiHabit.formTitle">Anti-habits</h2>
+          </div>
+        </div>
+        <div id="antiHabitTodayList" class="anti-habit-today-list"></div>
       </section>
 
       <section class="card">
