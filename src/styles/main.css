@@ -1411,6 +1411,134 @@ input:focus, select:focus, textarea:focus {
   text-align: center;
 }
 
+.anti-habit-today-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-top: 10px;
+}
+
+.anti-habit-list-heading {
+  color: var(--muted);
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  margin-top: 4px;
+}
+
+.anti-habit-card {
+  grid-template-columns: 42px minmax(0, 1fr) minmax(138px, auto);
+  border-left: 3px solid var(--info);
+}
+
+.anti-habit-card.warning {
+  border-left-color: var(--warning);
+  background: color-mix(in srgb, var(--card), var(--warning-soft) 28%);
+}
+
+.anti-habit-card.limit,
+.anti-habit-card.over {
+  border-left-color: var(--danger);
+  background: color-mix(in srgb, var(--card), var(--danger-soft) 32%);
+}
+
+.anti-habit-marker {
+  width: 34px;
+  height: 34px;
+  display: grid;
+  place-items: center;
+  border: 1px solid var(--info);
+  color: var(--info);
+  background: var(--info-soft);
+  font-family: var(--font-display);
+  font-size: 22px;
+  line-height: 1;
+}
+
+.anti-habit-card.warning .anti-habit-marker {
+  border-color: var(--warning);
+  color: var(--warning);
+  background: var(--warning-soft);
+}
+
+.anti-habit-card.limit .anti-habit-marker,
+.anti-habit-card.over .anti-habit-marker {
+  border-color: var(--danger);
+  color: var(--danger);
+  background: var(--danger-soft);
+}
+
+.anti-habit-main {
+  min-width: 0;
+}
+
+.anti-habit-eyebrow {
+  color: var(--muted);
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  margin-bottom: 2px;
+}
+
+.anti-habit-metrics {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.anti-habit-metrics span,
+.anti-habit-status {
+  display: inline-flex;
+  align-items: center;
+  min-height: 28px;
+  border: var(--rule);
+  background: var(--card);
+  color: var(--text);
+  padding: 5px 8px;
+  font-size: 12px;
+  line-height: 1.2;
+}
+
+.anti-habit-status.safe {
+  color: var(--success);
+  border-color: color-mix(in srgb, var(--success), transparent 48%);
+  background: var(--success-soft);
+}
+
+.anti-habit-status.warning {
+  color: var(--warning);
+  border-color: color-mix(in srgb, var(--warning), transparent 48%);
+  background: var(--warning-soft);
+}
+
+.anti-habit-status.limit,
+.anti-habit-status.over {
+  color: var(--danger);
+  border-color: color-mix(in srgb, var(--danger), transparent 48%);
+  background: var(--danger-soft);
+}
+
+.anti-habit-next {
+  color: var(--muted);
+  font-size: 12px;
+  margin-top: 8px;
+}
+
+.anti-habit-actions {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 8px;
+  align-self: stretch;
+  align-content: center;
+}
+
+.anti-habit-actions button {
+  min-height: 38px;
+  padding: 8px 12px;
+}
+
 .done-title {
   color: var(--muted);
   font-size: 12px;
@@ -1445,6 +1573,13 @@ input:focus, select:focus, textarea:focus {
   color: var(--success);
   background: var(--success-soft);
   font-size: 13px;
+}
+
+.management-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 8px;
 }
 
 .today-pager {
@@ -1532,6 +1667,10 @@ input:focus, select:focus, textarea:focus {
 
 .auth-modal-panel {
   width: min(520px, 100%);
+}
+
+.anti-habit-modal-panel {
+  width: min(760px, 100%);
 }
 
 .modal-head {
@@ -2115,6 +2254,60 @@ input:focus, select:focus, textarea:focus {
   align-items: stretch;
 }
 
+.anti-habit-form {
+  margin-top: 16px;
+  padding-top: 16px;
+  border-top: var(--rule);
+}
+
+.anti-habit-form-head {
+  margin-bottom: 12px;
+}
+
+.anti-habit-form h3 {
+  font-size: 24px;
+}
+
+.anti-habit-form-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+  align-items: start;
+}
+
+.anti-habit-field {
+  display: grid;
+  gap: 6px;
+  min-width: 0;
+}
+
+.anti-habit-field:first-child {
+  grid-column: 1 / -1;
+}
+
+.anti-habit-field span {
+  color: var(--text);
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.anti-habit-field small {
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.35;
+}
+
+.anti-habit-modal-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  margin-top: 16px;
+  padding-top: 16px;
+  border-top: var(--rule);
+}
+
 .habit-manager-panel {
   display: none;
   margin-top: 16px;
@@ -2159,6 +2352,38 @@ input:focus, select:focus, textarea:focus {
 
 .habit-manager-item input {
   min-width: 0;
+}
+
+.anti-habit-manager-item {
+  grid-template-columns: 1fr;
+}
+
+.anti-habit-manager-head {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 10px;
+  align-items: start;
+}
+
+.anti-habit-manager-grid {
+  display: grid;
+  grid-template-columns: minmax(180px, 1.2fr) repeat(6, minmax(96px, 0.7fr));
+  gap: 10px;
+  align-items: end;
+  margin-top: 12px;
+}
+
+.anti-habit-manager-field {
+  display: grid;
+  gap: 5px;
+  min-width: 0;
+}
+
+.anti-habit-manager-field span {
+  color: var(--muted);
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
 }
 
 .habit-manager-empty {
@@ -4972,6 +5197,8 @@ canvas {
   .day-picker-panel { border-right: 0; border-bottom: var(--rule); padding-right: 0; padding-bottom: 18px; }
   .testing-scenarios { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .habit-form,
+  .anti-habit-form-grid,
+  .anti-habit-manager-grid,
   .goal-form,
   .goal-task-form { grid-template-columns: 1fr; }
   .goal-route-arrow {
@@ -5004,6 +5231,11 @@ canvas {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
   .quest-item { grid-template-columns: 42px 1fr; }
+  .anti-habit-card { grid-template-columns: 42px 1fr; }
+  .anti-habit-actions {
+    grid-column: 1 / -1;
+    grid-template-columns: 1fr 1fr;
+  }
   .quest-value { grid-column: 1 / -1; }
   .goal-task-item,
   .goal-archive-task-item,
@@ -5129,6 +5361,11 @@ canvas {
     flex-direction: column;
     align-items: stretch;
   }
+  .management-actions {
+    display: grid;
+    grid-template-columns: 1fr;
+    justify-content: stretch;
+  }
   .goal-archive-status { text-align: left; }
   .goals-overview { grid-template-columns: 1fr; }
   .goals-overview {
@@ -5185,6 +5422,12 @@ canvas {
   }
   .today-tools { grid-template-columns: 1fr; }
   .today-summary { grid-template-columns: 1fr; }
+  .anti-habit-actions {
+    grid-template-columns: 1fr;
+  }
+  .anti-habit-manager-head {
+    grid-template-columns: 1fr;
+  }
   .modal-backdrop { padding: 12px; }
   .modal-panel {
     max-height: calc(100vh - 24px);
@@ -5192,6 +5435,7 @@ canvas {
   }
   .modal-head,
   .modal-tools,
+  .anti-habit-modal-actions,
   .auth-actions,
   .goal-result-actions,
   .goal-mini-form {

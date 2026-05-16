@@ -34,6 +34,14 @@ import {
   toDateInputValue
 } from "./utils/dates.js";
 import {
+  ANTI_HABIT_PERIODS,
+  ANTI_HABIT_TYPE,
+  calculateAntiHabitState,
+  isAntiHabit,
+  normalizeAntiHabitPeriod,
+  normalizeNonNegativeInteger
+} from "./utils/antiHabits.js";
+import {
   getCachedDailyQuote,
   getDailyQuote,
   getLocalQuoteDate
@@ -245,6 +253,7 @@ const plannerNotesInput = document.getElementById("plannerNotesInput");
 const plannerDeleteBtn = document.getElementById("plannerDeleteBtn");
 const plannerSaveBtn = document.getElementById("plannerSaveBtn");
 const activeList = document.getElementById("activeList");
+const antiHabitTodayList = document.getElementById("antiHabitTodayList");
 const todayHabitSearch = document.getElementById("todayHabitSearch");
 const todayListMeta = document.getElementById("todayListMeta");
 const todayOpenCount = document.getElementById("todayOpenCount");
@@ -290,6 +299,17 @@ const progressHabit = document.getElementById("progressHabit");
 const habitManagerPanel = document.getElementById("habitManagerPanel");
 const habitManagerList = document.getElementById("habitManagerList");
 const toggleHabitManagerBtn = document.getElementById("toggleHabitManagerBtn");
+const antiHabitOpenBtn = document.getElementById("antiHabitOpenBtn");
+const antiHabitModal = document.getElementById("antiHabitModal");
+const antiHabitModalCloseBtn = document.getElementById("antiHabitModalCloseBtn");
+const antiHabitCancelBtn = document.getElementById("antiHabitCancelBtn");
+const antiHabitNameInput = document.getElementById("antiHabitName");
+const antiHabitPeriodSelect = document.getElementById("antiHabitPeriod");
+const antiHabitStartLimitInput = document.getElementById("antiHabitStartLimit");
+const antiHabitTargetLimitInput = document.getElementById("antiHabitTargetLimit");
+const antiHabitReduceByInput = document.getElementById("antiHabitReduceBy");
+const antiHabitReduceEveryInput = document.getElementById("antiHabitReduceEvery");
+const antiHabitStartDateInput = document.getElementById("antiHabitStartDate");
 const addGoalOpenBtn = document.getElementById("addGoalOpenBtn");
 const goalModal = document.getElementById("goalModal");
 const goalModalCloseBtn = document.getElementById("goalModalCloseBtn");
@@ -373,6 +393,7 @@ const workoutPlanDayKindSelect = document.getElementById("workoutPlanDayKindSele
 const workoutAddExerciseBtn = document.getElementById("workoutAddExerciseBtn");
 const workoutExerciseList = document.getElementById("workoutExerciseList");
 let isHabitManagerOpen = false;
+let isAntiHabitModalOpen = false;
 let isCompletedModalOpen = false;
 let completedSearchQuery = "";
 const chart = document.getElementById("progressChart");
@@ -391,6 +412,7 @@ let dailyQuoteRequestToken = 0;
 initLocale();
 languageSelect.value = getLocale();
 signOutBtn.hidden = true;
+antiHabitStartDateInput.value = toDateInputValue(new Date());
 
 habitsTabBtn.addEventListener("click", () => switchView("habits"));
 workoutsTabBtn.addEventListener("click", () => switchView("workouts"));
@@ -430,6 +452,10 @@ authResetBtn.addEventListener("click", handlePasswordReset);
 testingSeedBtn.addEventListener("click", () => reloadTestSeedData());
 testingResetBtn.addEventListener("click", () => resetTestData());
 document.getElementById("addHabitBtn").addEventListener("click", addHabit);
+document.getElementById("addAntiHabitBtn").addEventListener("click", addAntiHabit);
+antiHabitOpenBtn.addEventListener("click", openAntiHabitModal);
+antiHabitModalCloseBtn.addEventListener("click", closeAntiHabitModal);
+antiHabitCancelBtn.addEventListener("click", closeAntiHabitModal);
 addGoalOpenBtn.addEventListener("click", () => openGoalModal());
 goalModalCloseBtn.addEventListener("click", closeGoalModal);
 goalSaveBtn.addEventListener("click", saveGoalFromModal);
@@ -478,6 +504,9 @@ completedSearchInput.addEventListener("input", (event) => {
 completedModal.addEventListener("click", (event) => {
   if (event.target === completedModal) closeCompletedModal();
 });
+antiHabitModal.addEventListener("click", (event) => {
+  if (event.target === antiHabitModal) closeAntiHabitModal();
+});
 authModal.addEventListener("click", (event) => {
   if (event.target === authModal) closeAuthModal();
 });
@@ -497,6 +526,7 @@ document.addEventListener("keydown", (event) => {
   }
   if (event.key === "Escape" && isAuthModalOpen) closeAuthModal();
   if (event.key === "Escape" && isCompletedModalOpen) closeCompletedModal();
+  if (event.key === "Escape" && isAntiHabitModalOpen) closeAntiHabitModal();
   if (event.key === "Escape" && isPlannerModalOpen) closePlannerModal();
   if (event.key === "Escape" && isGoalModalOpen) closeGoalModal();
   if (event.key === "Escape" && isGoalArchiveModalOpen) closeGoalArchiveModal();
@@ -906,7 +936,7 @@ function closeActionMenu(menu = activeActionMenu, options = {}) {
 function syncModalOpenState() {
   document.body.classList.toggle(
     "modal-open",
-    isAuthModalOpen || isCompletedModalOpen || isPlannerModalOpen || isGoalModalOpen || isGoalArchiveModalOpen || isGoalCompletedTasksModalOpen || isGoalTaskCreateModalOpen || isGoalResultModalOpen
+    isAuthModalOpen || isCompletedModalOpen || isAntiHabitModalOpen || isPlannerModalOpen || isGoalModalOpen || isGoalArchiveModalOpen || isGoalCompletedTasksModalOpen || isGoalTaskCreateModalOpen || isGoalResultModalOpen
   );
 }
 
@@ -1558,7 +1588,23 @@ function createTestingData() {
     { id: "qa-journal", name: "Journal", unit: "entry", target: 1, createdAt: twoDaysAgo },
     { id: "qa-meditation", name: "Meditation", unit: "min", target: 10, createdAt: yesterday },
     { id: "qa-walk", name: "Walk", unit: "steps", target: 7000, createdAt: yesterday },
-    { id: "qa-planning", name: "Plan tomorrow", unit: "plan", target: 1, createdAt: today }
+    { id: "qa-planning", name: "Plan tomorrow", unit: "plan", target: 1, createdAt: today },
+    {
+      id: "qa-scrolling",
+      type: ANTI_HABIT_TYPE,
+      name: "Scrolling",
+      period: "week",
+      startLimit: 5,
+      targetLimit: 1,
+      reduceBy: 1,
+      reduceEveryPeriods: 1,
+      startDate: lastWeek,
+      createdAt: lastWeek,
+      logs: [
+        new Date().toISOString(),
+        new Date(Date.now() - 86400000).toISOString()
+      ]
+    }
   ];
 
   const records = {
@@ -2025,14 +2071,48 @@ function normalizeHabit(habit = {}, records) {
   const id = safeHabit.id || crypto.randomUUID();
   const firstRecordDate = inferHabitCreatedAt(id, records);
   const createdAt = getEarliestDateKey(safeHabit.createdAt, firstRecordDate) || toDateInputValue(new Date());
+  const type = safeHabit.type === ANTI_HABIT_TYPE ? ANTI_HABIT_TYPE : "habit";
+
+  if (type === ANTI_HABIT_TYPE) {
+    return normalizeAntiHabit(safeHabit, id, createdAt);
+  }
 
   return {
     ...safeHabit,
     id,
+    type,
     name: safeHabit.name || t("habit.fallback"),
     unit: safeHabit.unit || "",
     target: safeHabit.target ?? "",
     createdAt
+  };
+}
+
+function normalizeAntiHabit(habit, id, createdAt) {
+  const startLimit = normalizeNonNegativeInteger(habit.startLimit, 1);
+  const targetLimit = Math.min(startLimit, normalizeNonNegativeInteger(habit.targetLimit, 0));
+  const reduceBy = Math.max(1, normalizeNonNegativeInteger(habit.reduceBy, 1));
+  const reduceEveryPeriods = Math.max(1, normalizeNonNegativeInteger(habit.reduceEveryPeriods, 1));
+  const startDate = getEarliestDateKey(habit.startDate) || createdAt;
+  const logs = Array.isArray(habit.logs)
+    ? habit.logs
+      .filter(timestamp => typeof timestamp === "string" && !Number.isNaN(new Date(timestamp).getTime()))
+      .sort()
+    : [];
+
+  return {
+    ...habit,
+    id,
+    type: ANTI_HABIT_TYPE,
+    name: habit.name || t("antiHabit.fallback"),
+    period: normalizeAntiHabitPeriod(habit.period),
+    startLimit,
+    targetLimit,
+    reduceBy,
+    reduceEveryPeriods,
+    startDate,
+    createdAt,
+    logs
   };
 }
 
@@ -2386,6 +2466,8 @@ function renderTodayHeader() {
 
 function renderTodayLists() {
   activeList.innerHTML = "";
+  antiHabitTodayList.innerHTML = "";
+  antiHabitTodayList.hidden = true;
   todayListMeta.textContent = "";
   todayPager.hidden = true;
   const todayKey = toDateInputValue(new Date());
@@ -2398,7 +2480,10 @@ function renderTodayLists() {
     return;
   }
 
-  if (data.habits.length === 0) {
+  const normalHabits = getNormalHabits();
+  const antiHabits = getAntiHabits();
+
+  if (normalHabits.length === 0 && antiHabits.length === 0) {
     renderTodaySummary(0, 0);
     completedTodayBtn.disabled = true;
     activeList.innerHTML = `<div class="empty">${t("empty.noHabits")}</div>`;
@@ -2408,6 +2493,7 @@ function renderTodayLists() {
 
   const activeHabits = [];
   const visibleHabits = getVisibleTodayHabits(todayKey);
+  const visibleAntiHabits = getVisibleTodayAntiHabits(todayKey);
   const doneCount = countDoneRecordsForDate(todayKey);
   const totalCount = countActiveHabitsForDate(todayKey);
 
@@ -2420,7 +2506,7 @@ function renderTodayLists() {
   todayListMeta.textContent = getTodayListMeta(visibleHabits);
   renderTodayPager(visibleHabits);
 
-  if (activeHabits.length === 0) {
+  if (activeHabits.length === 0 && visibleAntiHabits.length === 0) {
     const emptyText = todaySearchQuery
       ? t("empty.noActiveResults")
       : t("empty.allDoneToday");
@@ -2428,7 +2514,9 @@ function renderTodayLists() {
   } else {
     activeHabits.forEach(({ habit, record }) => activeList.appendChild(makeQuestItem(habit, record, todayKey)));
   }
+  renderAntiHabitTodayList(visibleAntiHabits);
   animateRenderedChildren(activeList);
+  animateRenderedChildren(antiHabitTodayList);
 }
 
 function renderTodaySummary(total, done) {
@@ -2449,10 +2537,11 @@ function renderTodayPager(result) {
 function getVisibleTodayHabits(todayKey) {
   const matches = [];
   let matchCount = 0;
-  const scanCount = Math.min(data.habits.length, TODAY_SEARCH_SCAN_LIMIT);
+  const normalHabits = getNormalHabits();
+  const scanCount = Math.min(normalHabits.length, TODAY_SEARCH_SCAN_LIMIT);
 
   for (let i = 0; i < scanCount; i++) {
-    const habit = data.habits[i];
+    const habit = normalHabits[i];
     if (!isHabitTrackedOnDate(habit, todayKey)) continue;
     const record = getRecord(todayKey, habit.id, false);
     if (record?.done) continue;
@@ -2474,8 +2563,29 @@ function getVisibleTodayHabits(todayKey) {
     pageIndex: todayPageIndex,
     pageCount,
     scannedCount: scanCount,
-    isPartialSearch: data.habits.length > scanCount
+    isPartialSearch: normalHabits.length > scanCount
   };
+}
+
+function getVisibleTodayAntiHabits(todayKey) {
+  return getAntiHabits()
+    .filter(habit => isHabitActiveOnDate(habit, todayKey))
+    .filter(habit => habitMatchesSearch(habit, todaySearchQuery));
+}
+
+function renderAntiHabitTodayList(antiHabits) {
+  antiHabitTodayList.innerHTML = "";
+  antiHabitTodayList.hidden = antiHabits.length === 0;
+  if (antiHabits.length === 0) return;
+
+  const heading = document.createElement("div");
+  heading.className = "anti-habit-list-heading";
+  heading.textContent = t("antiHabit.todayHeading");
+  antiHabitTodayList.appendChild(heading);
+
+  antiHabits.forEach(habit => {
+    antiHabitTodayList.appendChild(makeAntiHabitCard(habit));
+  });
 }
 
 function getTodayListMeta(result) {
@@ -2516,9 +2626,47 @@ function formatTaskCount(count) {
   return tn("counts.task", count);
 }
 
+function getNormalHabits() {
+  return data.habits.filter(habit => !isAntiHabit(habit));
+}
+
+function getAntiHabits() {
+  return data.habits.filter(isAntiHabit);
+}
+
 function habitMatchesSearch(habit, query) {
   if (!query) return true;
   return `${habit.name || ""} ${habit.unit || ""}`.toLowerCase().includes(query);
+}
+
+function openAntiHabitModal() {
+  if (!currentUser) {
+    alert(t("habit.signInRequired"));
+    return;
+  }
+
+  resetAntiHabitForm();
+  isAntiHabitModalOpen = true;
+  revealFloatingElement(antiHabitModal);
+  syncModalOpenState();
+  requestAnimationFrame(() => antiHabitNameInput.focus());
+}
+
+function closeAntiHabitModal() {
+  isAntiHabitModalOpen = false;
+  hideFloatingElement(antiHabitModal);
+  syncModalOpenState();
+}
+
+function resetAntiHabitForm() {
+  const todayKey = toDateInputValue(new Date());
+  antiHabitNameInput.value = "";
+  antiHabitPeriodSelect.value = "week";
+  antiHabitStartLimitInput.value = "";
+  antiHabitTargetLimitInput.value = "";
+  antiHabitReduceByInput.value = "1";
+  antiHabitReduceEveryInput.value = "1";
+  antiHabitStartDateInput.value = todayKey;
 }
 
 function openCompletedModal() {
@@ -2607,8 +2755,7 @@ function hasHabitSnapshot(record) {
 }
 
 function findHabitById(habitId) {
-  const scanCount = Math.min(data.habits.length, TODAY_SEARCH_SCAN_LIMIT);
-  for (let i = 0; i < scanCount; i++) {
+  for (let i = 0; i < data.habits.length; i++) {
     if (data.habits[i].id === habitId) return data.habits[i];
   }
   return null;
@@ -2717,6 +2864,68 @@ function makeCompletedQuestItem(habit, record, dateKey) {
   return el;
 }
 
+function makeAntiHabitCard(habit) {
+  const state = calculateAntiHabitState(habit, new Date());
+  const el = document.createElement("article");
+  el.className = `quest-item anti-habit-card ${state.status}`;
+  const periodUsageText = t(state.period === "month" ? "antiHabit.thisMonth" : "antiHabit.thisWeek");
+  const periodUnitText = t(state.period === "month" ? "antiHabit.periodMonthShort" : "antiHabit.periodWeekShort");
+  const nextReductionText = state.currentLimit <= habit.targetLimit
+    ? t("antiHabit.targetReached", { limit: state.currentLimit })
+    : t("antiHabit.nextReduction", {
+      date: formatShortDate(state.nextReductionDate, getDateLocale()),
+      limit: state.nextLimit
+    });
+
+  el.innerHTML = `
+    <div class="anti-habit-marker" aria-hidden="true">↓</div>
+    <div class="anti-habit-main">
+      <div class="anti-habit-eyebrow">${t("antiHabit.typeLabel")}</div>
+      <div class="quest-name">${escapeHtml(habit.name)}</div>
+      <div class="quest-meta">${t("antiHabit.limitMeta", { limit: state.currentLimit, period: periodUnitText })}</div>
+      <div class="anti-habit-metrics">
+        <span>${escapeHtml(t("antiHabit.usage", { used: state.usage, limit: state.currentLimit, period: periodUsageText }))}</span>
+        <span>${escapeHtml(t("antiHabit.remaining", { count: state.remaining }))}</span>
+        <span class="anti-habit-status ${state.status}">${escapeHtml(getAntiHabitStatusLabel(state.status))}</span>
+      </div>
+      <div class="anti-habit-next">${escapeHtml(nextReductionText)}</div>
+    </div>
+    <div class="anti-habit-actions">
+      <button class="anti-habit-log-btn" type="button">${t("antiHabit.log")}</button>
+      <button class="secondary anti-habit-undo-btn" type="button" ${(habit.logs || []).length ? "" : "disabled"}>${t("antiHabit.undo")}</button>
+    </div>
+  `;
+
+  el.querySelector(".anti-habit-log-btn").addEventListener("click", () => logAntiHabitOccurrence(habit.id));
+  el.querySelector(".anti-habit-undo-btn").addEventListener("click", () => undoAntiHabitOccurrence(habit.id));
+  return el;
+}
+
+function getAntiHabitStatusLabel(status) {
+  return t(`antiHabit.status.${status}`);
+}
+
+function logAntiHabitOccurrence(habitId) {
+  const habit = findHabitById(habitId);
+  if (!isAntiHabit(habit)) return;
+
+  habit.logs ||= [];
+  habit.logs.push(new Date().toISOString());
+  markDirty();
+  renderTodayLists();
+  renderHabitManager();
+}
+
+function undoAntiHabitOccurrence(habitId) {
+  const habit = findHabitById(habitId);
+  if (!isAntiHabit(habit) || !habit.logs?.length) return;
+
+  habit.logs.pop();
+  markDirty();
+  renderTodayLists();
+  renderHabitManager();
+}
+
 function toggleHabitManager() {
   isHabitManagerOpen = !isHabitManagerOpen;
   habitManagerPanel.classList.toggle("open", isHabitManagerOpen);
@@ -2751,53 +2960,181 @@ function renderHabitManager() {
   }
 
   data.habits.slice(0, HABIT_MANAGER_LIMIT).forEach(habit => {
-    const item = document.createElement("div");
-    item.className = "habit-manager-item";
-
-    const nameInput = document.createElement("input");
-    nameInput.value = habit.name || "";
-    nameInput.placeholder = t("habit.fieldName");
-    nameInput.onchange = () => updateHabitField(habit.id, "name", nameInput.value.trim());
-
-    const unitInput = document.createElement("input");
-    unitInput.value = habit.unit || "";
-    unitInput.placeholder = t("habit.fieldUnit");
-    unitInput.onchange = () => updateHabitField(habit.id, "unit", unitInput.value.trim());
-
-    const targetInput = document.createElement("input");
-    targetInput.type = "number";
-    targetInput.min = "0";
-    targetInput.value = habit.target ?? "";
-    targetInput.placeholder = t("habit.fieldTarget");
-    targetInput.onchange = () => updateHabitField(habit.id, "target", targetInput.value === "" ? "" : Number(targetInput.value));
-
-    const actionMenu = makeActionMenu([
-      {
-        label: t("actions.edit"),
-        onSelect: () => updateHabit(habit.id, {
-          name: nameInput.value.trim(),
-          unit: unitInput.value.trim(),
-          target: targetInput.value === "" ? "" : Number(targetInput.value)
-        })
-      },
-      {
-        label: t("actions.delete"),
-        danger: true,
-        onSelect: () => deleteHabit(habit.id)
-      }
-    ], t("habit.menuLabel", { name: habit.name || t("habit.unnamed") }));
-
-    item.appendChild(nameInput);
-    item.appendChild(unitInput);
-    item.appendChild(targetInput);
-    item.appendChild(actionMenu);
-    habitManagerList.appendChild(item);
+    habitManagerList.appendChild(isAntiHabit(habit) ? makeAntiHabitManagerItem(habit) : makeHabitManagerItem(habit));
   });
   animateRenderedChildren(habitManagerList);
 }
 
+function makeHabitManagerItem(habit) {
+  const item = document.createElement("div");
+  item.className = "habit-manager-item";
+
+  const nameInput = document.createElement("input");
+  nameInput.value = habit.name || "";
+  nameInput.placeholder = t("habit.fieldName");
+  nameInput.onchange = () => updateHabitField(habit.id, "name", nameInput.value.trim());
+
+  const unitInput = document.createElement("input");
+  unitInput.value = habit.unit || "";
+  unitInput.placeholder = t("habit.fieldUnit");
+  unitInput.onchange = () => updateHabitField(habit.id, "unit", unitInput.value.trim());
+
+  const targetInput = document.createElement("input");
+  targetInput.type = "number";
+  targetInput.min = "0";
+  targetInput.value = habit.target ?? "";
+  targetInput.placeholder = t("habit.fieldTarget");
+  targetInput.onchange = () => updateHabitField(habit.id, "target", targetInput.value === "" ? "" : Number(targetInput.value));
+
+  const actionMenu = makeActionMenu([
+    {
+      label: t("actions.edit"),
+      onSelect: () => updateHabit(habit.id, {
+        name: nameInput.value.trim(),
+        unit: unitInput.value.trim(),
+        target: targetInput.value === "" ? "" : Number(targetInput.value)
+      })
+    },
+    {
+      label: t("actions.delete"),
+      danger: true,
+      onSelect: () => deleteHabit(habit.id)
+    }
+  ], t("habit.menuLabel", { name: habit.name || t("habit.unnamed") }));
+
+  item.appendChild(nameInput);
+  item.appendChild(unitInput);
+  item.appendChild(targetInput);
+  item.appendChild(actionMenu);
+  return item;
+}
+
+function makeAntiHabitManagerItem(habit) {
+  const item = document.createElement("div");
+  item.className = "habit-manager-item anti-habit-manager-item";
+
+  const state = calculateAntiHabitState(habit, new Date());
+  const head = document.createElement("div");
+  head.className = "anti-habit-manager-head";
+  head.innerHTML = `
+    <div>
+      <div class="anti-habit-eyebrow">${t("antiHabit.typeLabel")}</div>
+      <div class="quest-name">${escapeHtml(habit.name)}</div>
+      <div class="quest-meta">${escapeHtml(t("antiHabit.managerMeta", {
+        used: state.usage,
+        limit: state.currentLimit,
+        nextLimit: state.nextLimit
+      }))}</div>
+    </div>
+  `;
+  head.appendChild(makeActionMenu([
+    {
+      label: t("actions.delete"),
+      danger: true,
+      onSelect: () => deleteHabit(habit.id)
+    }
+  ], t("antiHabit.menuLabel", { name: habit.name || t("habit.unnamed") })));
+
+  const fields = document.createElement("div");
+  fields.className = "anti-habit-manager-grid";
+  fields.appendChild(makeAntiHabitManagerTextField(t("habit.fieldName"), habit.name || "", value => {
+    updateHabitField(habit.id, "name", value.trim());
+  }));
+  fields.appendChild(makeAntiHabitManagerSelectField(t("antiHabit.periodLabel"), habit.period, value => {
+    updateAntiHabitField(habit.id, "period", value);
+  }));
+  fields.appendChild(makeAntiHabitManagerNumberField(t("antiHabit.startLimit"), habit.startLimit, 0, value => {
+    updateAntiHabitField(habit.id, "startLimit", value);
+  }));
+  fields.appendChild(makeAntiHabitManagerNumberField(t("antiHabit.targetLimit"), habit.targetLimit, 0, value => {
+    updateAntiHabitField(habit.id, "targetLimit", value);
+  }));
+  fields.appendChild(makeAntiHabitManagerNumberField(t("antiHabit.reduceBy"), habit.reduceBy, 1, value => {
+    updateAntiHabitField(habit.id, "reduceBy", value);
+  }));
+  fields.appendChild(makeAntiHabitManagerNumberField(t("antiHabit.reduceEvery"), habit.reduceEveryPeriods, 1, value => {
+    updateAntiHabitField(habit.id, "reduceEveryPeriods", value);
+  }));
+  fields.appendChild(makeAntiHabitManagerDateField(t("antiHabit.startDate"), habit.startDate, value => {
+    updateAntiHabitField(habit.id, "startDate", value);
+  }));
+
+  item.appendChild(head);
+  item.appendChild(fields);
+  return item;
+}
+
+function makeAntiHabitManagerTextField(labelText, value, onChange) {
+  const input = document.createElement("input");
+  input.value = value;
+  input.placeholder = labelText;
+  input.onchange = () => onChange(input.value);
+  return makeAntiHabitManagerField(labelText, input);
+}
+
+function makeAntiHabitManagerNumberField(labelText, value, min, onChange) {
+  const input = document.createElement("input");
+  input.type = "number";
+  input.min = String(min);
+  input.step = "1";
+  input.value = value ?? "";
+  input.placeholder = labelText;
+  input.onchange = () => onChange(input.value);
+  return makeAntiHabitManagerField(labelText, input);
+}
+
+function makeAntiHabitManagerDateField(labelText, value, onChange) {
+  const input = document.createElement("input");
+  input.type = "date";
+  input.value = value || toDateInputValue(new Date());
+  input.onchange = () => onChange(input.value);
+  return makeAntiHabitManagerField(labelText, input);
+}
+
+function makeAntiHabitManagerSelectField(labelText, value, onChange) {
+  const select = document.createElement("select");
+  ANTI_HABIT_PERIODS.forEach(period => {
+    const option = document.createElement("option");
+    option.value = period;
+    option.textContent = t(period === "month" ? "antiHabit.periodMonth" : "antiHabit.periodWeek");
+    select.appendChild(option);
+  });
+  select.value = normalizeAntiHabitPeriod(value);
+  select.onchange = () => onChange(select.value);
+  return makeAntiHabitManagerField(labelText, select);
+}
+
+function makeAntiHabitManagerField(labelText, control) {
+  const label = document.createElement("label");
+  label.className = "anti-habit-manager-field";
+  const text = document.createElement("span");
+  text.textContent = labelText;
+  label.appendChild(text);
+  label.appendChild(control);
+  return label;
+}
+
 function updateHabitField(habitId, field, value) {
   updateHabit(habitId, { [field]: value }, false);
+}
+
+function updateAntiHabitField(habitId, field, value) {
+  const habit = data.habits.find(h => h.id === habitId);
+  if (!isAntiHabit(habit)) return;
+
+  const updates = {};
+  if (field === "period") updates.period = normalizeAntiHabitPeriod(value);
+  if (field === "startLimit") {
+    updates.startLimit = normalizeNonNegativeInteger(value, habit.startLimit);
+    updates.targetLimit = Math.min(habit.targetLimit, updates.startLimit);
+  }
+  if (field === "targetLimit") updates.targetLimit = Math.min(habit.startLimit, normalizeNonNegativeInteger(value, habit.targetLimit));
+  if (field === "reduceBy") updates.reduceBy = Math.max(1, normalizeNonNegativeInteger(value, habit.reduceBy));
+  if (field === "reduceEveryPeriods") updates.reduceEveryPeriods = Math.max(1, normalizeNonNegativeInteger(value, habit.reduceEveryPeriods));
+  if (field === "startDate") updates.startDate = getEarliestDateKey(value) || habit.startDate || toDateInputValue(new Date());
+
+  updateHabit(habitId, updates, false);
+  renderHabitManager();
 }
 
 function updateHabit(habitId, updates, rerender = true) {
@@ -2817,6 +3154,9 @@ function updateHabit(habitId, updates, rerender = true) {
   }
 
   Object.assign(habit, updates);
+  if (isAntiHabit(habit)) {
+    Object.assign(habit, normalizeAntiHabit(habit, habit.id, habit.createdAt || toDateInputValue(new Date())));
+  }
   markDirty();
   if (rerender) render();
   else {
@@ -4090,19 +4430,20 @@ function populatePlannerMilestoneSelect(goalId, selectedTaskId = "") {
 
 function populatePlannerHabitSelect(selectedHabitId = "") {
   plannerHabitSelect.innerHTML = "";
+  const normalHabits = getNormalHabits();
   const emptyOption = document.createElement("option");
   emptyOption.value = "";
-  emptyOption.textContent = data.habits.length ? t("planner.habitPlaceholder") : t("planner.noHabitOptions");
+  emptyOption.textContent = normalHabits.length ? t("planner.habitPlaceholder") : t("planner.noHabitOptions");
   plannerHabitSelect.appendChild(emptyOption);
 
-  data.habits.forEach(habit => {
+  normalHabits.forEach(habit => {
     const option = document.createElement("option");
     option.value = habit.id;
     option.textContent = habit.name || t("habit.fallback");
     plannerHabitSelect.appendChild(option);
   });
 
-  plannerHabitSelect.value = selectedHabitId && data.habits.some(habit => habit.id === selectedHabitId) ? selectedHabitId : "";
+  plannerHabitSelect.value = selectedHabitId && normalHabits.some(habit => habit.id === selectedHabitId) ? selectedHabitId : "";
 }
 
 function renderPlannerWeekdayChoices(selectedWeekdays = []) {
@@ -4660,7 +5001,7 @@ function renderDayReview() {
 
   const activeHabitsForDate = getActiveHabitsForDate(reviewDate);
 
-  if (data.habits.length === 0 && activeHabitsForDate.length === 0) {
+  if (getNormalHabits().length === 0 && activeHabitsForDate.length === 0) {
     daySummaryList.innerHTML = `<div class="empty">${t("review.noHabitsEmpty")}</div>`;
     animateRenderedChildren(daySummaryList);
     return;
@@ -4713,8 +5054,9 @@ function renderFutureProjection(dateKey) {
   const selectedDateObj = parseDateKey(dateKey);
   const todayObj = parseDateKey(todayKey);
   const daysAhead = Math.ceil((selectedDateObj - todayObj) / 86400000);
+  const normalHabits = getNormalHabits();
 
-  if (daysAhead <= 0 || data.habits.length === 0) {
+  if (daysAhead <= 0 || normalHabits.length === 0) {
     futureProjectionBox.hidden = true;
     futureProjectionTable.innerHTML = "";
     return;
@@ -4733,19 +5075,19 @@ function renderFutureProjection(dateKey) {
     </div>
   `;
 
-  if (data.habits.length > PROJECTION_LIMIT) {
+  if (normalHabits.length > PROJECTION_LIMIT) {
     const row = document.createElement("div");
     row.className = "projection-row";
     row.innerHTML = `
       <div class="projection-cell projection-total">${t("projection.shown", { limit: PROJECTION_LIMIT })}</div>
       <div class="projection-cell"></div>
       <div class="projection-cell"></div>
-      <div class="projection-cell">${t("projection.ofTotal", { total: data.habits.length })}</div>
+      <div class="projection-cell">${t("projection.ofTotal", { total: normalHabits.length })}</div>
     `;
     futureProjectionTable.appendChild(row);
   }
 
-  data.habits.slice(0, PROJECTION_LIMIT).forEach(habit => {
+  normalHabits.slice(0, PROJECTION_LIMIT).forEach(habit => {
     const currentTotal = calculateTotalUntilDate(habit.id, todayKey);
     const target = Number(habit.target || 0);
     const projectedAdd = target * daysAhead;
@@ -4778,7 +5120,7 @@ function renderRewardState() {
   if (!currentUser) {
     streakMessage.classList.add("neutral");
     streakMessage.textContent = t("streak.signIn");
-  } else if (data.habits.length === 0) {
+  } else if (getNormalHabits().length === 0) {
     streakMessage.classList.add("neutral");
     streakMessage.textContent = t("streak.addHabit");
   } else if (done === total) {
@@ -4869,7 +5211,7 @@ function countDoneRecordsForDate(dateKey) {
 }
 
 function getActiveHabitsForDate(dateKey) {
-  const activeHabits = data.habits.filter(habit => isHabitTrackedOnDate(habit, dateKey));
+  const activeHabits = getNormalHabits().filter(habit => isHabitTrackedOnDate(habit, dateKey));
   const activeHabitIds = new Set(activeHabits.map(habit => habit.id));
   const dayRecords = data.records[dateKey] || {};
 
@@ -4916,8 +5258,9 @@ function renderProgressOptions() {
   const current = progressHabit.value;
   progressHabit.innerHTML = "";
 
-  const optionHabits = data.habits.slice(0, PROGRESS_OPTION_LIMIT);
-  const selectedHabit = data.habits.find(habit => habit.id === current);
+  const normalHabits = getNormalHabits();
+  const optionHabits = normalHabits.slice(0, PROGRESS_OPTION_LIMIT);
+  const selectedHabit = normalHabits.find(habit => habit.id === current);
   if (selectedHabit && !optionHabits.some(habit => habit.id === selectedHabit.id)) {
     optionHabits.unshift(selectedHabit);
   }
@@ -4929,10 +5272,10 @@ function renderProgressOptions() {
     progressHabit.appendChild(option);
   });
 
-  if (data.habits.length > optionHabits.length) {
+  if (normalHabits.length > optionHabits.length) {
     const option = document.createElement("option");
     option.disabled = true;
-    option.textContent = t("progress.optionsShown", { shown: optionHabits.length, total: data.habits.length });
+    option.textContent = t("progress.optionsShown", { shown: optionHabits.length, total: normalHabits.length });
     progressHabit.appendChild(option);
   }
 
@@ -4940,8 +5283,9 @@ function renderProgressOptions() {
 }
 
 function renderProgress() {
-  const habitId = progressHabit.value || data.habits[0]?.id;
-  const habit = data.habits.find(h => h.id === habitId);
+  const normalHabits = getNormalHabits();
+  const habitId = progressHabit.value || normalHabits[0]?.id;
+  const habit = normalHabits.find(h => h.id === habitId);
   const todayKey = toDateInputValue(new Date());
   clearChart();
   if (!habit) {
@@ -5192,6 +5536,7 @@ function addHabit() {
 
   data.habits.push({
     id: crypto.randomUUID(),
+    type: "habit",
     name,
     unit,
     target: targetRaw === "" ? "" : Number(targetRaw),
@@ -5203,6 +5548,57 @@ function addHabit() {
   document.getElementById("habitTarget").value = "";
 
   markDirty();
+  render();
+}
+
+function addAntiHabit() {
+  if (!currentUser) {
+    alert(t("habit.signInRequired"));
+    return;
+  }
+
+  const name = antiHabitNameInput.value.trim();
+  const period = normalizeAntiHabitPeriod(antiHabitPeriodSelect.value);
+  const startLimit = normalizeNonNegativeInteger(antiHabitStartLimitInput.value, 0);
+  const targetLimit = normalizeNonNegativeInteger(antiHabitTargetLimitInput.value, 0);
+  const reduceBy = normalizeNonNegativeInteger(antiHabitReduceByInput.value, 1);
+  const reduceEveryPeriods = normalizeNonNegativeInteger(antiHabitReduceEveryInput.value, 1);
+  const todayKey = toDateInputValue(new Date());
+  const startDate = getEarliestDateKey(antiHabitStartDateInput.value) || todayKey;
+
+  if (!name) {
+    alert(t("antiHabit.enterName"));
+    return;
+  }
+
+  if (targetLimit > startLimit) {
+    alert(t("antiHabit.invalidLimits"));
+    return;
+  }
+
+  if (reduceBy <= 0 || reduceEveryPeriods <= 0) {
+    alert(t("antiHabit.invalidReduction"));
+    return;
+  }
+
+  data.habits.push({
+    id: crypto.randomUUID(),
+    type: ANTI_HABIT_TYPE,
+    name,
+    period,
+    startLimit,
+    targetLimit,
+    reduceBy,
+    reduceEveryPeriods,
+    startDate,
+    createdAt: todayKey,
+    logs: []
+  });
+
+  resetAntiHabitForm();
+
+  markDirty();
+  closeAntiHabitModal();
   render();
 }
 

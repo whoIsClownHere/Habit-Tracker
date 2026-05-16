@@ -153,6 +153,7 @@
           </div>
 
           <div id="activeList" class="active-list"></div>
+          <div id="antiHabitTodayList" class="anti-habit-today-list" hidden></div>
           <button id="completedTodayBtn" class="completed-today-btn" type="button">
             <span data-i18n="today.completedToday">Completed today</span>
             <strong id="completedTodayBtnCount">0</strong>
@@ -193,7 +194,10 @@
             <div class="section-kicker" data-i18n="manage.kicker">Management</div>
             <h2 data-i18n="habits.title">Habits</h2>
           </div>
-          <button id="toggleHabitManagerBtn" class="secondary" data-i18n="habits.configure">Configure habits</button>
+          <div class="management-actions">
+            <button id="antiHabitOpenBtn" class="secondary" type="button" data-i18n="antiHabit.open">Anti-habits</button>
+            <button id="toggleHabitManagerBtn" class="secondary" type="button" data-i18n="habits.configure">Configure habits</button>
+          </div>
         </div>
 
         <div class="habit-form">
@@ -660,6 +664,64 @@
         <div class="list-meta" id="completedModalMeta"></div>
       </div>
       <div class="completed-modal-list" id="completedModalList"></div>
+    </div>
+  </div>
+
+  <div class="modal-backdrop" id="antiHabitModal" hidden>
+    <div class="modal-panel anti-habit-modal-panel" role="dialog" aria-modal="true" aria-labelledby="antiHabitModalTitle">
+      <div class="modal-head">
+        <div>
+          <div class="section-kicker" data-i18n="antiHabit.kicker">Reduction habits</div>
+          <h2 id="antiHabitModalTitle" data-i18n="antiHabit.modalTitle">New anti-habit</h2>
+        </div>
+        <button id="antiHabitModalCloseBtn" type="button" data-i18n="auth.close">Close</button>
+      </div>
+
+      <div class="anti-habit-form-grid">
+        <label class="anti-habit-field" for="antiHabitName">
+          <span data-i18n="antiHabit.nameLabel">Name</span>
+          <input id="antiHabitName" data-i18n-placeholder="antiHabit.namePlaceholder" placeholder="Anti-habit: Scrolling" />
+          <small data-i18n="antiHabit.nameHelp">The behavior you want to reduce.</small>
+        </label>
+        <label class="anti-habit-field" for="antiHabitPeriod">
+          <span data-i18n="antiHabit.periodLabel">Period</span>
+          <select id="antiHabitPeriod" data-i18n-aria-label="antiHabit.periodLabel" aria-label="Period">
+            <option value="week" data-i18n="antiHabit.periodWeek">Week</option>
+            <option value="month" data-i18n="antiHabit.periodMonth">Month</option>
+          </select>
+          <small data-i18n="antiHabit.periodHelp">The allowance resets every week or month.</small>
+        </label>
+        <label class="anti-habit-field" for="antiHabitStartLimit">
+          <span data-i18n="antiHabit.startLimit">Start limit</span>
+          <input id="antiHabitStartLimit" type="number" min="0" data-i18n-placeholder="antiHabit.startLimitPlaceholder" placeholder="Start limit" />
+          <small data-i18n="antiHabit.startLimitHelp">How many times are allowed at the beginning.</small>
+        </label>
+        <label class="anti-habit-field" for="antiHabitTargetLimit">
+          <span data-i18n="antiHabit.targetLimit">Target limit</span>
+          <input id="antiHabitTargetLimit" type="number" min="0" data-i18n-placeholder="antiHabit.targetLimitPlaceholder" placeholder="Target limit" />
+          <small data-i18n="antiHabit.targetLimitHelp">The lowest limit the schedule should reach.</small>
+        </label>
+        <label class="anti-habit-field" for="antiHabitReduceBy">
+          <span data-i18n="antiHabit.reduceBy">Reduce by</span>
+          <input id="antiHabitReduceBy" type="number" min="1" value="1" data-i18n-placeholder="antiHabit.reduceByPlaceholder" placeholder="Reduce by" />
+          <small data-i18n="antiHabit.reduceByHelp">How much the limit drops each reduction.</small>
+        </label>
+        <label class="anti-habit-field" for="antiHabitReduceEvery">
+          <span data-i18n="antiHabit.reduceEvery">Every periods</span>
+          <input id="antiHabitReduceEvery" type="number" min="1" value="1" data-i18n-placeholder="antiHabit.reduceEveryPlaceholder" placeholder="Every periods" />
+          <small data-i18n="antiHabit.reduceEveryHelp">Use 1 to reduce every period, 2 every other period.</small>
+        </label>
+        <label class="anti-habit-field" for="antiHabitStartDate">
+          <span data-i18n="antiHabit.startDate">Start date</span>
+          <input id="antiHabitStartDate" type="date" data-i18n-aria-label="antiHabit.startDate" aria-label="Start date" />
+          <small data-i18n="antiHabit.startDateHelp">When the reduction schedule begins.</small>
+        </label>
+      </div>
+
+      <div class="anti-habit-modal-actions">
+        <button id="antiHabitCancelBtn" class="secondary" type="button" data-i18n="actions.cancel">Cancel</button>
+        <button id="addAntiHabitBtn" class="primary" type="button" data-i18n="antiHabit.add">+ Anti-habit</button>
+      </div>
     </div>
   </div>
 
