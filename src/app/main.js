@@ -6465,7 +6465,7 @@ function makeGoalCard(goal) {
   const goalTasks = getSimpleGoalTasks(goal);
   const typeLabel = getGoalTypeLabel(goal.type);
   const description = goal.description || goal.pointB || "";
-  const isExpanded = expandedGoalIds.has(goal.id);
+  const isExpanded = !expandedGoalIds.has(goal.id);
   const goalClasses = [
     "goal-item",
     "simple-goal-card",
