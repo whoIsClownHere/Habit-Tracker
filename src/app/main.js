@@ -69,6 +69,9 @@ const PROGRESS_OPTION_LIMIT = 200;
 const PROJECTION_LIMIT = 80;
 const TODAY_SEARCH_SCAN_LIMIT = 5000;
 const DAILY_QUOTE_LANGUAGE = "en";
+const HABIT_FREQUENCY_DAILY = "daily";
+const HABIT_FREQUENCY_WEEKLY = "weekly";
+const HABIT_FREQUENCIES = [HABIT_FREQUENCY_DAILY, HABIT_FREQUENCY_WEEKLY];
 const WORKOUT_DAY_ID_BY_INDEX = [
   "sun-rest",
   "mon-upper-a",
@@ -130,6 +133,10 @@ let plannerModalMode = "block";
 let plannerEditingBlockId = null;
 let plannerEditingRuleId = null;
 let plannerLinkMode = "standalone";
+let isPlannerMoveModalOpen = false;
+let plannerMoveEntry = null;
+let plannerMoveSelectedDate = "";
+let plannerMoveVisibleDate = new Date();
 let isGoalModalOpen = false;
 let editingGoalId = null;
 let goalsCalendarMode = "month";
@@ -238,6 +245,7 @@ const plannerChoiceGoalBtn = document.getElementById("plannerChoiceGoalBtn");
 const plannerChoiceStandaloneBtn = document.getElementById("plannerChoiceStandaloneBtn");
 const plannerDateField = document.getElementById("plannerDateField");
 const plannerDateInput = document.getElementById("plannerDateInput");
+const plannerNoDateInput = document.getElementById("plannerNoDateInput");
 const plannerStartInput = document.getElementById("plannerStartInput");
 const plannerEndInput = document.getElementById("plannerEndInput");
 const plannerTypeSelect = document.getElementById("plannerTypeSelect");
@@ -252,10 +260,22 @@ const plannerNotesField = document.getElementById("plannerNotesField");
 const plannerNotesInput = document.getElementById("plannerNotesInput");
 const plannerDeleteBtn = document.getElementById("plannerDeleteBtn");
 const plannerSaveBtn = document.getElementById("plannerSaveBtn");
+const plannerMoveModal = document.getElementById("plannerMoveModal");
+const plannerMoveModalCloseBtn = document.getElementById("plannerMoveModalCloseBtn");
+const plannerMoveCalendarTitle = document.getElementById("plannerMoveCalendarTitle");
+const plannerMoveCalendarGrid = document.getElementById("plannerMoveCalendarGrid");
+const plannerMovePrevMonthBtn = document.getElementById("plannerMovePrevMonthBtn");
+const plannerMoveNextMonthBtn = document.getElementById("plannerMoveNextMonthBtn");
+const plannerMoveSelectedLabel = document.getElementById("plannerMoveSelectedLabel");
+const plannerMoveConfirmBtn = document.getElementById("plannerMoveConfirmBtn");
 const activeList = document.getElementById("activeList");
 const antiHabitPanel = document.getElementById("antiHabitPanel");
 const antiHabitTodayList = document.getElementById("antiHabitTodayList");
 const todayHabitSearch = document.getElementById("todayHabitSearch");
+const habitNameInput = document.getElementById("habitName");
+const habitUnitInput = document.getElementById("habitUnit");
+const habitTargetInput = document.getElementById("habitTarget");
+const habitFrequencyInput = document.getElementById("habitFrequency");
 const todayListMeta = document.getElementById("todayListMeta");
 const todayOpenCount = document.getElementById("todayOpenCount");
 const todayDoneCount = document.getElementById("todayDoneCount");
@@ -293,9 +313,12 @@ const futureProjectionText = document.getElementById("futureProjectionText");
 const futureProjectionTable = document.getElementById("futureProjectionTable");
 const chartMetrics = document.getElementById("chartMetrics");
 const totalSinceStreakMetric = document.getElementById("totalSinceStreakMetric");
+const chartTotalSinceStreakLabel = document.getElementById("chartTotalSinceStreakLabel");
 const chartTotalSinceStreak = document.getElementById("chartTotalSinceStreak");
 const chartStreakDays = document.getElementById("chartStreakDays");
+const chartStreakLabel = document.getElementById("chartStreakLabel");
 const chartLifetimeTotal = document.getElementById("chartLifetimeTotal");
+const chartLifetimeLabel = document.getElementById("chartLifetimeLabel");
 const progressHabit = document.getElementById("progressHabit");
 const habitManagerPanel = document.getElementById("habitManagerPanel");
 const habitManagerList = document.getElementById("habitManagerList");
@@ -472,6 +495,7 @@ plannerGoalSelect.addEventListener("change", () => {
   populatePlannerMilestoneSelect(plannerGoalSelect.value);
   syncPlannerTitleFromSelectedTask({ clearUnlockedTitle: true });
 });
+plannerNoDateInput.addEventListener("change", syncPlannerDateChoice);
 plannerMilestoneSelect.addEventListener("change", () => syncPlannerTitleFromSelectedTask({ clearUnlockedTitle: true }));
 plannerTypeSelect.addEventListener("change", () => {
   syncPlannerModalVisibility();
@@ -480,6 +504,10 @@ plannerTypeSelect.addEventListener("change", () => {
 plannerHabitSelect.addEventListener("change", () => syncPlannerTitleFromSelectedTask({ clearUnlockedTitle: true }));
 plannerSaveBtn.addEventListener("click", savePlannerFromModal);
 plannerDeleteBtn.addEventListener("click", deletePlannerFromModal);
+plannerMoveModalCloseBtn.addEventListener("click", closePlannerMoveModal);
+plannerMovePrevMonthBtn.addEventListener("click", () => changePlannerMoveMonth(-1));
+plannerMoveNextMonthBtn.addEventListener("click", () => changePlannerMoveMonth(1));
+plannerMoveConfirmBtn.addEventListener("click", confirmPlannerMove);
 openGoalArchiveBtn.addEventListener("click", openGoalArchiveModal);
 toggleHabitManagerBtn.addEventListener("click", toggleHabitManager);
 document.getElementById("todayBtn").addEventListener("click", goToToday);
@@ -517,6 +545,9 @@ goalModal.addEventListener("click", (event) => {
 plannerBlockModal.addEventListener("click", (event) => {
   if (event.target === plannerBlockModal) closePlannerModal();
 });
+plannerMoveModal.addEventListener("click", (event) => {
+  if (event.target === plannerMoveModal) closePlannerMoveModal();
+});
 goalArchiveModal.addEventListener("click", (event) => {
   if (event.target === goalArchiveModal) closeGoalArchiveModal();
 });
@@ -529,6 +560,7 @@ document.addEventListener("keydown", (event) => {
   if (event.key === "Escape" && isCompletedModalOpen) closeCompletedModal();
   if (event.key === "Escape" && isAntiHabitModalOpen) closeAntiHabitModal();
   if (event.key === "Escape" && isPlannerModalOpen) closePlannerModal();
+  if (event.key === "Escape" && isPlannerMoveModalOpen) closePlannerMoveModal();
   if (event.key === "Escape" && isGoalModalOpen) closeGoalModal();
   if (event.key === "Escape" && isGoalArchiveModalOpen) closeGoalArchiveModal();
   if (event.key === "Escape" && isGoalCompletedTasksModalOpen) closeGoalCompletedTasksModal();
@@ -589,7 +621,7 @@ goalResultFailedBtn.addEventListener("click", () => resolveGoalResult("failed"))
 goalResultModal.addEventListener("click", (event) => {
   if (event.target === goalResultModal) closeGoalResultModal();
 });
-goalWorkspaceBackBtn.addEventListener("click", () => switchView("goals"));
+goalWorkspaceBackBtn.addEventListener("click", () => switchView("planner"));
 goalWorkspaceNotes.addEventListener("input", updateWorkspaceNotes);
 goalMiniGoalAddBtn.addEventListener("click", addWorkspaceMiniGoal);
 goalMiniGoalInput.addEventListener("keydown", (event) => {
@@ -679,9 +711,9 @@ render();
 
 function getInitialView() {
   if (getWorkspaceRoute()) return "workspace";
-  if (window.location.hash === "#planner") return "planner";
+  if (window.location.hash === "#planner" || window.location.hash === "#goals") return "planner";
   if (window.location.hash === "#workouts") return "workouts";
-  return window.location.hash === "#goals" ? "goals" : "habits";
+  return "habits";
 }
 
 function switchView(view, options = {}) {
@@ -690,13 +722,11 @@ function switchView(view, options = {}) {
   const previousView = [habitsView, workoutsView, plannerView, goalsView, goalWorkspaceView].find(item => !item.hidden);
   activeView = view === "workspace"
     ? "workspace"
-    : view === "goals"
-      ? "goals"
-      : view === "planner"
-        ? "planner"
-        : view === "workouts"
-          ? "workouts"
-          : "habits";
+    : view === "goals" || view === "planner"
+      ? "planner"
+      : view === "workouts"
+        ? "workouts"
+        : "habits";
   const isGoals = activeView === "goals";
   const isPlanner = activeView === "planner";
   const isWorkouts = activeView === "workouts";
@@ -722,7 +752,10 @@ function switchView(view, options = {}) {
 
   if (isWorkspace) renderGoalWorkspacePage();
   if (isWorkouts) renderWorkouts();
-  if (isPlanner) renderPlanner();
+  if (isPlanner) {
+    renderPlanner();
+    renderGoals();
+  }
   const nextView = isWorkspace ? goalWorkspaceView : isGoals ? goalsView : isPlanner ? plannerView : isWorkouts ? workoutsView : habitsView;
   if (previousView !== nextView) animateSectionEnter(nextView);
 }
@@ -937,7 +970,7 @@ function closeActionMenu(menu = activeActionMenu, options = {}) {
 function syncModalOpenState() {
   document.body.classList.toggle(
     "modal-open",
-    isAuthModalOpen || isCompletedModalOpen || isAntiHabitModalOpen || isPlannerModalOpen || isGoalModalOpen || isGoalArchiveModalOpen || isGoalCompletedTasksModalOpen || isGoalTaskCreateModalOpen || isGoalResultModalOpen
+    isAuthModalOpen || isCompletedModalOpen || isAntiHabitModalOpen || isPlannerModalOpen || isPlannerMoveModalOpen || isGoalModalOpen || isGoalArchiveModalOpen || isGoalCompletedTasksModalOpen || isGoalTaskCreateModalOpen || isGoalResultModalOpen
   );
 }
 
@@ -1049,6 +1082,7 @@ function refreshLocalizedUi() {
   refreshStatusText();
   setAuthMode(authMode, { clearMessage: false });
   syncPlannerModalText();
+  if (isPlannerMoveModalOpen) renderPlannerMoveCalendar();
   syncGoalModalText();
   syncGoalResultModalText();
   render();
@@ -1590,6 +1624,7 @@ function createTestingData() {
     { id: "qa-meditation", name: "Meditation", unit: "min", target: 10, createdAt: yesterday },
     { id: "qa-walk", name: "Walk", unit: "steps", target: 7000, createdAt: yesterday },
     { id: "qa-planning", name: "Plan tomorrow", unit: "plan", target: 1, createdAt: today },
+    { id: "qa-research", name: "Research deep work", unit: "h", target: 20, frequency: HABIT_FREQUENCY_WEEKLY, createdAt: lastWeek },
     {
       id: "qa-scrolling",
       type: ANTI_HABIT_TYPE,
@@ -1619,7 +1654,8 @@ function createTestingData() {
       "qa-reading": makeTestingRecord(true, 25, habits[1]),
       "qa-training": makeTestingRecord(false, 20, habits[2]),
       "qa-language": makeTestingRecord(true, 25, habits[3]),
-      "qa-journal": makeTestingRecord(true, 1, habits[4])
+      "qa-journal": makeTestingRecord(true, 1, habits[4]),
+      "qa-research": makeTestingRecord(true, 6, habits[8])
     },
     [yesterday]: {
       "qa-water": makeTestingRecord(true, 8, habits[0]),
@@ -1628,17 +1664,19 @@ function createTestingData() {
       "qa-language": makeTestingRecord(true, 20, habits[3]),
       "qa-journal": makeTestingRecord(true, 1, habits[4]),
       "qa-meditation": makeTestingRecord(true, 12, habits[5]),
-      "qa-walk": makeTestingRecord(true, 8100, habits[6])
+      "qa-walk": makeTestingRecord(true, 8100, habits[6]),
+      "qa-research": makeTestingRecord(true, 7, habits[8])
     },
     [today]: {
       "qa-water": makeTestingRecord(true, 6, habits[0]),
       "qa-reading": makeTestingRecord(true, 25, habits[1]),
       "qa-training": makeTestingRecord(false, "", habits[2]),
-      "qa-language": makeTestingRecord(false, "", habits[3])
+      "qa-language": makeTestingRecord(false, "", habits[3]),
+      "qa-research": makeTestingRecord(false, 4, habits[8])
     }
   };
 
-  return {
+  return normalizeData({
     habits,
     records,
     goals: [
@@ -1819,7 +1857,7 @@ function createTestingData() {
       }
     },
     workoutTargets: {}
-  };
+  });
 }
 
 function makeTestingRecord(done, value, habit) {
@@ -1828,7 +1866,8 @@ function makeTestingRecord(done, value, habit) {
     value,
     habitName: habit.name,
     habitUnit: habit.unit,
-    habitTarget: habit.target
+    habitTarget: habit.target,
+    habitFrequency: normalizeHabitFrequency(habit.frequency)
   };
 }
 
@@ -1947,8 +1986,10 @@ function applyStatusDotClass(dot) {
 function normalizeData(input) {
   const source = input && typeof input === "object" ? input : {};
   const records = source.records && typeof source.records === "object" ? source.records : {};
-  const goals = Array.isArray(source.goals) ? source.goals.map(normalizeGoal) : [];
-  const plannerBlocks = Array.isArray(source.plannerBlocks) ? source.plannerBlocks.map(normalizePlannerBlock).filter(Boolean) : [];
+  const goals = Array.isArray(source.goals) ? source.goals.map(normalizeGoal).filter(isGoalActive) : [];
+  const plannerBlocks = Array.isArray(source.plannerBlocks)
+    ? source.plannerBlocks.map(normalizePlannerBlock).filter(block => block && block.status !== "done")
+    : [];
   const recurringRules = Array.isArray(source.recurringRules) ? source.recurringRules.map(normalizeRecurringRule).filter(Boolean) : [];
   backfillPlannerGoalTaskLinks(plannerBlocks, goals);
   backfillPlannerGoalTaskLinks(recurringRules, goals);
@@ -1968,7 +2009,11 @@ function normalizeData(input) {
 
 function normalizePlannerBlock(block = {}) {
   const safeBlock = block && typeof block === "object" ? block : {};
-  const date = isDateKey(safeBlock.date) ? safeBlock.date : toDateInputValue(new Date());
+  const date = safeBlock.date === "" || safeBlock.date === null
+    ? ""
+    : isDateKey(safeBlock.date)
+      ? safeBlock.date
+      : toDateInputValue(new Date());
   const startTime = normalizePlannerTime(safeBlock.startTime, "09:00");
   const endTime = normalizePlannerTime(safeBlock.endTime, getDefaultPlannerEndTime(startTime));
   const goalId = normalizeNullableId(safeBlock.goalId ?? safeBlock.linkedGoalId);
@@ -2085,6 +2130,7 @@ function normalizeHabit(habit = {}, records) {
     name: safeHabit.name || t("habit.fallback"),
     unit: safeHabit.unit || "",
     target: safeHabit.target ?? "",
+    frequency: normalizeHabitFrequency(safeHabit.frequency),
     createdAt
   };
 }
@@ -2152,11 +2198,12 @@ function normalizeGoal(goal) {
     type: goal.type || "other",
     pointA: goal.pointA || fallbackPointA,
     pointB: goal.pointB || fallbackPointB,
+    description: goal.description || goal.pointB || fallbackPointB,
     createdAt: goal.createdAt || toDateInputValue(new Date()),
     status,
     completedAt: status === "completed" ? goal.completedAt || goal.archivedAt || toDateInputValue(new Date()) : "",
     failedAt: status === "failed" ? goal.failedAt || goal.archivedAt || toDateInputValue(new Date()) : "",
-    tasks: rawTasks.map(normalizeGoalTask)
+    tasks: rawTasks.map(normalizeGoalTask).filter(task => !task.done)
   };
 }
 
@@ -2375,7 +2422,6 @@ function getTestingScenarios() {
     { titleKey: "testing.scenario.historyTitle", textKey: "testing.scenario.historyText" },
     { titleKey: "testing.scenario.workoutsTitle", textKey: "testing.scenario.workoutsText" },
     { titleKey: "testing.scenario.goalsTitle", textKey: "testing.scenario.goalsText" },
-    { titleKey: "testing.scenario.workspaceTitle", textKey: "testing.scenario.workspaceText" },
     { titleKey: "testing.scenario.localeTitle", textKey: "testing.scenario.localeText" }
   ];
 }
@@ -2546,6 +2592,7 @@ function getVisibleTodayHabits(todayKey) {
     if (!isHabitTrackedOnDate(habit, todayKey)) continue;
     const record = getRecord(todayKey, habit.id, false);
     if (record?.done) continue;
+    if (isWeeklyHabit(habit) && getWeeklyHabitProgressState(habit, todayKey).isComplete) continue;
     if (!habitMatchesSearch(habit, todaySearchQuery)) continue;
     matchCount += 1;
     matches.push(habit);
@@ -2630,9 +2677,22 @@ function getAntiHabits() {
   return data.habits.filter(isAntiHabit);
 }
 
+function normalizeHabitFrequency(value) {
+  return HABIT_FREQUENCIES.includes(value) ? value : HABIT_FREQUENCY_DAILY;
+}
+
+function isWeeklyHabit(habit) {
+  return normalizeHabitFrequency(habit?.frequency) === HABIT_FREQUENCY_WEEKLY;
+}
+
+function getHabitFrequencyLabel(frequency) {
+  const normalized = normalizeHabitFrequency(frequency);
+  return t(normalized === HABIT_FREQUENCY_WEEKLY ? "habit.frequencyWeekly" : "habit.frequencyDaily");
+}
+
 function habitMatchesSearch(habit, query) {
   if (!query) return true;
-  return `${habit.name || ""} ${habit.unit || ""}`.toLowerCase().includes(query);
+  return `${habit.name || ""} ${habit.unit || ""} ${getHabitFrequencyLabel(habit.frequency)}`.toLowerCase().includes(query);
 }
 
 function openAntiHabitModal() {
@@ -2724,11 +2784,11 @@ function getCompletedTodayItems(dateKey) {
   const dayRecords = data.records[dateKey] || {};
 
   return Object.entries(dayRecords)
-    .filter(([, record]) => record?.done)
     .map(([habitId, record]) => ({
       habit: getHabitDetails(habitId, record),
       record
-    }));
+    }))
+    .filter(({ habit, record }) => record?.done || (isWeeklyHabit(habit) && getWeeklyHabitProgressState(habit, dateKey).isComplete));
 }
 
 function getHabitDetails(habitId, record) {
@@ -2738,7 +2798,8 @@ function getHabitDetails(habitId, record) {
     id: habitId,
     name: habit?.name || record.habitName || t("habit.fallback"),
     unit: habit?.unit ?? record.habitUnit ?? "",
-    target: habit?.target ?? record.habitTarget ?? ""
+    target: habit?.target ?? record.habitTarget ?? "",
+    frequency: normalizeHabitFrequency(habit?.frequency ?? record.habitFrequency)
   };
 }
 
@@ -2746,7 +2807,8 @@ function hasHabitSnapshot(record) {
   return Boolean(record && (
     Object.prototype.hasOwnProperty.call(record, "habitName") ||
     Object.prototype.hasOwnProperty.call(record, "habitUnit") ||
-    Object.prototype.hasOwnProperty.call(record, "habitTarget")
+    Object.prototype.hasOwnProperty.call(record, "habitTarget") ||
+    Object.prototype.hasOwnProperty.call(record, "habitFrequency")
   ));
 }
 
@@ -2761,11 +2823,198 @@ function applyHabitSnapshot(record, habit) {
   record.habitName = habit.name || "";
   record.habitUnit = habit.unit || "";
   record.habitTarget = habit.target ?? "";
+  record.habitFrequency = normalizeHabitFrequency(habit.frequency);
+}
+
+function getHabitTargetNumber(habit) {
+  const target = Number(habit?.target || 0);
+  return Number.isFinite(target) && target > 0 ? target : 0;
+}
+
+function formatHabitNumber(value) {
+  const number = Number(value || 0);
+  if (!Number.isFinite(number)) return "0";
+  if (Number.isInteger(number)) return String(number);
+  return number.toFixed(2).replace(/\.?0+$/, "");
+}
+
+function formatHabitAmount(value, unit = "") {
+  const suffix = unit ? ` ${unit}` : "";
+  return `${formatHabitNumber(value)}${suffix}`;
+}
+
+function getRecordProgressValue(record, habit = null) {
+  if (!record) return 0;
+
+  if (record.value !== "" && record.value !== null && record.value !== undefined) {
+    const value = Number(record.value);
+    return Number.isFinite(value) && value > 0 ? value : 0;
+  }
+
+  if (record.done && habit) {
+    return getHabitTargetNumber(habit) || 1;
+  }
+
+  return 0;
+}
+
+function getWeekBoundsForDateKey(dateKey) {
+  const weekStart = getWeekStart(parseDateKey(dateKey));
+  const weekEnd = new Date(weekStart);
+  weekEnd.setDate(weekStart.getDate() + 6);
+  return {
+    start: toDateInputValue(weekStart),
+    end: toDateInputValue(weekEnd)
+  };
+}
+
+function getWeekStartKey(dateKey) {
+  return getWeekBoundsForDateKey(dateKey).start;
+}
+
+function getWeekEndKeyFromStartKey(weekStartKey) {
+  const weekEnd = parseDateKey(weekStartKey);
+  weekEnd.setDate(weekEnd.getDate() + 6);
+  return toDateInputValue(weekEnd);
+}
+
+function getPreviousWeekStartKey(weekStartKey) {
+  const previous = parseDateKey(weekStartKey);
+  previous.setDate(previous.getDate() - 7);
+  return toDateInputValue(previous);
+}
+
+function calculateHabitValueBetweenDates(habit, startDateKey, endDateKey) {
+  if (!habit || !startDateKey || !endDateKey) return 0;
+  let total = 0;
+
+  Object.keys(data.records).forEach(dateKey => {
+    if (dateKey < startDateKey || dateKey > endDateKey) return;
+    total += getRecordProgressValue(data.records[dateKey]?.[habit.id], habit);
+  });
+
+  return total;
+}
+
+function calculateWeeklyHabitProgress(habit, dateKey) {
+  if (!isWeeklyHabit(habit)) return 0;
+  const bounds = getWeekBoundsForDateKey(dateKey);
+  const endDateKey = dateKey < bounds.end ? dateKey : bounds.end;
+  return calculateHabitValueBetweenDates(habit, bounds.start, endDateKey);
+}
+
+function calculateWeeklyHabitTotalForWeek(habit, weekStartKey, endDateKey = "") {
+  if (!isWeeklyHabit(habit)) return 0;
+  const weekEndKey = getWeekEndKeyFromStartKey(weekStartKey);
+  const boundedEndKey = endDateKey && endDateKey < weekEndKey ? endDateKey : weekEndKey;
+  return calculateHabitValueBetweenDates(habit, weekStartKey, boundedEndKey);
+}
+
+function getWeeklyHabitProgressState(habit, dateKey) {
+  const target = getHabitTargetNumber(habit);
+  const progress = calculateWeeklyHabitProgress(habit, dateKey);
+  const remaining = Math.max(0, target - progress);
+  return {
+    target,
+    progress,
+    remaining,
+    isComplete: target > 0 && progress >= target
+  };
+}
+
+function isWeeklyHabitTargetReachedBeforeDate(habit, dateKey) {
+  if (!isWeeklyHabit(habit)) return false;
+  const target = getHabitTargetNumber(habit);
+  if (target <= 0) return false;
+
+  const bounds = getWeekBoundsForDateKey(dateKey);
+  const previousDateKey = shiftDateKey(dateKey, -1);
+  if (previousDateKey < bounds.start) return false;
+
+  return calculateHabitValueBetweenDates(habit, bounds.start, previousDateKey) >= target;
+}
+
+function getHabitTargetText(habit) {
+  const target = getHabitTargetNumber(habit);
+  return target
+    ? formatHabitAmount(target, habit.unit || "")
+    : t("habit.targetUnset");
+}
+
+function getHabitProgressMetaText(habit, dateKey) {
+  if (!isWeeklyHabit(habit)) {
+    return t("habit.targetMeta", { target: getHabitTargetText(habit) });
+  }
+
+  const state = getWeeklyHabitProgressState(habit, dateKey);
+  const progressText = formatHabitAmount(state.progress, habit.unit || "");
+  const targetText = state.target
+    ? formatHabitAmount(state.target, habit.unit || "")
+    : t("habit.targetUnset");
+
+  if (!state.target) {
+    return t("habit.weeklyProgress", { progress: progressText, target: targetText });
+  }
+
+  if (state.isComplete) {
+    return t("habit.weeklyProgressComplete", { progress: progressText, target: targetText });
+  }
+
+  return t("habit.weeklyProgressRemaining", {
+    progress: progressText,
+    target: targetText,
+    remaining: formatHabitAmount(state.remaining, habit.unit || "")
+  });
+}
+
+function getHabitPeriodBadge(habit) {
+  return t(isWeeklyHabit(habit) ? "habit.frequencyWeekly" : "habit.frequencyDaily");
+}
+
+function getHabitCompletionValue(habit, dateKey) {
+  if (isWeeklyHabit(habit)) {
+    const state = getWeeklyHabitProgressState(habit, dateKey);
+    return state.remaining || state.target || "";
+  }
+
+  return habit.target ? Number(habit.target) : "";
+}
+
+function getHabitInfoHtml(habit, dateKey) {
+  const periodClass = [
+    "quest-period",
+    isWeeklyHabit(habit) ? "weekly" : "",
+    isWeeklyHabit(habit) && getWeeklyHabitProgressState(habit, dateKey).isComplete ? "complete" : ""
+  ].filter(Boolean).join(" ");
+
+  return `
+    <div class="quest-name">${escapeHtml(habit.name)}</div>
+    <div class="quest-meta">${escapeHtml(getHabitProgressMetaText(habit, dateKey))}</div>
+    <div class="${periodClass}">${escapeHtml(getHabitPeriodBadge(habit))}</div>
+  `;
+}
+
+function getCompletedHabitInfoHtml(habit, dateKey) {
+  const completedMeta = isWeeklyHabit(habit)
+    ? `${t("habit.completedEditable")} · ${getHabitProgressMetaText(habit, dateKey)}`
+    : t("habit.completedEditable");
+  const periodClass = [
+    "quest-period",
+    isWeeklyHabit(habit) ? "weekly" : "",
+    isWeeklyHabit(habit) && getWeeklyHabitProgressState(habit, dateKey).isComplete ? "complete" : ""
+  ].filter(Boolean).join(" ");
+
+  return `
+    <div class="quest-name">${escapeHtml(habit.name)}</div>
+    <div class="quest-meta">${escapeHtml(completedMeta)}</div>
+    <div class="${periodClass}">${escapeHtml(getHabitPeriodBadge(habit))}</div>
+  `;
 }
 
 function makeQuestItem(habit, record, dateKey) {
   const el = document.createElement("div");
   el.className = "quest-item";
+  if (isWeeklyHabit(habit)) el.classList.add("weekly-habit");
 
   const check = document.createElement("button");
   check.className = "quest-check";
@@ -2777,7 +3026,7 @@ function makeQuestItem(habit, record, dateKey) {
     check.dataset.busy = "true";
     check.classList.add("is-checking", "quest-check-done");
     record.done = true;
-    if (!record.value && habit.target) record.value = Number(habit.target);
+    if (!record.value) record.value = getHabitCompletionValue(habit, dateKey);
     applyHabitSnapshot(record, habit);
     saveRecord(dateKey, habit.id, record);
     markDirty();
@@ -2785,18 +3034,13 @@ function makeQuestItem(habit, record, dateKey) {
   };
 
   const info = document.createElement("div");
-  const targetText = habit.target
-    ? `${escapeHtml(habit.target)}${habit.unit ? " " + escapeHtml(habit.unit) : ""}`
-    : t("habit.targetUnset");
-  info.innerHTML = `
-    <div class="quest-name">${escapeHtml(habit.name)}</div>
-    <div class="quest-meta">${t("habit.targetMeta", { target: targetText })}</div>
-  `;
+  info.innerHTML = getHabitInfoHtml(habit, dateKey);
 
   const value = document.createElement("input");
   value.className = "quest-value";
   value.type = "number";
   value.min = "0";
+  value.step = "any";
   value.placeholder = habit.unit || t("habit.valuePlaceholder");
   value.value = record.value ?? "";
   value.oninput = () => {
@@ -2804,6 +3048,7 @@ function makeQuestItem(habit, record, dateKey) {
     applyHabitSnapshot(record, habit);
     saveRecord(dateKey, habit.id, record);
     markDirty();
+    info.innerHTML = getHabitInfoHtml(habit, dateKey);
     renderPeriodProgress();
     renderProgress();
   };
@@ -2832,15 +3077,13 @@ function makeCompletedQuestItem(habit, record, dateKey) {
   };
 
   const info = document.createElement("div");
-  info.innerHTML = `
-    <div class="quest-name">${escapeHtml(habit.name)}</div>
-    <div class="quest-meta">${t("habit.completedEditable")}</div>
-  `;
+  info.innerHTML = getCompletedHabitInfoHtml(habit, dateKey);
 
   const value = document.createElement("input");
   value.className = "quest-value";
   value.type = "number";
   value.min = "0";
+  value.step = "any";
   value.placeholder = habit.unit || t("habit.valuePlaceholder");
   value.value = record.value ?? "";
   value.oninput = () => {
@@ -2848,6 +3091,7 @@ function makeCompletedQuestItem(habit, record, dateKey) {
     applyHabitSnapshot(record, habit);
     saveRecord(dateKey, habit.id, record);
     markDirty();
+    info.innerHTML = getCompletedHabitInfoHtml(habit, dateKey);
     renderTodayLists();
     renderDayReview();
     renderPeriodProgress();
@@ -2978,9 +3222,13 @@ function makeHabitManagerItem(habit) {
   const targetInput = document.createElement("input");
   targetInput.type = "number";
   targetInput.min = "0";
+  targetInput.step = "any";
   targetInput.value = habit.target ?? "";
   targetInput.placeholder = t("habit.fieldTarget");
   targetInput.onchange = () => updateHabitField(habit.id, "target", targetInput.value === "" ? "" : Number(targetInput.value));
+
+  const frequencySelect = makeHabitFrequencySelect(habit.frequency);
+  frequencySelect.onchange = () => updateHabitField(habit.id, "frequency", frequencySelect.value);
 
   const actionMenu = makeActionMenu([
     {
@@ -2988,7 +3236,8 @@ function makeHabitManagerItem(habit) {
       onSelect: () => updateHabit(habit.id, {
         name: nameInput.value.trim(),
         unit: unitInput.value.trim(),
-        target: targetInput.value === "" ? "" : Number(targetInput.value)
+        target: targetInput.value === "" ? "" : Number(targetInput.value),
+        frequency: frequencySelect.value
       })
     },
     {
@@ -3001,8 +3250,24 @@ function makeHabitManagerItem(habit) {
   item.appendChild(nameInput);
   item.appendChild(unitInput);
   item.appendChild(targetInput);
+  item.appendChild(frequencySelect);
   item.appendChild(actionMenu);
   return item;
+}
+
+function makeHabitFrequencySelect(value) {
+  const select = document.createElement("select");
+
+  HABIT_FREQUENCIES.forEach(frequency => {
+    const option = document.createElement("option");
+    option.value = frequency;
+    option.textContent = getHabitFrequencyLabel(frequency);
+    select.appendChild(option);
+  });
+
+  select.value = normalizeHabitFrequency(value);
+  select.setAttribute("aria-label", t("habit.fieldFrequency"));
+  return select;
 }
 
 function makeAntiHabitManagerItem(habit) {
@@ -3147,6 +3412,10 @@ function updateHabit(habitId, updates, rerender = true) {
     alert(t("habit.targetNegative"));
     renderHabitManager();
     return;
+  }
+
+  if (Object.prototype.hasOwnProperty.call(updates, "frequency")) {
+    updates.frequency = normalizeHabitFrequency(updates.frequency);
   }
 
   Object.assign(habit, updates);
@@ -4129,17 +4398,20 @@ function renderPlanner() {
   plannerDateLabel.textContent = formatPlannerDateLabel(plannerSelectedDate);
   plannerAddBlockBtn.disabled = !currentUser;
   plannerAddRecurringBtn.disabled = !currentUser;
+  selectedGoalDate = plannerSelectedDate;
+  goalsVisibleDate = parseDateKey(plannerSelectedDate);
+  hasManualGoalDateSelection = true;
   renderPlannerSummary();
   renderPlannerTimeline();
-  renderPlannerRecurringRules();
 }
 
 function renderPlannerSummary() {
-  const entries = getPlannerEntriesForDate(plannerSelectedDate);
-  plannerPlannedCount.textContent = entries.filter(entry => entry.block.status === "planned").length;
-  plannerDoneCount.textContent = entries.filter(entry => entry.block.status === "done").length;
-  plannerSkippedCount.textContent = entries.filter(entry => entry.block.status === "skipped").length;
-  plannerGoalCount.textContent = entries.filter(entry => entry.block.goalId).length;
+  const entries = getPlannerTaskEntriesForDate(plannerSelectedDate);
+  const undatedCount = (data.plannerBlocks || []).filter(block => !block.date && block.status !== "done").length;
+  plannerPlannedCount.textContent = entries.length;
+  plannerDoneCount.textContent = getAllDeadlineItems().length;
+  plannerSkippedCount.textContent = undatedCount;
+  plannerGoalCount.textContent = entries.filter(entry => isGoalPlannerTaskEntry(entry)).length;
 }
 
 function renderPlannerTimeline() {
@@ -4151,7 +4423,7 @@ function renderPlannerTimeline() {
     return;
   }
 
-  const entries = getPlannerEntriesForDate(plannerSelectedDate);
+  const entries = getPlannerTaskEntriesForDate(plannerSelectedDate);
 
   if (entries.length === 0) {
     plannerTimeline.innerHTML = `<div class="empty">${t("planner.emptyDay")}</div>`;
@@ -4164,47 +4436,39 @@ function renderPlannerTimeline() {
 }
 
 function makePlannerBlockItem(entry) {
+  const isGoalTask = entry.source === "goal-task";
   const { block, isVirtual } = entry;
-  const title = getPlannerDisplayTitle(block);
+  const title = getPlannerTaskEntryTitle(entry);
   const item = document.createElement("article");
-  const linkedLabel = getPlannerLinkedLabel(block);
-  const definition = block.definitionOfDone ? `<div class="planner-block-note">${escapeHtml(block.definitionOfDone)}</div>` : "";
-  const notes = block.notes ? `<div class="planner-block-note muted">${escapeHtml(block.notes)}</div>` : "";
+  const linkedLabel = getPlannerTaskEntryLinkedLabel(entry);
+  const date = getPlannerTaskEntryDate(entry);
+  const type = isGoalTask ? "goal" : block.type;
+  const status = isGoalTask ? "planned" : block.status;
+  const dateText = date ? formatDeadlineLong(date) : t("deadlines.noDueDate");
 
-  item.className = `planner-block-item ${block.status}`;
+  item.className = `planner-block-item task-row ${status}`;
   if (isVirtual) item.classList.add("virtual");
   item.innerHTML = `
-    <div class="planner-time">
-      <strong>${escapeHtml(block.startTime)}</strong>
-      <span>${escapeHtml(block.endTime)}</span>
-    </div>
+    <button class="quest-check planner-done-btn" type="button">✓</button>
     <div class="planner-block-main">
-      <div class="planner-block-badges">
-        <span class="deadline-pill ${getPlannerStatusClass(block.status)}">${escapeHtml(getPlannerStatusLabel(block.status))}</span>
-        <span class="goal-type">${escapeHtml(getPlannerTypeLabel(block.type))}</span>
-        ${isVirtual ? `<span class="goal-type">${t("planner.recurringBadge")}</span>` : ""}
-      </div>
       <div class="planner-block-title">${escapeHtml(title)}</div>
       ${linkedLabel ? `<div class="planner-block-link">${escapeHtml(linkedLabel)}</div>` : ""}
-      ${definition}
-      ${notes}
     </div>
     <div class="planner-block-actions">
-      <button class="success planner-done-btn" type="button">${t("planner.markDone")}</button>
-      <button class="secondary planner-skip-btn" type="button">${t("planner.markSkipped")}</button>
+      <div class="planner-block-side-meta">
+        <span class="deadline-pill ${date ? "info" : ""}">${escapeHtml(dateText)}</span>
+        <span class="goal-type">${escapeHtml(getPlannerTypeLabel(type))}</span>
+      </div>
       <button class="secondary planner-move-btn" type="button">${t("planner.move")}</button>
     </div>
   `;
 
-  item.querySelector(".planner-done-btn").disabled = block.status === "done";
-  item.querySelector(".planner-skip-btn").disabled = block.status === "skipped";
-  item.querySelector(".planner-done-btn").addEventListener("click", () => setPlannerEntryStatus(entry, "done", item));
-  item.querySelector(".planner-skip-btn").addEventListener("click", () => setPlannerEntryStatus(entry, "skipped", item));
+  item.querySelector(".planner-done-btn").addEventListener("click", () => completePlannerTaskEntry(entry, item));
   item.querySelector(".planner-move-btn").addEventListener("click", () => movePlannerEntry(entry));
   const menuActions = [
     {
       label: t("actions.edit"),
-      onSelect: () => editPlannerEntry(entry)
+      onSelect: () => editPlannerTaskEntry(entry)
     }
   ];
   if (!isVirtual) {
@@ -4212,13 +4476,66 @@ function makePlannerBlockItem(entry) {
     {
       label: t("actions.delete"),
       danger: true,
-      onSelect: () => deletePlannerEntry(entry)
+      onSelect: () => deletePlannerTaskEntry(entry)
     }
     );
   }
-  item.appendChild(makeActionMenu(menuActions, t("planner.menuBlockLabel", { name: title || t("planner.untitledBlock") })));
+  item.appendChild(makeActionMenu(
+    menuActions,
+    isGoalTask
+      ? t("goals.menuTaskLabel", { name: title || t("data.taskFallback") })
+      : t("planner.menuBlockLabel", { name: title || t("planner.untitledBlock") })
+  ));
 
   return item;
+}
+
+function isGoalPlannerTaskEntry(entry) {
+  return entry?.source === "goal-task" || Boolean(entry?.block?.goalId);
+}
+
+function getPlannerTaskEntryTitle(entry) {
+  if (entry?.source === "goal-task") return entry.task?.title || t("data.taskFallback");
+  return getPlannerDisplayTitle(entry.block);
+}
+
+function getPlannerTaskEntryDate(entry) {
+  if (entry?.source === "goal-task") return entry.task?.deadline || "";
+  return entry?.block?.date || "";
+}
+
+function getPlannerTaskEntryLinkedLabel(entry) {
+  if (entry?.source === "goal-task") {
+    return t("planner.linkedTo", { name: entry.goal?.name || t("data.goalFallback") });
+  }
+  return getPlannerLinkedLabel(entry.block);
+}
+
+function completePlannerTaskEntry(entry, source) {
+  if (entry?.source === "goal-task" && entry.goal?.id && entry.task?.id) {
+    toggleGoalTask(entry.goal.id, entry.task.id, { source });
+    return;
+  }
+
+  setPlannerEntryStatus(entry, "done", source);
+}
+
+function editPlannerTaskEntry(entry) {
+  if (entry?.source === "goal-task" && entry.goal?.id && entry.task?.id) {
+    editGoalTask(entry.goal.id, entry.task.id);
+    return;
+  }
+
+  editPlannerEntry(entry);
+}
+
+function deletePlannerTaskEntry(entry) {
+  if (entry?.source === "goal-task" && entry.goal?.id && entry.task?.id) {
+    deleteGoalTask(entry.goal.id, entry.task.id);
+    return;
+  }
+
+  deletePlannerEntry(entry);
 }
 
 function renderPlannerRecurringRules() {
@@ -4304,7 +4621,13 @@ function openPlannerBlockModal(options = {}) {
   populatePlannerHabitSelect(preselectedHabitId);
   renderPlannerWeekdayChoices(rule?.weekdays || [1, 2, 3, 4, 5]);
 
-  plannerDateInput.value = options.date || block?.date || plannerSelectedDate;
+  const initialDate = Object.prototype.hasOwnProperty.call(options, "date")
+    ? options.date
+    : Object.prototype.hasOwnProperty.call(source, "date")
+      ? source.date || ""
+      : plannerSelectedDate;
+  plannerDateInput.value = isDateKey(initialDate) ? initialDate : plannerSelectedDate;
+  plannerNoDateInput.checked = !isDateKey(initialDate);
   plannerStartInput.value = startTime;
   plannerEndInput.value = source.endTime || getDefaultPlannerEndTime(startTime);
   plannerTitleInput.value = initialTitle || "";
@@ -4314,12 +4637,12 @@ function openPlannerBlockModal(options = {}) {
   isPlannerModalOpen = true;
   syncPlannerModalText();
   syncPlannerModalVisibility();
+  syncPlannerDateChoice();
   syncPlannerTitleFromSelectedTask();
   revealFloatingElement(plannerBlockModal);
   syncModalOpenState();
   requestAnimationFrame(() => {
-    if (plannerLinkMode === "goal" && plannerMilestoneSelect.value) plannerStartInput.focus();
-    else plannerTitleInput.focus();
+    plannerTitleInput.focus();
   });
 }
 
@@ -4343,12 +4666,19 @@ function syncPlannerModalText() {
     : isEditing ? t("planner.updateBlock") : t("planner.saveBlock");
 }
 
+function syncPlannerDateChoice() {
+  const isNoDate = Boolean(plannerNoDateInput?.checked);
+  plannerDateInput.disabled = isNoDate;
+  plannerDateField.classList.toggle("locked", isNoDate);
+}
+
 function setPlannerLinkMode(mode) {
   plannerLinkMode = mode === "goal" ? "goal" : "standalone";
   if (plannerLinkMode === "goal") {
     plannerTypeSelect.value = "goal";
-    if (!plannerGoalSelect.value && data.goals[0]) {
-      plannerGoalSelect.value = data.goals[0].id;
+    const firstGoal = getActiveGoals()[0];
+    if (!plannerGoalSelect.value && firstGoal) {
+      plannerGoalSelect.value = firstGoal.id;
       populatePlannerMilestoneSelect(plannerGoalSelect.value);
     }
   } else if (plannerTitleInput.disabled) {
@@ -4365,15 +4695,15 @@ function syncPlannerModalVisibility() {
 
   plannerDateField.hidden = isRule;
   plannerWeekdayField.hidden = !isRule;
-  plannerNotesField.hidden = isRule;
+  plannerNotesField.hidden = true;
   plannerChoiceGoalBtn.classList.toggle("active", isGoalLink);
   plannerChoiceStandaloneBtn.classList.toggle("active", !isGoalLink);
   plannerTypeSelect.disabled = isGoalLink;
   if (isGoalLink) plannerTypeSelect.value = "goal";
 
   plannerGoalSelect.closest(".planner-field").hidden = !isGoalLink;
-  plannerMilestoneSelect.closest(".planner-field").hidden = !isGoalLink;
-  plannerHabitSelect.closest(".planner-field").hidden = !isHabitLink;
+  plannerMilestoneSelect.closest(".planner-field").hidden = true;
+  plannerHabitSelect.closest(".planner-field").hidden = true;
   plannerTitleInput.closest(".planner-field").classList.toggle("locked", plannerTitleInput.disabled);
   plannerDeleteBtn.hidden = isRule ? !plannerEditingRuleId : !plannerEditingBlockId;
 }
@@ -4391,19 +4721,20 @@ function populatePlannerTypeSelect(selectedType = "custom") {
 
 function populatePlannerGoalSelect(selectedGoalId = "") {
   plannerGoalSelect.innerHTML = "";
+  const activeGoals = getActiveGoals();
   const emptyOption = document.createElement("option");
   emptyOption.value = "";
-  emptyOption.textContent = data.goals.length ? t("planner.goalPlaceholder") : t("planner.noGoalOptions");
+  emptyOption.textContent = activeGoals.length ? t("planner.goalPlaceholder") : t("planner.noGoalOptions");
   plannerGoalSelect.appendChild(emptyOption);
 
-  data.goals.forEach(goal => {
+  activeGoals.forEach(goal => {
     const option = document.createElement("option");
     option.value = goal.id;
     option.textContent = goal.name || t("data.goalFallback");
     plannerGoalSelect.appendChild(option);
   });
 
-  plannerGoalSelect.value = selectedGoalId && data.goals.some(goal => goal.id === selectedGoalId) ? selectedGoalId : "";
+  plannerGoalSelect.value = selectedGoalId && activeGoals.some(goal => goal.id === selectedGoalId) ? selectedGoalId : "";
 }
 
 function populatePlannerMilestoneSelect(goalId, selectedTaskId = "") {
@@ -4463,7 +4794,7 @@ function syncPlannerTitleFromSelectedTask(options = {}) {
     : null;
   const wasLocked = plannerTitleInput.disabled;
 
-  if (task) {
+  if (task && !plannerMilestoneSelect.closest(".planner-field").hidden) {
     plannerTitleInput.value = task.title || t("data.taskFallback");
     plannerTitleInput.disabled = true;
     plannerTitleInput.closest(".planner-field").classList.add("locked");
@@ -4492,7 +4823,6 @@ function savePlannerFromModal() {
 
   const payload = readPlannerFormPayload();
   if (!payload) return;
-  resolvePlannerGoalTaskPayload(payload);
 
   if (plannerModalMode === "rule") {
     savePlannerRule(payload);
@@ -4515,18 +4845,8 @@ function readPlannerFormPayload() {
   const habitId = type === "habit" ? normalizeNullableId(plannerHabitSelect.value) : null;
   const selectedGoalTask = goalId && goalTaskId ? findGoalTask(goalId, goalTaskId) : null;
   const title = selectedGoalTask?.title || plannerTitleInput.value.trim() || (isGoalLink ? "" : getDefaultPlannerTitle("", "", habitId));
-  const startTime = normalizePlannerTime(plannerStartInput.value, "");
-  const endTime = normalizePlannerTime(plannerEndInput.value, "");
-
-  if (!startTime || !endTime) {
-    alert(t("planner.timeRequired"));
-    return null;
-  }
-
-  if (startTime >= endTime) {
-    alert(t("planner.timeOrder"));
-    return null;
-  }
+  const startTime = normalizePlannerTime(plannerStartInput.value, "09:00");
+  const endTime = normalizePlannerTime(plannerEndInput.value, getDefaultPlannerEndTime(startTime));
 
   if (isGoalLink && !goalId) {
     alert(t("planner.goalRequired"));
@@ -4558,13 +4878,14 @@ function readPlannerFormPayload() {
     };
   }
 
-  if (!isDateKey(plannerDateInput.value)) {
+  const date = plannerNoDateInput.checked ? "" : plannerDateInput.value;
+  if (date && !isDateKey(date)) {
     alert(t("planner.dateRequired"));
     return null;
   }
 
   return {
-    date: plannerDateInput.value,
+    date,
     startTime,
     endTime,
     title,
@@ -4621,7 +4942,7 @@ function savePlannerBlock(payload) {
     if (existing.date !== previousDate && existing.goalId === previousGoalId && existing.goalTaskId === previousGoalTaskId) {
       syncMovedPlannerGoalTaskDeadline(existing, previousDate, existing.date);
     }
-    plannerSelectedDate = existing.date;
+    if (existing.date) plannerSelectedDate = existing.date;
     return;
   }
 
@@ -4631,7 +4952,7 @@ function savePlannerBlock(payload) {
     createdAt: now,
     updatedAt: now
   }));
-  plannerSelectedDate = payload.date;
+  if (payload.date) plannerSelectedDate = payload.date;
 }
 
 function savePlannerRule(payload) {
@@ -4661,7 +4982,7 @@ function deletePlannerFromModal() {
   if (plannerEditingBlockId) {
     const block = findPlannerBlockById(plannerEditingBlockId);
     if (!block || !confirm(t("planner.confirmDeleteBlock", { title: block.title }))) return;
-    data.plannerBlocks = data.plannerBlocks.filter(item => item.id !== block.id);
+    removePlannerTask(block);
     markDirty();
     closePlannerModal();
     renderPlanner();
@@ -4680,6 +5001,22 @@ function setPlannerEntryStatus(entry, status, source) {
   const block = ensureRealPlannerBlock(entry, status);
   if (!block) return;
 
+  if (status === "done") {
+    const finishTask = () => {
+      removePlannerTask(block);
+      markDirty();
+      renderPlanner();
+      renderGoals();
+    };
+    if (source) {
+      source.classList.add("is-completing");
+      animateCompletion(source, finishTask);
+    } else {
+      finishTask();
+    }
+    return;
+  }
+
   block.status = status;
   block.updatedAt = Date.now();
   markDirty();
@@ -4696,24 +5033,114 @@ function setPlannerEntryStatus(entry, status, source) {
   }
 }
 
-function movePlannerEntry(entry) {
-  const block = ensureRealPlannerBlock(entry, "moved");
-  if (!block) return;
+function removePlannerTask(block) {
+  data.plannerBlocks = data.plannerBlocks.filter(item => item.id !== block.id);
+  if (block.goalId && block.goalTaskId) {
+    const goal = data.goals.find(item => item.id === block.goalId);
+    if (goal) goal.tasks = (goal.tasks || []).filter(task => task.id !== block.goalTaskId);
+  }
+  hasManualGoalDateSelection = false;
+}
 
-  const targetDate = prompt(t("planner.movePrompt"), shiftDateKey(block.date, 1));
-  if (!targetDate) return;
-  if (!isDateKey(targetDate)) {
-    alert(t("planner.moveInvalid"));
+function movePlannerEntry(entry) {
+  plannerMoveEntry = entry;
+  plannerMoveSelectedDate = "";
+  const currentDate = getPlannerTaskEntryDate(entry) || plannerSelectedDate || toDateInputValue(new Date());
+  plannerMoveVisibleDate = isDateKey(currentDate) ? parseDateKey(currentDate) : new Date();
+  isPlannerMoveModalOpen = true;
+  closeActionMenu();
+  renderPlannerMoveCalendar();
+  revealFloatingElement(plannerMoveModal);
+  syncModalOpenState();
+}
+
+function closePlannerMoveModal() {
+  isPlannerMoveModalOpen = false;
+  plannerMoveEntry = null;
+  plannerMoveSelectedDate = "";
+  hideFloatingElement(plannerMoveModal);
+  syncModalOpenState();
+}
+
+function changePlannerMoveMonth(delta) {
+  plannerMoveVisibleDate = new Date(plannerMoveVisibleDate);
+  plannerMoveVisibleDate.setMonth(plannerMoveVisibleDate.getMonth() + delta);
+  renderPlannerMoveCalendar();
+}
+
+function renderPlannerMoveCalendar() {
+  if (!plannerMoveCalendarGrid) return;
+  const sourceDate = plannerMoveEntry ? getPlannerTaskEntryDate(plannerMoveEntry) : "";
+  const todayKey = toDateInputValue(new Date());
+
+  plannerMoveCalendarTitle.textContent = plannerMoveVisibleDate.toLocaleDateString(getDateLocale(), {
+    month: "long",
+    year: "numeric"
+  });
+  plannerMoveSelectedLabel.textContent = plannerMoveSelectedDate
+    ? t("planner.moveSelected", { date: formatDeadlineLong(plannerMoveSelectedDate) })
+    : t("planner.moveNoDate");
+  plannerMoveConfirmBtn.disabled = !plannerMoveSelectedDate;
+  plannerMoveCalendarGrid.innerHTML = "";
+
+  getWeekdayLabels().forEach(label => {
+    const weekday = document.createElement("div");
+    weekday.className = "planner-move-weekday";
+    weekday.textContent = label;
+    plannerMoveCalendarGrid.appendChild(weekday);
+  });
+
+  getCalendarMonthDays(plannerMoveVisibleDate).forEach(day => {
+    const dateKey = toDateInputValue(day);
+    const button = document.createElement("button");
+    button.className = "planner-move-day";
+    button.type = "button";
+    button.textContent = String(day.getDate());
+    if (dateKey === plannerMoveSelectedDate) button.classList.add("selected");
+    if (dateKey === sourceDate) button.classList.add("current");
+    if (dateKey === todayKey) button.classList.add("today");
+    if (day.getMonth() !== plannerMoveVisibleDate.getMonth()) button.classList.add("outside");
+    button.onclick = () => {
+      plannerMoveSelectedDate = dateKey;
+      if (day.getMonth() !== plannerMoveVisibleDate.getMonth()) plannerMoveVisibleDate = parseDateKey(dateKey);
+      renderPlannerMoveCalendar();
+    };
+    plannerMoveCalendarGrid.appendChild(button);
+  });
+}
+
+function confirmPlannerMove() {
+  if (!plannerMoveEntry || !isDateKey(plannerMoveSelectedDate)) return;
+  applyPlannerEntryMove(plannerMoveEntry, plannerMoveSelectedDate);
+  closePlannerMoveModal();
+}
+
+function applyPlannerEntryMove(entry, targetDate) {
+  if (entry?.source === "goal-task") {
+    if (!entry.task || !entry.goal) return;
+    entry.task.deadline = targetDate;
+    plannerSelectedDate = targetDate;
+    selectedGoalDate = targetDate;
+    goalsVisibleDate = parseDateKey(targetDate);
+    hasManualGoalDateSelection = true;
+    markDirty();
+    renderPlanner();
+    renderGoals();
     return;
   }
 
-  const now = Date.now();
+  const block = ensureRealPlannerBlock(entry, "planned");
+  if (!block) return;
+
   const previousDate = block.date;
   block.date = targetDate;
   block.status = "planned";
-  block.updatedAt = now;
+  block.updatedAt = Date.now();
   syncMovedPlannerGoalTaskDeadline(block, previousDate, targetDate);
   plannerSelectedDate = targetDate;
+  selectedGoalDate = targetDate;
+  goalsVisibleDate = parseDateKey(targetDate);
+  hasManualGoalDateSelection = true;
   markDirty();
   renderPlanner();
   renderGoals();
@@ -4744,7 +5171,7 @@ function deletePlannerEntry(entry) {
   if (entry.isVirtual) return;
   const block = findPlannerBlockById(entry.block.id);
   if (!block || !confirm(t("planner.confirmDeleteBlock", { title: block.title }))) return;
-  data.plannerBlocks = data.plannerBlocks.filter(item => item.id !== block.id);
+  removePlannerTask(block);
   markDirty();
   renderPlanner();
   renderGoals();
@@ -4805,23 +5232,60 @@ function deletePlannerRule(ruleId, options = {}) {
 
 function changePlannerDate(delta) {
   plannerSelectedDate = shiftDateKey(plannerSelectedDate, delta);
+  selectedGoalDate = plannerSelectedDate;
+  goalsVisibleDate = parseDateKey(plannerSelectedDate);
   renderPlanner();
+  renderGoals();
 }
 
 function goToTodayPlannerDate() {
   plannerSelectedDate = toDateInputValue(new Date());
+  selectedGoalDate = plannerSelectedDate;
+  goalsVisibleDate = parseDateKey(plannerSelectedDate);
   renderPlanner();
+  renderGoals();
 }
 
 function getPlannerEntriesForDate(dateKey) {
   const realEntries = data.plannerBlocks
     .filter(block => block.date === dateKey)
-    .map(block => ({ block, isVirtual: false, rule: null }));
-  const virtualEntries = data.recurringRules
-    .filter(rule => shouldShowRecurringRuleOnDate(rule, dateKey))
-    .map(rule => ({ block: createVirtualPlannerBlock(rule, dateKey), isVirtual: true, rule }));
+    .map(block => ({ source: "planner", block, isVirtual: false, rule: null }));
 
-  return [...realEntries, ...virtualEntries].sort(sortPlannerEntries);
+  return realEntries.sort(sortPlannerEntries);
+}
+
+function getPlannerTaskEntriesForDate(dateKey) {
+  const plannerEntries = getPlannerEntriesForDate(dateKey);
+  const plannerGoalTaskDateKeys = new Set(
+    plannerEntries
+      .filter(entry => entry.block?.goalId && entry.block?.goalTaskId)
+      .map(entry => getGoalTaskDateKey(entry.block.goalId, entry.block.goalTaskId, dateKey))
+  );
+  const goalTaskEntries = [];
+
+  getActiveGoals().forEach(goal => {
+    (goal.tasks || []).forEach(task => {
+      if (task.done || task.deadline !== dateKey) return;
+      if (plannerGoalTaskDateKeys.has(getGoalTaskDateKey(goal.id, task.id, dateKey))) return;
+      goalTaskEntries.push({
+        source: "goal-task",
+        goal,
+        task,
+        block: null,
+        isVirtual: false,
+        rule: null
+      });
+    });
+  });
+
+  return [...plannerEntries, ...goalTaskEntries].sort(sortPlannerTaskEntries);
+}
+
+function getUndatedPlannerEntries() {
+  return (data.plannerBlocks || [])
+    .filter(block => !block.date && block.status !== "done")
+    .map(block => ({ block, isVirtual: false, rule: null }))
+    .sort(sortPlannerEntries);
 }
 
 function shouldShowRecurringRuleOnDate(rule, dateKey) {
@@ -4857,6 +5321,15 @@ function sortPlannerEntries(a, b) {
   if (a.block.startTime !== b.block.startTime) return a.block.startTime.localeCompare(b.block.startTime);
   if (a.block.endTime !== b.block.endTime) return a.block.endTime.localeCompare(b.block.endTime);
   return String(getPlannerDisplayTitle(a.block) || "").localeCompare(String(getPlannerDisplayTitle(b.block) || ""));
+}
+
+function sortPlannerTaskEntries(a, b) {
+  const aTime = a.block?.startTime || "99:99";
+  const bTime = b.block?.startTime || "99:99";
+  if (aTime !== bTime) return aTime.localeCompare(bTime);
+  const aTitle = getPlannerTaskEntryTitle(a);
+  const bTitle = getPlannerTaskEntryTitle(b);
+  return String(aTitle || "").localeCompare(String(bTitle || ""));
 }
 
 function getSortedPlannerRules() {
@@ -5009,26 +5482,32 @@ function renderDayReview() {
   visibleHabits.forEach(habit => {
     const isActive = isHabitTrackedOnDate(habit, reviewDate);
     const record = getRecord(reviewDate, habit.id, false);
-    const done = Boolean(record?.done);
+    const weeklyState = isWeeklyHabit(habit) ? getWeeklyHabitProgressState(habit, reviewDate) : null;
+    const done = Boolean(record?.done) || Boolean(weeklyState?.isComplete);
 
     const item = document.createElement("div");
     item.className = "day-summary-item" + (done ? " done" : "") + (!isActive ? " inactive" : "");
 
-    const valueText = record?.value
-      ? `${record.value}${habit.unit ? " " + habit.unit : ""}`
-      : done
-        ? "✓"
-        : "—";
+    const valueText = isWeeklyHabit(habit)
+      ? `${formatHabitAmount(weeklyState.progress, habit.unit || "")}`
+      : record?.value
+        ? `${record.value}${habit.unit ? " " + habit.unit : ""}`
+        : done
+          ? "✓"
+          : "—";
     const statusText = !isActive
       ? t("review.inactive")
       : done
         ? t("review.done")
         : t("review.notDone");
+    const metaText = isActive
+      ? getHabitProgressMetaText(habit, reviewDate)
+      : statusText;
 
     item.innerHTML = `
       <div>
         <div class="day-summary-name">${escapeHtml(habit.name)}</div>
-        <div class="day-summary-meta">${statusText}${isActive && habit.target ? ` · ${t("review.target", { target: habit.target, unit: escapeHtml(habit.unit || "") })}` : ""}</div>
+        <div class="day-summary-meta">${escapeHtml(statusText)}${isActive ? ` · ${escapeHtml(metaText)}` : ""}</div>
       </div>
       <div class="day-summary-value">${escapeHtml(valueText)}</div>
     `;
@@ -5084,9 +5563,8 @@ function renderFutureProjection(dateKey) {
   }
 
   normalHabits.slice(0, PROJECTION_LIMIT).forEach(habit => {
-    const currentTotal = calculateTotalUntilDate(habit.id, todayKey);
-    const target = Number(habit.target || 0);
-    const projectedAdd = target * daysAhead;
+    const currentTotal = isWeeklyHabit(habit) ? calculateHabitValueBetweenDates(habit, "0000-01-01", todayKey) : calculateTotalUntilDate(habit.id, todayKey);
+    const projectedAdd = calculateHabitProjectedAdd(habit, todayKey, dateKey);
     const projectedTotal = currentTotal + projectedAdd;
     const unit = habit.unit ? ` ${habit.unit}` : "";
 
@@ -5100,6 +5578,39 @@ function renderFutureProjection(dateKey) {
     `;
     futureProjectionTable.appendChild(row);
   });
+}
+
+function calculateHabitProjectedAdd(habit, todayKey, targetDateKey) {
+  const target = getHabitTargetNumber(habit);
+  if (target <= 0) return 0;
+
+  if (!isWeeklyHabit(habit)) {
+    const selectedDateObj = parseDateKey(targetDateKey);
+    const todayObj = parseDateKey(todayKey);
+    const daysAhead = Math.ceil((selectedDateObj - todayObj) / 86400000);
+    return target * Math.max(0, daysAhead);
+  }
+
+  const weekStarts = new Set();
+  const cursor = parseDateKey(shiftDateKey(todayKey, 1));
+  const end = parseDateKey(targetDateKey);
+
+  while (cursor <= end) {
+    weekStarts.add(getWeekStartKey(toDateInputValue(cursor)));
+    cursor.setDate(cursor.getDate() + 1);
+  }
+
+  let projectedAdd = 0;
+  weekStarts.forEach(weekStartKey => {
+    if (weekStartKey === getWeekStartKey(todayKey)) {
+      const currentProgress = calculateWeeklyHabitProgress(habit, todayKey);
+      projectedAdd += Math.max(0, target - currentProgress);
+    } else {
+      projectedAdd += target;
+    }
+  });
+
+  return projectedAdd;
 }
 
 function renderRewardState() {
@@ -5198,10 +5709,14 @@ function renderPeriod(periodName, days, completedId, rateId, perfectId, miniId, 
 function countDoneRecordsForDate(dateKey) {
   const dayRecords = data.records[dateKey];
   if (!dayRecords) return 0;
-  const activeHabitIds = new Set(getActiveHabitsForDate(dateKey).map(habit => habit.id));
+  const activeHabits = getActiveHabitsForDate(dateKey);
+  const activeHabitIds = new Set(activeHabits.map(habit => habit.id));
+  const activeHabitById = new Map(activeHabits.map(habit => [habit.id, habit]));
 
   return Object.entries(dayRecords).reduce((count, [habitId, record]) => {
     if (!activeHabitIds.has(habitId)) return count;
+    const habit = activeHabitById.get(habitId);
+    if (isWeeklyHabit(habit) && getWeeklyHabitProgressState(habit, dateKey).isComplete) return count + 1;
     return count + (record?.done ? 1 : 0);
   }, 0);
 }
@@ -5213,6 +5728,8 @@ function getActiveHabitsForDate(dateKey) {
 
   Object.entries(dayRecords).forEach(([habitId, record]) => {
     if (activeHabitIds.has(habitId) || !hasHabitSnapshot(record)) return;
+    const currentHabit = findHabitById(habitId);
+    if (currentHabit && !isHabitTrackedOnDate(currentHabit, dateKey)) return;
     activeHabits.push(getHabitDetails(habitId, record));
     activeHabitIds.add(habitId);
   });
@@ -5236,6 +5753,10 @@ function isHabitActiveOnDate(habit, dateKey) {
 }
 
 function isHabitTrackedOnDate(habit, dateKey) {
+  if (isWeeklyHabit(habit)) {
+    return isHabitActiveOnDate(habit, dateKey) && !isWeeklyHabitTargetReachedBeforeDate(habit, dateKey);
+  }
+
   return isHabitActiveOnDate(habit, dateKey) || Boolean(data.records[dateKey]?.[habit.id]);
 }
 
@@ -5264,7 +5785,9 @@ function renderProgressOptions() {
   optionHabits.forEach(habit => {
     const option = document.createElement("option");
     option.value = habit.id;
-    option.textContent = habit.name;
+    option.textContent = isWeeklyHabit(habit)
+      ? `${habit.name} · ${getHabitFrequencyLabel(habit.frequency)}`
+      : habit.name;
     progressHabit.appendChild(option);
   });
 
@@ -5285,6 +5808,9 @@ function renderProgress() {
   const todayKey = toDateInputValue(new Date());
   clearChart();
   if (!habit) {
+    chartTotalSinceStreakLabel.textContent = t("progress.sinceStreak");
+    chartStreakLabel.textContent = t("progress.streakDays");
+    chartLifetimeLabel.textContent = t("progress.lifetime");
     chartTotalSinceStreak.textContent = "0";
     chartStreakDays.textContent = "0";
     chartLifetimeTotal.textContent = "0";
@@ -5292,6 +5818,11 @@ function renderProgress() {
   }
 
   renderChartMetrics(habit);
+
+  if (isWeeklyHabit(habit)) {
+    drawChart(getWeeklyHabitChartData(habit, todayKey), habit);
+    return;
+  }
 
   const allDates = Object.keys(data.records)
     .filter(dateKey => data.records[dateKey]?.[habit.id])
@@ -5323,6 +5854,36 @@ function renderProgress() {
   drawChart(chartData, habit);
 }
 
+function getWeeklyHabitChartData(habit, todayKey) {
+  const recordDates = Object.keys(data.records)
+    .filter(dateKey => dateKey <= todayKey)
+    .filter(dateKey => getRecordProgressValue(data.records[dateKey]?.[habit.id], habit) > 0)
+    .sort();
+  const firstDateKey = [habit.createdAt, recordDates[0]]
+    .filter(isDateKey)
+    .sort()[0] || todayKey;
+  const firstWeekStart = getWeekStartKey(firstDateKey);
+  const currentWeekStart = getWeekStartKey(todayKey);
+  const weeks = [];
+  const cursor = parseDateKey(firstWeekStart);
+
+  cursor.setDate(cursor.getDate() - 14);
+
+  while (toDateInputValue(cursor) <= currentWeekStart) {
+    weeks.push(toDateInputValue(cursor));
+    cursor.setDate(cursor.getDate() + 7);
+  }
+
+  return weeks.slice(-45).map(weekStartKey => {
+    const value = calculateWeeklyHabitTotalForWeek(habit, weekStartKey, todayKey);
+    return {
+      dateKey: weekStartKey,
+      value: value > 0 ? value : null,
+      done: getHabitTargetNumber(habit) > 0 && value >= getHabitTargetNumber(habit)
+    };
+  });
+}
+
 function getChartPointValue(record, habit) {
   if (!record) return null;
 
@@ -5341,11 +5902,18 @@ function getChartPointValue(record, habit) {
 
 function renderChartMetrics(habit) {
   const todayKey = toDateInputValue(new Date());
-  const streakStart = getMotivationalHabitStreakStartDate(habit.id);
-  const totalSinceStreak = streakStart ? calculateMotivationalTotalBetweenDates(habit, streakStart, todayKey) : 0;
-  const streakDays = calculateMotivationalHabitStreak(habit.id);
-  const lifetimeTotal = calculateLifetimeTotal(habit.id);
+  const isWeekly = isWeeklyHabit(habit);
+  const streakStart = isWeekly ? getLatestWeeklyHabitStreakStartDate(habit, todayKey) : getMotivationalHabitStreakStartDate(habit.id);
+  const totalSinceStreak = streakStart
+    ? isWeekly ? calculateHabitValueBetweenDates(habit, streakStart, todayKey) : calculateMotivationalTotalBetweenDates(habit, streakStart, todayKey)
+    : 0;
+  const streakDays = isWeekly ? calculateLatestWeeklyHabitStreak(habit, todayKey) : calculateMotivationalHabitStreak(habit.id);
+  const lifetimeTotal = isWeekly ? calculateLifetimeProgressTotal(habit) : calculateLifetimeTotal(habit.id);
   const unit = habit.unit ? ` ${habit.unit}` : "";
+
+  chartTotalSinceStreakLabel.textContent = t("progress.sinceStreak");
+  chartStreakLabel.textContent = t(isWeekly ? "progress.streakWeeks" : "progress.streakDays");
+  chartLifetimeLabel.textContent = t("progress.lifetime");
 
   if (totalSinceStreak === lifetimeTotal) {
     totalSinceStreakMetric.classList.add("hidden");
@@ -5521,12 +6089,18 @@ function addHabit() {
     return;
   }
 
-  const name = document.getElementById("habitName").value.trim();
-  const unit = document.getElementById("habitUnit").value.trim();
-  const targetRaw = document.getElementById("habitTarget").value;
+  const name = habitNameInput.value.trim();
+  const unit = habitUnitInput.value.trim();
+  const targetRaw = habitTargetInput.value;
+  const frequency = normalizeHabitFrequency(habitFrequencyInput.value);
 
   if (!name) {
     alert(t("habit.enterName"));
+    return;
+  }
+
+  if (Number(targetRaw) < 0) {
+    alert(t("habit.targetNegative"));
     return;
   }
 
@@ -5536,12 +6110,14 @@ function addHabit() {
     name,
     unit,
     target: targetRaw === "" ? "" : Number(targetRaw),
+    frequency,
     createdAt: toDateInputValue(new Date())
   });
 
-  document.getElementById("habitName").value = "";
-  document.getElementById("habitUnit").value = "";
-  document.getElementById("habitTarget").value = "";
+  habitNameInput.value = "";
+  habitUnitInput.value = "";
+  habitTargetInput.value = "";
+  habitFrequencyInput.value = HABIT_FREQUENCY_DAILY;
 
   markDirty();
   render();
@@ -5604,8 +6180,8 @@ function openGoalModal(goalId = null) {
   syncGoalModalText();
   document.getElementById("goalName").value = goal?.name || "";
   document.getElementById("goalType").value = goal?.type || "other";
-  document.getElementById("goalPointA").value = goal?.pointA || "";
-  document.getElementById("goalPointB").value = goal?.pointB || "";
+  document.getElementById("goalPointA").value = "";
+  document.getElementById("goalPointB").value = goal?.pointB || goal?.description || "";
   isGoalModalOpen = true;
   revealFloatingElement(goalModal);
   syncModalOpenState();
@@ -5647,8 +6223,8 @@ function saveGoalFromModal() {
   }
 
   const name = document.getElementById("goalName").value.trim();
-  const type = document.getElementById("goalType").value || "other";
-  const pointA = document.getElementById("goalPointA").value.trim();
+  const type = "other";
+  const pointA = "";
   const pointB = document.getElementById("goalPointB").value.trim();
 
   if (!name) {
@@ -5656,15 +6232,10 @@ function saveGoalFromModal() {
     return;
   }
 
-  if (!pointA || !pointB) {
-    alert(t("goals.fillPoints"));
-    return;
-  }
-
   if (editingGoalId) {
     const goal = data.goals.find(item => item.id === editingGoalId);
     if (!goal) return;
-    Object.assign(goal, { name, type, pointA, pointB });
+    Object.assign(goal, { name, type, pointA, pointB, description: pointB });
   } else {
     data.goals.push({
       id: crypto.randomUUID(),
@@ -5672,6 +6243,7 @@ function saveGoalFromModal() {
       type,
       pointA,
       pointB,
+      description: pointB,
       createdAt: toDateInputValue(new Date()),
       status: "active",
       completedAt: "",
@@ -5689,10 +6261,7 @@ function renderGoals() {
   renderGoalOverview();
   ensureSelectedGoalDate();
   renderDeadlineCalendar();
-  renderDeadlineFocus();
   renderGoalsList();
-  renderGoalArchive();
-  if (isGoalCompletedTasksModalOpen) renderGoalCompletedTasksModal();
 }
 
 function renderGoalsList() {
@@ -5724,12 +6293,11 @@ function renderGoalsList() {
 function renderGoalOverview() {
   const goals = Array.isArray(data.goals) ? data.goals : [];
   const activeGoals = goals.filter(isGoalActive);
-  const archivedGoals = goals.filter(isGoalArchived);
-  const urgentTasks = getAllDeadlineItems().filter(item => isTaskUrgent(item.task));
-  goalsTotalCount.textContent = goals.length;
+  const activeGoalTasks = activeGoals.reduce((count, goal) => count + getSimpleGoalTasks(goal).length, 0);
+  goalsTotalCount.textContent = activeGoals.length;
   goalsActiveCount.textContent = activeGoals.length;
-  goalsDueCount.textContent = urgentTasks.length;
-  goalsArchivedCount.textContent = archivedGoals.length;
+  goalsDueCount.textContent = activeGoalTasks;
+  goalsArchivedCount.textContent = "0";
 }
 
 function setGoalArchiveMode(mode) {
@@ -5894,23 +6462,14 @@ function getGoalArchiveDate(goal) {
 
 function makeGoalCard(goal) {
   const card = document.createElement("div");
-  const isExpanded = expandedGoalIds.has(goal.id);
-  const progress = getGoalProgress(goal);
-  const sortedTasks = getSortedGoalTasks(goal);
-  const activeTasks = sortedTasks.filter(task => !task.done);
-  const archivedTasks = getArchivedGoalTasks(goal);
-  const nextTask = getNextGoalTask(goal);
+  const goalTasks = getSimpleGoalTasks(goal);
   const typeLabel = getGoalTypeLabel(goal.type);
-  const canFinish = progress.totalCount > 0 && progress.doneCount === progress.totalCount;
-  const nextDeadlineState = nextTask ? getTaskDeadlineState(nextTask) : null;
-  const supportingActiveTasks = nextTask
-    ? activeTasks.filter(task => task.id !== nextTask.id)
-    : activeTasks;
+  const description = goal.description || goal.pointB || "";
+  const isExpanded = !expandedGoalIds.has(goal.id);
   const goalClasses = [
     "goal-item",
-    isExpanded ? "" : "collapsed",
-    canFinish ? "ready-to-finish" : "",
-    nextDeadlineState?.className === "danger" ? "has-overdue" : ""
+    "simple-goal-card",
+    isExpanded ? "" : "collapsed"
   ].filter(Boolean);
   card.className = goalClasses.join(" ");
 
@@ -5919,62 +6478,34 @@ function makeGoalCard(goal) {
       <div class="goal-title-stack">
         <span class="goal-type">${escapeHtml(typeLabel)}</span>
         <div class="goal-name">${escapeHtml(goal.name)}</div>
+        ${description ? `<div class="simple-goal-description">${escapeHtml(description)}</div>` : ""}
       </div>
       <div class="goal-head-tools">
+        <button class="secondary goal-result" type="button">${t("goals.finishGoal")}</button>
         <button class="goal-collapse-button" type="button" aria-expanded="${String(isExpanded)}" aria-label="${escapeHtml(isExpanded ? t("goals.collapseGoal") : t("goals.expandGoal"))}">
-          <span class="goal-collapse-icon" aria-hidden="true">⌄</span>
+          <span class="goal-collapse-icon" aria-hidden="true">v</span>
         </button>
         <div class="goal-menu-slot"></div>
       </div>
     </div>
 
     <div class="goal-card-body">
-      ${makeGoalPathHtml(goal)}
-      ${makeGoalProgressSummaryHtml(progress, nextTask, canFinish)}
-
       <section class="goal-work-section">
         <div class="goal-work-section-head">
           <div>
             <div class="section-kicker">${t("goals.activeWork")}</div>
-            <h3>${t("goals.currentTask")}</h3>
+            <h3>${t("goals.tasks")}</h3>
           </div>
+          <span class="goal-task-count">${goalTasks.length}</span>
         </div>
 
-        ${makeCurrentTaskCardHtml(nextTask, canFinish, sortedTasks.length)}
-
-        <div class="goal-action-strip" aria-label="${escapeHtml(t("goals.goalActions"))}">
-          <div class="goal-action-group">
-            <button class="goal-action-add add-goal-task-btn" type="button">
-              <span aria-hidden="true">+</span>
-              ${t("goals.addNextTask")}
-            </button>
-            <button class="goal-action-plan goal-plan-session" type="button">${t("goals.planWorkSession")}</button>
-            ${archivedTasks.length > 0 ? `<button class="goal-action-archive goal-completed-open-btn" type="button">${escapeHtml(t("goals.completedTasksToggle", { count: archivedTasks.length }))}</button>` : ""}
-          </div>
-          <button class="goal-action-finish ${canFinish ? "is-ready" : ""} goal-result" type="button">${t("goals.finishGoal")}</button>
-        </div>
-
-        ${supportingActiveTasks.length > 0 ? `
-          <div class="goal-active-tasks">
-            <div class="goal-subsection-head">
-              <span>${t("goals.openTasks")}</span>
-              <strong>${supportingActiveTasks.length}</strong>
-            </div>
-            <div class="goal-task-list"></div>
-          </div>
-        ` : `<div class="goal-task-list" hidden></div>`}
+        <div class="goal-task-list"></div>
       </section>
     </div>
   `;
 
+  card.querySelector(".goal-result").onclick = () => completeGoal(goal);
   card.querySelector(".goal-collapse-button").onclick = () => toggleGoalCard(goal.id);
-  card.querySelector(".goal-plan-session").onclick = () => openPlannerBlockModal({
-    mode: "block",
-    goalId: goal.id,
-    goalTaskId: nextTask?.id || "",
-    title: nextTask?.title || ""
-  });
-  card.querySelector(".goal-result").onclick = () => openGoalResultModal(goal.id);
   card.querySelector(".goal-menu-slot").appendChild(makeActionMenu([
     {
       label: t("actions.edit"),
@@ -5986,20 +6517,84 @@ function makeGoalCard(goal) {
       onSelect: () => deleteGoal(goal.id)
     }
   ], t("goals.menuGoalLabel", { name: goal.name || t("habit.unnamed") })));
-  card.querySelector(".add-goal-task-btn").onclick = () => openGoalTaskCreateModal(goal.id);
-  card.querySelector(".goal-next-work")?.addEventListener("click", () => openGoalWorkspace(goal.id, nextTask.id));
-  card.querySelector(".goal-completed-open-btn")?.addEventListener("click", () => openGoalCompletedTasksModal(goal.id));
-  card.querySelector(".goal-progress-fill").style.width = `${progress.percent}%`;
 
   const taskList = card.querySelector(".goal-task-list");
-  if (supportingActiveTasks.length > 0) {
-    supportingActiveTasks.forEach(task => {
-      taskList.appendChild(makeGoalTaskItem(goal, task));
-    });
-    animateRenderedChildren(taskList);
+  if (goalTasks.length === 0) {
+    taskList.innerHTML = `<div class="empty goal-task-empty">${t("goals.noTasksInGoal")}</div>`;
+  } else {
+    goalTasks.forEach(task => taskList.appendChild(makeSimpleGoalTaskItem(goal, task)));
   }
+  animateRenderedChildren(taskList);
 
   return card;
+}
+
+function getSimpleGoalTasks(goal) {
+  const plannerTasks = (data.plannerBlocks || [])
+    .filter(block => block.goalId === goal.id && block.status !== "done")
+    .map(block => ({
+      source: "planner",
+      id: block.id,
+      title: getPlannerDisplayTitle(block),
+      date: block.date || "",
+      block
+    }));
+  const plannerTaskIds = new Set(plannerTasks.map(item => item.block.goalTaskId).filter(Boolean));
+  const legacyTasks = (goal.tasks || [])
+    .filter(task => !task.done && !plannerTaskIds.has(task.id))
+    .map(task => ({
+      source: "goal",
+      id: task.id,
+      title: task.title || t("data.taskFallback"),
+      date: task.deadline || "",
+      task
+    }));
+
+  return [...plannerTasks, ...legacyTasks].sort((a, b) => {
+    if (Boolean(a.date) !== Boolean(b.date)) return a.date ? -1 : 1;
+    if (a.date !== b.date) return String(a.date).localeCompare(String(b.date));
+    return String(a.title || "").localeCompare(String(b.title || ""));
+  });
+}
+
+function makeSimpleGoalTaskItem(goal, taskItem) {
+  const item = document.createElement("div");
+  const dateText = taskItem.date ? formatDeadlineLong(taskItem.date) : t("deadlines.noDueDate");
+  item.className = "goal-task-item simple-task-item";
+  item.innerHTML = `
+    <button class="quest-check" type="button">✓</button>
+    <div class="goal-task-main">
+      <div class="goal-task-title">${escapeHtml(taskItem.title || t("data.taskFallback"))}</div>
+      <div class="goal-task-meta">${escapeHtml(dateText)}</div>
+    </div>
+  `;
+
+  item.querySelector(".quest-check").onclick = () => {
+    if (taskItem.source === "planner") {
+      setPlannerEntryStatus({ block: taskItem.block, isVirtual: false, rule: null }, "done", item);
+    } else {
+      toggleGoalTask(goal.id, taskItem.id, { source: item });
+    }
+  };
+  item.appendChild(makeActionMenu([
+    {
+      label: t("actions.edit"),
+      onSelect: () => {
+        if (taskItem.source === "planner") openPlannerBlockModal({ mode: "block", blockId: taskItem.id });
+        else editGoalTask(goal.id, taskItem.id);
+      }
+    },
+    {
+      label: t("actions.delete"),
+      danger: true,
+      onSelect: () => {
+        if (taskItem.source === "planner") deletePlannerEntry({ block: taskItem.block, isVirtual: false, rule: null });
+        else deleteGoalTask(goal.id, taskItem.id);
+      }
+    }
+  ], t("goals.menuTaskLabel", { name: taskItem.title || t("habit.unnamed") })));
+
+  return item;
 }
 
 function toggleGoalCard(goalId) {
@@ -6361,11 +6956,6 @@ function addGoalTask(goalId, title, deadline, options = {}) {
     return;
   }
 
-  if (!deadline) {
-    alert(t("goals.deadlineRequired"));
-    return;
-  }
-
   goal.tasks.push({
     id: crypto.randomUUID(),
     title,
@@ -6407,18 +6997,29 @@ function editGoalTask(goalId, taskId) {
 }
 
 function toggleGoalTask(goalId, taskId, options = {}) {
+  const goal = data.goals.find(item => item.id === goalId);
   const task = findGoalTask(goalId, taskId);
-  if (!task) return;
+  if (!goal || !task) return;
 
   const willComplete = !task.done;
-  task.done = willComplete;
-  task.completedAt = task.done ? toDateInputValue(new Date()) : "";
+  if (willComplete) {
+    goal.tasks = (goal.tasks || []).filter(item => item.id !== taskId);
+    data.plannerBlocks = (data.plannerBlocks || []).filter(block => !(block.goalId === goalId && block.goalTaskId === taskId));
+  } else {
+    task.done = false;
+    task.completedAt = "";
+  }
+  hasManualGoalDateSelection = false;
   markDirty();
   if (willComplete && options.source) {
     const check = options.source.querySelector(".quest-check");
     check?.classList.add("is-checking", "quest-check-done");
-    animateCompletion(options.source, renderGoals);
+    animateCompletion(options.source, () => {
+      renderPlanner();
+      renderGoals();
+    });
   } else {
+    renderPlanner();
     renderGoals();
   }
 }
@@ -6430,8 +7031,10 @@ function deleteGoalTask(goalId, taskId) {
   if (!task) return;
   if (!confirm(t("goals.confirmDeleteTask", { title: task.title }))) return;
   goal.tasks = goal.tasks.filter(item => item.id !== taskId);
+  data.plannerBlocks = (data.plannerBlocks || []).filter(block => !(block.goalId === goalId && block.goalTaskId === taskId));
   hasManualGoalDateSelection = false;
   markDirty();
+  renderPlanner();
   renderGoals();
 }
 
@@ -6440,8 +7043,10 @@ function deleteGoal(goal) {
   if (!goal) return;
   if (!confirm(t("goals.confirmDeleteGoal", { name: goal.name }))) return;
   data.goals = data.goals.filter(item => item.id !== goal.id);
+  data.plannerBlocks = (data.plannerBlocks || []).filter(block => block.goalId !== goal.id);
   hasManualGoalDateSelection = false;
   markDirty();
+  renderPlanner();
   renderGoals();
 }
 
@@ -6488,7 +7093,7 @@ function resolveGoalResult(status) {
     return;
   }
 
-  if (isCompleted) completeGoal(goal);
+  if (isCompleted) completeGoal(goal, { skipConfirm: true });
   else failGoal(goal);
 
   closeGoalResultModal();
@@ -6496,23 +7101,22 @@ function resolveGoalResult(status) {
   showGoalToast(t(isCompleted ? "goals.toastCompleted" : "goals.toastFailed"));
 }
 
-function completeGoal(goal) {
-  goal.status = "completed";
-  goal.completedAt = toDateInputValue(new Date());
-  goal.failedAt = "";
+function completeGoal(goal, options = {}) {
+  if (!options.skipConfirm && !confirm(t("goals.confirmResultCompleted", { name: goal.name }))) return;
+  data.goals = (data.goals || []).filter(item => item.id !== goal.id);
+  data.plannerBlocks = (data.plannerBlocks || []).filter(block => block.goalId !== goal.id);
   hasManualGoalDateSelection = false;
-  goalArchiveMode = "completed";
   markDirty();
+  renderPlanner();
   renderGoals();
 }
 
 function failGoal(goal) {
-  goal.status = "failed";
-  goal.failedAt = toDateInputValue(new Date());
-  goal.completedAt = "";
+  data.goals = (data.goals || []).filter(item => item.id !== goal.id);
+  data.plannerBlocks = (data.plannerBlocks || []).filter(block => block.goalId !== goal.id);
   hasManualGoalDateSelection = false;
-  goalArchiveMode = "failed";
   markDirty();
+  renderPlanner();
   renderGoals();
 }
 
@@ -6926,8 +7530,10 @@ function renderDeadlineCalendar() {
 
     dayButton.onclick = () => {
       selectedGoalDate = dateKey;
+      plannerSelectedDate = dateKey;
       goalsVisibleDate = parseDateKey(dateKey);
       hasManualGoalDateSelection = true;
+      renderPlanner();
       renderGoals();
     };
 
@@ -7130,14 +7736,18 @@ function changeGoalCalendarPeriod(delta) {
 
   goalsVisibleDate = nextDate;
   selectedGoalDate = toDateInputValue(nextDate);
+  plannerSelectedDate = selectedGoalDate;
   hasManualGoalDateSelection = true;
+  renderPlanner();
   renderGoals();
 }
 
 function goToTodayGoalDate() {
   goalsVisibleDate = new Date();
   selectedGoalDate = toDateInputValue(new Date());
+  plannerSelectedDate = selectedGoalDate;
   hasManualGoalDateSelection = true;
+  renderPlanner();
   renderGoals();
 }
 
@@ -7157,8 +7767,10 @@ function stepSelectedDeadline(delta) {
 
   index = Math.max(0, Math.min(dates.length - 1, index));
   selectedGoalDate = dates[index];
+  plannerSelectedDate = selectedGoalDate;
   goalsVisibleDate = parseDateKey(selectedGoalDate);
   hasManualGoalDateSelection = true;
+  renderPlanner();
   renderGoals();
 }
 
@@ -7409,6 +8021,69 @@ function calculateLifetimeTotal(habitId) {
     if (rec?.done) total += Number(rec.value || 0);
   });
   return total;
+}
+
+function calculateLifetimeProgressTotal(habit) {
+  let total = 0;
+  Object.keys(data.records).forEach(dateKey => {
+    total += getRecordProgressValue(data.records[dateKey]?.[habit.id], habit);
+  });
+  return total;
+}
+
+function calculateLatestWeeklyHabitStreak(habit, maxDateKey) {
+  const endWeekStart = getLatestWeeklyHabitStreakEndWeekStart(habit, maxDateKey);
+  if (!endWeekStart) return 0;
+
+  let streak = 0;
+  const cursor = parseDateKey(endWeekStart);
+
+  for (let i = 0; i < 520; i++) {
+    const weekStartKey = toDateInputValue(cursor);
+    if (!isWeeklyHabitCompleteInWeek(habit, weekStartKey, maxDateKey)) break;
+    streak += 1;
+    cursor.setDate(cursor.getDate() - 7);
+  }
+
+  return streak;
+}
+
+function getLatestWeeklyHabitStreakStartDate(habit, maxDateKey) {
+  const endWeekStart = getLatestWeeklyHabitStreakEndWeekStart(habit, maxDateKey);
+  if (!endWeekStart) return "";
+
+  let start = endWeekStart;
+  const cursor = parseDateKey(endWeekStart);
+
+  for (let i = 0; i < 520; i++) {
+    const weekStartKey = toDateInputValue(cursor);
+    if (!isWeeklyHabitCompleteInWeek(habit, weekStartKey, maxDateKey)) break;
+    start = weekStartKey;
+    cursor.setDate(cursor.getDate() - 7);
+  }
+
+  return start;
+}
+
+function getLatestWeeklyHabitStreakEndWeekStart(habit, maxDateKey) {
+  const cursor = parseDateKey(getWeekStartKey(maxDateKey));
+
+  for (let i = 0; i < 520; i++) {
+    const weekStartKey = toDateInputValue(cursor);
+    if (isWeeklyHabitCompleteInWeek(habit, weekStartKey, maxDateKey)) return weekStartKey;
+    if (habit.createdAt && getWeekEndKeyFromStartKey(weekStartKey) < habit.createdAt) break;
+    cursor.setDate(cursor.getDate() - 7);
+  }
+
+  return "";
+}
+
+function isWeeklyHabitCompleteInWeek(habit, weekStartKey, maxDateKey = "") {
+  const target = getHabitTargetNumber(habit);
+  if (!isWeeklyHabit(habit) || target <= 0) return false;
+  const weekEndKey = getWeekEndKeyFromStartKey(weekStartKey);
+  const endDateKey = maxDateKey && maxDateKey < weekEndKey ? maxDateKey : weekEndKey;
+  return calculateWeeklyHabitTotalForWeek(habit, weekStartKey, endDateKey) >= target;
 }
 
 function calculateGlobalStreak() {

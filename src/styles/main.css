@@ -1382,6 +1382,32 @@ body.dark .theme-toggle-icon::after {
   margin-top: 3px;
 }
 
+.quest-period {
+  display: inline-flex;
+  align-items: center;
+  min-height: 20px;
+  margin-top: 7px;
+  border: var(--rule);
+  padding: 2px 7px;
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.quest-period.weekly {
+  border-color: color-mix(in srgb, var(--warning), var(--line) 58%);
+  color: var(--warning);
+  background: var(--warning-soft);
+}
+
+.quest-period.complete {
+  border-color: color-mix(in srgb, var(--success), transparent 58%);
+  color: var(--green-700);
+  background: var(--success-soft);
+}
+
 input, select, textarea {
   width: 100%;
   border: var(--rule);
@@ -1653,7 +1679,7 @@ input:focus, select:focus, textarea:focus {
 }
 
 .goal-modal-panel {
-  width: min(840px, 100%);
+  width: min(720px, 100%);
 }
 
 .goal-result-panel {
@@ -2243,7 +2269,7 @@ input:focus, select:focus, textarea:focus {
 
 .habit-form {
   display: grid;
-  grid-template-columns: minmax(220px, 1.4fr) minmax(130px, 0.7fr) minmax(110px, 0.7fr) auto;
+  grid-template-columns: minmax(220px, 1.4fr) minmax(130px, 0.7fr) minmax(110px, 0.65fr) minmax(118px, 0.65fr) auto;
   gap: 10px;
   margin-bottom: 0;
   align-items: stretch;
@@ -2328,7 +2354,7 @@ input:focus, select:focus, textarea:focus {
 
 .habit-manager-item {
   display: grid;
-  grid-template-columns: minmax(180px, 1.3fr) minmax(110px, 0.7fr) minmax(96px, 0.6fr) auto;
+  grid-template-columns: minmax(180px, 1.25fr) minmax(110px, 0.65fr) minmax(96px, 0.55fr) minmax(118px, 0.6fr) auto;
   gap: 10px;
   align-items: center;
   border: var(--rule);
@@ -2880,11 +2906,58 @@ input:focus, select:focus, textarea:focus {
   align-items: start;
 }
 
+.deadline-planner.planner-calendar-window {
+  display: block;
+}
+
+.planner-calendar-window .deadline-calendar-card {
+  width: 100%;
+  min-height: 560px;
+}
+
+.planner-calendar-window .deadline-calendar-grid.month .deadline-day {
+  min-height: 118px;
+}
+
+.planner-calendar-window .deadline-calendar-grid.week .deadline-day {
+  min-height: 210px;
+}
+
+.planner-calendar-window .deadline-calendar-grid.day .deadline-day {
+  min-height: 440px;
+}
+
+.unified-hidden-deadline-focus {
+  display: none;
+}
+
+.planner-task-board {
+  display: grid;
+  gap: var(--space-5);
+}
+
+.planner-goals-panel {
+  align-items: start;
+}
+
+.planner-goals-panel .goals-overview {
+  grid-template-columns: repeat(3, minmax(104px, 115px)) minmax(220px, 240px);
+}
+
 .planner-timeline,
 .planner-recurring-list {
   display: flex;
   flex-direction: column;
   gap: var(--space-4);
+}
+
+.planner-later-divider {
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  padding-top: var(--space-2);
 }
 
 .planner-block-item {
@@ -2901,6 +2974,19 @@ input:focus, select:focus, textarea:focus {
     border-color var(--motion-base),
     opacity var(--motion-base),
     transform var(--motion-base);
+}
+
+.planner-block-item.task-row {
+  grid-template-columns: 42px minmax(0, 1fr) minmax(236px, auto) auto;
+  align-items: center;
+}
+
+.planner-block-item.task-row .planner-block-title {
+  font-size: 22px;
+}
+
+.planner-block-item.task-row .planner-block-actions {
+  min-width: 236px;
 }
 
 .planner-block-item:hover {
@@ -2993,8 +3079,10 @@ input:focus, select:focus, textarea:focus {
 }
 
 .planner-block-actions {
-  display: grid;
-  grid-template-columns: 1fr;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  flex-wrap: wrap;
   gap: var(--space-2);
   align-content: center;
 }
@@ -3004,6 +3092,22 @@ input:focus, select:focus, textarea:focus {
   padding: 7px 10px;
   font-size: 13px;
   white-space: nowrap;
+}
+
+.planner-block-side-meta {
+  display: inline-flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: var(--space-2);
+  flex-wrap: wrap;
+}
+
+.planner-block-side-meta .deadline-pill {
+  min-width: 118px;
+}
+
+.planner-block-side-meta .goal-type {
+  margin: 0;
 }
 
 .planner-rule-item {
@@ -3055,6 +3159,98 @@ input:focus, select:focus, textarea:focus {
   width: min(900px, 100%);
 }
 
+.planner-move-panel {
+  width: min(560px, 100%);
+}
+
+.planner-move-body {
+  display: grid;
+  gap: var(--space-5);
+  padding-top: var(--space-6);
+}
+
+.planner-move-calendar-head {
+  display: grid;
+  grid-template-columns: 42px minmax(0, 1fr) 42px;
+  gap: var(--space-2);
+  align-items: center;
+}
+
+.planner-move-calendar-head button {
+  min-height: 42px;
+  padding: 0;
+}
+
+.planner-move-calendar-title {
+  min-width: 0;
+  font-family: var(--font-display);
+  font-size: 24px;
+  line-height: 1.1;
+  text-align: center;
+  letter-spacing: 0;
+  overflow-wrap: anywhere;
+}
+
+.planner-move-calendar-grid {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: 6px;
+}
+
+.planner-move-weekday {
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  text-align: center;
+}
+
+.planner-move-day {
+  min-height: 44px;
+  padding: 0;
+  background: var(--card);
+}
+
+.planner-move-day.outside {
+  color: var(--muted);
+  background: var(--card-2);
+  opacity: 0.68;
+}
+
+.planner-move-day.today {
+  border-color: var(--amber-500);
+  background: var(--amber-50);
+  color: var(--amber-700);
+}
+
+.planner-move-day.current {
+  outline: 2px solid color-mix(in srgb, var(--line), var(--text) 18%);
+  outline-offset: -4px;
+}
+
+.planner-move-day.selected {
+  border-color: var(--text);
+  background: var(--text);
+  color: var(--bg);
+}
+
+.planner-move-actions {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: var(--space-3);
+  align-items: center;
+  padding-top: var(--space-4);
+  border-top: var(--rule);
+}
+
+.planner-move-selected {
+  color: var(--muted);
+  font-size: 13px;
+  font-weight: 700;
+  overflow-wrap: anywhere;
+}
+
 .planner-form {
   display: grid;
   gap: var(--space-5);
@@ -3093,7 +3289,17 @@ input:focus, select:focus, textarea:focus {
 }
 
 .planner-link-grid {
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: 1fr;
+}
+
+.planner-no-date-field {
+  align-content: end;
+}
+
+.planner-no-date-field input {
+  width: var(--control-height-sm);
+  min-height: var(--control-height-sm);
+  accent-color: var(--text);
 }
 
 .planner-field {
@@ -3669,30 +3875,49 @@ input:focus, select:focus, textarea:focus {
 
 .goal-form {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 180px;
-  gap: 10px;
+  grid-template-columns: 1fr;
+  gap: var(--space-4);
   align-items: stretch;
-  margin-top: 16px;
+  padding-top: var(--space-6);
+  overflow: auto;
+  min-height: 0;
 }
 
-#goalName {
-  grid-column: 1 / 2;
+.goal-field {
+  min-width: 0;
+  display: grid;
+  gap: var(--space-2);
 }
 
-#goalType {
-  grid-column: 2 / 3;
+.goal-field > span {
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
 }
 
-#goalPointA {
-  grid-column: 1 / 2;
+.goal-name-field input {
+  min-height: 58px;
+  font-family: var(--font-display);
+  font-size: 24px;
+  letter-spacing: 0;
 }
 
-#goalPointB {
-  grid-column: 2 / 3;
+.goal-description-field textarea {
+  min-height: 150px;
+  resize: vertical;
+}
+
+.goal-form-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--space-3);
+  padding-top: var(--space-2);
+  border-top: var(--rule);
 }
 
 #goalSaveBtn {
-  grid-column: 1 / -1;
   justify-self: end;
 }
 
@@ -4274,6 +4499,16 @@ input:focus, select:focus, textarea:focus {
   gap: 8px;
 }
 
+.simple-goal-card .goal-head-tools {
+  align-items: flex-start;
+}
+
+.simple-goal-card .goal-result {
+  min-height: var(--control-height-sm);
+  padding: 8px 12px;
+  white-space: nowrap;
+}
+
 .goal-title-stack {
   min-width: 0;
   display: grid;
@@ -4311,6 +4546,13 @@ input:focus, select:focus, textarea:focus {
 .goal-name {
   font-size: 28px;
   line-height: 1.08;
+}
+
+.simple-goal-description {
+  max-width: 820px;
+  color: var(--muted);
+  font-size: 14px;
+  line-height: 1.45;
 }
 
 .goal-card-body {
@@ -4428,6 +4670,17 @@ input:focus, select:focus, textarea:focus {
 
 .goal-work-section-head h3 {
   font-size: 24px;
+}
+
+.goal-task-count {
+  min-width: 32px;
+  min-height: 32px;
+  display: grid;
+  place-items: center;
+  border: var(--rule);
+  color: var(--muted);
+  font-weight: 700;
+  font-size: 13px;
 }
 
 .goal-current-card {
@@ -4618,6 +4871,10 @@ input:focus, select:focus, textarea:focus {
   border-left: 3px solid color-mix(in srgb, var(--line), var(--text) 10%);
   background: color-mix(in srgb, var(--card), var(--card-2) 18%);
   padding: 10px 12px;
+}
+
+.goal-task-item.simple-task-item {
+  grid-template-columns: 38px minmax(0, 1fr) auto;
 }
 
 .goal-archive-task-item {
@@ -5363,6 +5620,11 @@ canvas {
   }
   .goal-archive-status { text-align: left; }
   .goals-overview { grid-template-columns: 1fr; }
+  .planner-goals-panel .goals-overview {
+    grid-template-columns: 1fr;
+    justify-self: stretch;
+    width: 100%;
+  }
   .goals-overview {
     display: grid;
     width: 100%;

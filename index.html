@@ -8,7 +8,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,700;9..144,900&family=DM+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="./src/styles/main.css?v=20260511-goal-archive-contrast" />
+  <link rel="stylesheet" href="./src/styles/main.css?v=20260518-plan-date-tasks" />
 </head>
 <body>
   <div class="app">
@@ -32,8 +32,8 @@
       <nav class="app-tabs" data-i18n-aria-label="nav.label" aria-label="App sections">
         <button id="habitsTabBtn" class="app-tab active" type="button" aria-selected="true" data-i18n="nav.habits">Habits</button>
         <button id="workoutsTabBtn" class="app-tab" type="button" aria-selected="false" data-i18n="nav.workouts">Workouts</button>
-        <button id="plannerTabBtn" class="app-tab" type="button" aria-selected="false" data-i18n="nav.planner">Planner</button>
-        <button id="goalsTabBtn" class="app-tab" type="button" aria-selected="false" data-i18n="nav.goals">Goals</button>
+        <button id="plannerTabBtn" class="app-tab" type="button" aria-selected="false" data-i18n="nav.planner">Plan</button>
+        <button id="goalsTabBtn" class="app-tab" type="button" aria-selected="false" data-i18n="nav.goals" hidden>Goals</button>
       </nav>
 
       <div class="top-actions">
@@ -212,7 +212,11 @@
         <div class="habit-form">
           <input id="habitName" data-i18n-placeholder="habits.namePlaceholder" placeholder="Habit: Push-ups" />
           <input id="habitUnit" data-i18n-placeholder="habits.unitPlaceholder" placeholder="Unit: reps, min, pages" />
-          <input id="habitTarget" type="number" min="0" data-i18n-placeholder="habits.targetPlaceholder" placeholder="Daily target" />
+          <input id="habitTarget" type="number" min="0" step="any" data-i18n-placeholder="habits.targetPlaceholder" placeholder="Target" />
+          <select id="habitFrequency" data-i18n-aria-label="habit.fieldFrequency" aria-label="Cadence">
+            <option value="daily" data-i18n="habit.frequencyDaily">Daily</option>
+            <option value="weekly" data-i18n="habit.frequencyWeekly">Weekly</option>
+          </select>
           <button id="addHabitBtn" class="primary" data-i18n="habits.add">+ Add</button>
         </div>
 
@@ -323,15 +327,15 @@
         <div class="chart-metrics three-cols" id="chartMetrics">
           <div class="chart-metric" id="totalSinceStreakMetric">
             <div class="chart-metric-value" id="chartTotalSinceStreak">0</div>
-            <div class="chart-metric-label" data-i18n="progress.sinceStreak">since streak start</div>
+            <div class="chart-metric-label" id="chartTotalSinceStreakLabel" data-i18n="progress.sinceStreak">since streak start</div>
           </div>
           <div class="chart-metric">
             <div class="chart-metric-value" id="chartStreakDays">0</div>
-            <div class="chart-metric-label" data-i18n="progress.streakDays">days in streak</div>
+            <div class="chart-metric-label" id="chartStreakLabel" data-i18n="progress.streakDays">days in streak</div>
           </div>
           <div class="chart-metric">
             <div class="chart-metric-value" id="chartLifetimeTotal">0</div>
-            <div class="chart-metric-label" data-i18n="progress.lifetime">lifetime total</div>
+            <div class="chart-metric-label" id="chartLifetimeLabel" data-i18n="progress.lifetime">lifetime total</div>
           </div>
         </div>
         <div class="chart-canvas-wrap">
@@ -439,70 +443,17 @@
         <section class="card planner-hero">
           <div class="section-top planner-hero-top">
             <div>
-              <div class="section-kicker" data-i18n="planner.kicker">Execution layer</div>
-              <h2 data-i18n="planner.title">Planner</h2>
-              <div class="planner-date-label" id="plannerDateLabel"></div>
-            </div>
-            <div class="planner-hero-actions">
-              <div class="period-nav planner-date-nav">
-                <button id="plannerPrevDayBtn" type="button" data-i18n-aria-label="planner.prevDay" aria-label="Previous day">←</button>
-                <button id="plannerTodayBtn" type="button" data-i18n="today.goToday">Today</button>
-                <button id="plannerNextDayBtn" type="button" data-i18n-aria-label="planner.nextDay" aria-label="Next day">→</button>
-              </div>
-              <button id="plannerAddBlockBtn" class="primary" type="button" data-i18n="planner.addBlock">Add block</button>
-              <button id="plannerAddRecurringBtn" class="secondary" type="button" data-i18n="planner.addRecurring">Recurring</button>
-            </div>
-          </div>
-
-          <div class="planner-summary">
-            <div class="planner-summary-item">
-              <span id="plannerPlannedCount">0</span>
-              <span data-i18n="planner.summaryPlanned">planned</span>
-            </div>
-            <div class="planner-summary-item">
-              <span id="plannerDoneCount">0</span>
-              <span data-i18n="planner.summaryDone">done</span>
-            </div>
-            <div class="planner-summary-item">
-              <span id="plannerSkippedCount">0</span>
-              <span data-i18n="planner.summarySkipped">skipped</span>
-            </div>
-            <div class="planner-summary-item">
-              <span id="plannerGoalCount">0</span>
-              <span data-i18n="planner.summaryGoal">goal-linked</span>
+              <div class="section-kicker" data-i18n="planner.kicker">Calendar and tasks</div>
+              <h2 data-i18n="planner.title">Plan</h2>
             </div>
           </div>
         </section>
 
-        <section class="planner-board">
-          <div class="card planner-timeline-card">
-            <div class="section-top">
-              <div>
-                <div class="section-kicker" data-i18n="planner.scheduleKicker">Day timeline</div>
-                <h2 data-i18n="planner.scheduleTitle">Schedule</h2>
-              </div>
-            </div>
-            <div id="plannerTimeline" class="planner-timeline"></div>
-          </div>
-
-          <aside class="card planner-rules-card">
-            <div class="section-top">
-              <div>
-                <div class="section-kicker" data-i18n="planner.recurringKicker">Recurring</div>
-                <h2 data-i18n="planner.recurringTitle">Rules</h2>
-              </div>
-            </div>
-            <div id="plannerRecurringList" class="planner-recurring-list"></div>
-          </aside>
-        </section>
-      </div>
-
-      <div id="goalsView" class="layout app-view" hidden>
-        <section class="deadline-planner">
-          <div class="card deadline-calendar-card">
+        <section class="deadline-planner planner-calendar-window">
+          <div class="card deadline-calendar-card planner-calendar-card">
             <div class="calendar-head">
               <div>
-                <div class="section-kicker" data-i18n="goals.calendarKicker">Deadline calendar</div>
+                <div class="section-kicker" data-i18n="goals.calendarKicker">Calendar</div>
                 <h2 id="goalsCalendarTitle" data-i18n="goals.month">Month</h2>
               </div>
               <div class="calendar-actions">
@@ -521,7 +472,7 @@
             <div id="goalsCalendarGrid" class="deadline-calendar-grid month"></div>
           </div>
 
-          <aside class="card deadline-focus-card">
+          <aside class="card deadline-focus-card unified-hidden-deadline-focus" hidden>
             <div class="section-top">
               <div>
                 <div class="section-kicker" id="deadlineFocusMeta" data-i18n="goals.nearestDeadline">Nearest deadline</div>
@@ -536,10 +487,51 @@
           </aside>
         </section>
 
-        <section class="goals-hero">
+        <section class="card planner-timeline-card planner-task-board">
+          <div class="section-top">
+            <div>
+              <div class="section-kicker" data-i18n="planner.scheduleKicker">Tasks</div>
+              <h2 data-i18n="planner.scheduleTitle">Today</h2>
+              <div class="planner-date-label" id="plannerDateLabel"></div>
+            </div>
+            <div class="planner-hero-actions">
+              <div class="period-nav planner-date-nav">
+                <button id="plannerPrevDayBtn" type="button" data-i18n-aria-label="planner.prevDay" aria-label="Previous day">←</button>
+                <button id="plannerTodayBtn" type="button" data-i18n="today.goToday">Today</button>
+                <button id="plannerNextDayBtn" type="button" data-i18n-aria-label="planner.nextDay" aria-label="Next day">→</button>
+              </div>
+              <button id="plannerAddBlockBtn" class="primary" type="button" data-i18n="planner.addBlock">Add task</button>
+              <button id="plannerAddRecurringBtn" class="secondary" type="button" data-i18n="planner.addRecurring" hidden>Recurring</button>
+            </div>
+          </div>
+
+          <div class="planner-summary">
+            <div class="planner-summary-item">
+              <span id="plannerPlannedCount">0</span>
+              <span data-i18n="planner.summaryPlanned">tasks</span>
+            </div>
+            <div class="planner-summary-item">
+              <span id="plannerDoneCount">0</span>
+              <span data-i18n="planner.summaryDone">dated</span>
+            </div>
+            <div class="planner-summary-item">
+              <span id="plannerSkippedCount">0</span>
+              <span data-i18n="planner.summarySkipped">later</span>
+            </div>
+            <div class="planner-summary-item">
+              <span id="plannerGoalCount">0</span>
+              <span data-i18n="planner.summaryGoal">goal-linked</span>
+            </div>
+          </div>
+
+          <div id="plannerTimeline" class="planner-timeline"></div>
+          <div id="plannerRecurringList" class="planner-recurring-list" hidden></div>
+        </section>
+
+        <section class="goals-hero planner-goals-panel">
           <div class="goals-title-row">
             <div>
-              <div class="section-kicker" data-i18n="goals.kicker">Long route</div>
+              <div class="section-kicker" data-i18n="goals.kicker">Goal groups</div>
               <h2 data-i18n="goals.title">Goals</h2>
             </div>
           </div>
@@ -554,9 +546,9 @@
             </div>
             <div class="goal-overview-item">
               <span id="goalsDueCount">0</span>
-              <span data-i18n="goals.due">urgent</span>
+              <span data-i18n="goals.due">tasks</span>
             </div>
-            <button id="openGoalArchiveBtn" class="goal-overview-item goal-archive-open-btn" type="button">
+            <button id="openGoalArchiveBtn" class="goal-overview-item goal-archive-open-btn" type="button" hidden>
               <span id="goalsArchivedCount">0</span>
               <span data-i18n="goals.archived">archived</span>
             </button>
@@ -572,6 +564,8 @@
         </section>
 
       </div>
+
+      <div id="goalsView" class="layout app-view" hidden></div>
 
       <div id="goalWorkspaceView" class="app-view goal-workspace-page" hidden>
         <div class="workspace-page-top">
@@ -738,8 +732,8 @@
     <div class="modal-panel planner-modal-panel" role="dialog" aria-modal="true" aria-labelledby="plannerModalTitle">
       <div class="modal-head">
         <div>
-          <div class="section-kicker" data-i18n="planner.modalKicker">Planner block</div>
-          <h2 id="plannerModalTitle" data-i18n="planner.newBlockTitle">New block</h2>
+          <div class="section-kicker" data-i18n="planner.modalKicker">Task</div>
+          <h2 id="plannerModalTitle" data-i18n="planner.newBlockTitle">New task</h2>
         </div>
         <button id="plannerModalCloseBtn" type="button" data-i18n="auth.close">Close</button>
       </div>
@@ -759,15 +753,19 @@
             <span data-i18n="planner.dateLabel">Date</span>
             <input id="plannerDateInput" type="date" />
           </label>
-          <label class="planner-field" for="plannerStartInput">
+          <label class="planner-field planner-no-date-field">
+            <span data-i18n="planner.dateLater">Date later</span>
+            <input id="plannerNoDateInput" type="checkbox" />
+          </label>
+          <label class="planner-field" for="plannerStartInput" hidden>
             <span data-i18n="planner.startLabel">Start</span>
             <input id="plannerStartInput" type="time" />
           </label>
-          <label class="planner-field" for="plannerEndInput">
+          <label class="planner-field" for="plannerEndInput" hidden>
             <span data-i18n="planner.endLabel">End</span>
             <input id="plannerEndInput" type="time" />
           </label>
-          <label class="planner-field" for="plannerTypeSelect">
+          <label class="planner-field" for="plannerTypeSelect" hidden>
             <span data-i18n="planner.typeLabel">Type</span>
             <select id="plannerTypeSelect"></select>
           </label>
@@ -778,11 +776,11 @@
             <span data-i18n="planner.goalLabel">Goal</span>
             <select id="plannerGoalSelect"></select>
           </label>
-          <label class="planner-field" for="plannerMilestoneSelect">
+          <label class="planner-field" for="plannerMilestoneSelect" hidden>
             <span data-i18n="planner.milestoneLabel">Milestone/task</span>
             <select id="plannerMilestoneSelect"></select>
           </label>
-          <label class="planner-field" for="plannerHabitSelect">
+          <label class="planner-field" for="plannerHabitSelect" hidden>
             <span data-i18n="planner.habitLabel">Habit</span>
             <select id="plannerHabitSelect"></select>
           </label>
@@ -798,19 +796,44 @@
           <div id="plannerWeekdayChoices" class="planner-weekday-choices"></div>
         </div>
 
-        <label class="planner-field" for="plannerDoneInput">
+        <label class="planner-field" for="plannerDoneInput" hidden>
           <span data-i18n="planner.dodLabel">Definition of done</span>
           <textarea id="plannerDoneInput" rows="3" data-i18n-placeholder="planner.dodPlaceholder" placeholder="What makes this block complete?"></textarea>
         </label>
 
-        <label class="planner-field" id="plannerNotesField" for="plannerNotesInput">
+        <label class="planner-field" id="plannerNotesField" for="plannerNotesInput" hidden>
           <span data-i18n="planner.notesLabel">Notes</span>
           <textarea id="plannerNotesInput" rows="3" data-i18n-placeholder="planner.notesPlaceholder" placeholder="Context, links, constraints"></textarea>
         </label>
 
         <div class="planner-modal-actions">
           <button id="plannerDeleteBtn" class="danger" type="button" hidden data-i18n="actions.delete">Delete</button>
-          <button id="plannerSaveBtn" class="primary" type="button" data-i18n="planner.saveBlock">Save block</button>
+          <button id="plannerSaveBtn" class="primary" type="button" data-i18n="planner.saveBlock">Save task</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal-backdrop" id="plannerMoveModal" hidden>
+    <div class="modal-panel planner-move-panel" role="dialog" aria-modal="true" aria-labelledby="plannerMoveTitle">
+      <div class="modal-head">
+        <div>
+          <div class="section-kicker" data-i18n="planner.moveKicker">Move task</div>
+          <h2 id="plannerMoveTitle" data-i18n="planner.moveTitle">Choose date</h2>
+        </div>
+        <button id="plannerMoveModalCloseBtn" type="button" data-i18n="auth.close">Close</button>
+      </div>
+
+      <div class="planner-move-body">
+        <div class="planner-move-calendar-head">
+          <button id="plannerMovePrevMonthBtn" type="button" data-i18n-aria-label="planner.prevMonth" aria-label="Previous month">←</button>
+          <div id="plannerMoveCalendarTitle" class="planner-move-calendar-title"></div>
+          <button id="plannerMoveNextMonthBtn" type="button" data-i18n-aria-label="planner.nextMonth" aria-label="Next month">→</button>
+        </div>
+        <div id="plannerMoveCalendarGrid" class="planner-move-calendar-grid"></div>
+        <div class="planner-move-actions">
+          <div id="plannerMoveSelectedLabel" class="planner-move-selected"></div>
+          <button id="plannerMoveConfirmBtn" class="primary" type="button" data-i18n="planner.moveConfirm">Confirm move</button>
         </div>
       </div>
     </div>
@@ -880,15 +903,18 @@
     <div class="modal-panel goal-modal-panel" role="dialog" aria-modal="true" aria-labelledby="goalModalTitle">
       <div class="modal-head">
         <div>
-          <div class="section-kicker" data-i18n="goals.modalKicker">Point A → point B</div>
+          <div class="section-kicker" data-i18n="goals.modalKicker">Goal group</div>
           <h2 id="goalModalTitle" data-i18n="goals.newGoalTitle">New goal</h2>
         </div>
         <button id="goalModalCloseBtn" type="button" data-i18n="auth.close">Close</button>
       </div>
 
       <div class="goal-form">
-        <input id="goalName" data-i18n-placeholder="goals.namePlaceholder" placeholder="Goal: find a job, write a paper, improve bench press" />
-        <select id="goalType">
+        <label class="goal-field goal-name-field" for="goalName">
+          <span data-i18n="goals.nameLabel">Goal</span>
+          <input id="goalName" data-i18n-placeholder="goals.namePlaceholder" placeholder="Goal: launch a project, find a job, get stronger" />
+        </label>
+        <select id="goalType" hidden>
           <option value="other" data-i18n="goals.typeOther">Other</option>
           <option value="project" data-i18n="goals.typeProject">Project</option>
           <option value="skill" data-i18n="goals.typeSkill">Skill</option>
@@ -896,9 +922,14 @@
           <option value="career" data-i18n="goals.typeCareer">Career</option>
           <option value="health" data-i18n="goals.typeHealth">Health</option>
         </select>
-        <textarea id="goalPointA" rows="4" data-i18n-placeholder="goals.pointAPlaceholder" placeholder="Point A: what exists now"></textarea>
-        <textarea id="goalPointB" rows="4" data-i18n-placeholder="goals.pointBPlaceholder" placeholder="Point B: desired result"></textarea>
-        <button id="goalSaveBtn" class="primary" type="button" data-i18n="goals.saveGoal">Save goal</button>
+        <textarea id="goalPointA" rows="1" data-i18n-placeholder="goals.pointAPlaceholder" placeholder="Point A: what exists now" hidden></textarea>
+        <label class="goal-field goal-description-field" for="goalPointB">
+          <span data-i18n="goals.descriptionLabel">Description</span>
+          <textarea id="goalPointB" rows="4" data-i18n-placeholder="goals.pointBPlaceholder" placeholder="Optional: describe what you want to reach"></textarea>
+        </label>
+        <div class="goal-form-actions">
+          <button id="goalSaveBtn" class="primary" type="button" data-i18n="goals.saveGoal">Save goal</button>
+        </div>
       </div>
     </div>
   </div>
@@ -927,6 +958,6 @@
   <div id="goalToast" class="goal-toast" role="status" aria-live="polite" hidden></div>
 
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.5.0/dist/chart.umd.min.js"></script>
-  <script type="module" src="./src/app/main.js?v=20260511-goal-archive-contrast"></script>
+  <script type="module" src="./src/app/main.js?v=20260518-plan-date-tasks"></script>
 </body>
 </html>
